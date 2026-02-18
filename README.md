@@ -15,6 +15,11 @@ npm run dev
 - **스키마 정의**: `docs/schema.sql` (참고용 전체 스키마)
 - **마이그레이션·데이터 삽입**: Supabase 연동 시 `supabase/migrations/` 및 `npm run seed` 사용 예정. 현재는 실행하지 않음.
 
+## GitHub 저장소 & 배포
+
+- 커밋까지 완료된 상태입니다. **clubmanagement** 이름으로 GitHub에 새 저장소를 만든 뒤 푸시하면 됩니다.
+- 자세한 단계: `docs/GITHUB_DEPLOY.md`
+
 ## Getting Started
 
 First, run the development server:
