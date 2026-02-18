@@ -1,4 +1,19 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+동아리 운영·관리 플랫폼 (Next.js, Vercel 배포용)
+
+## 체험하기 (env 없이 가능)
+
+배포 후에도 **Supabase·env 설정 없이** 체험할 수 있습니다. 목 데이터로 동아리·이벤트·캘린더를 둘러보세요.
+
+```bash
+npm run dev
+```
+
+[http://localhost:3000](http://localhost:3000) — 홈 / 동아리 / 공개 이벤트 / 체험 대시 / 캘린더
+
+## DB 스키마 (추후 연동용)
+
+- **스키마 정의**: `docs/schema.sql` (참고용 전체 스키마)
+- **마이그레이션·데이터 삽입**: Supabase 연동 시 `supabase/migrations/` 및 `npm run seed` 사용 예정. 현재는 실행하지 않음.
 
 ## Getting Started
 
