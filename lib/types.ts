@@ -5,21 +5,67 @@ export type User = {
   email: string;
   name: string;
   avatar_url: string | null;
+  mbti: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type Interest = {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type UserInterest = {
+  user_id: string;
+  interest_id: string;
+  created_at: string;
+};
+
+export type ClubInterest = {
+  club_id: string;
+  interest_id: string;
+  created_at: string;
+};
+
+export type ClubWithInterests = Club & {
+  interests: Interest[];
+};
+
+export type University = {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
 };
 
 export type Club = {
   id: string;
   name: string;
+  name_ko: string | null;
+  name_en: string | null;
   description: string | null;
   category: string;
   max_members: number;
   is_recruiting: boolean;
+  is_university_based: boolean;
+  university_id: string | null;
   owner_id: string;
+  recruitment_deadline_at: string | null;
   created_at: string;
   updated_at: string;
 };
+
+/** 동아리 표시 이름 (한글·영문 둘 다 있으면 둘 다, 아니면 하나) */
+export function getClubDisplayName(club: { name_ko?: string | null; name_en?: string | null; name?: string }): string {
+  const ko = club.name_ko?.trim();
+  const en = club.name_en?.trim();
+  if (ko && en) return `${ko} (${en})`;
+  if (ko) return ko;
+  if (en) return en;
+  return club.name ?? "";
+}
 
 export type MemberRole = "owner" | "admin" | "member";
 export type MemberStatus = "pending" | "approved" | "rejected";
@@ -114,6 +160,30 @@ export type ScheduleWithRsvps = Schedule & {
 
 export type TaskWithAssignee = Task & {
   assignee: Pick<User, "id" | "name" | "avatar_url"> | null;
+};
+
+// ===== 동아리 게시판 =====
+
+export type ClubBoardPost = {
+  id: string;
+  club_id: string;
+  author_id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClubBoardPostWithAuthor = ClubBoardPost & {
+  author: Pick<User, "id" | "name" | "avatar_url">;
+};
+
+// ===== 광장 (익명 게시판) =====
+
+export type PlazaPost = {
+  id: string;
+  body: string;
+  created_at: string;
 };
 
 // ===== API Response Types =====

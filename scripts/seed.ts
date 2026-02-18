@@ -1,11 +1,10 @@
 /**
- * 우동 - 우리들의 동아리 더미 데이터 시드
- * 실행: npm run seed 또는 npx tsx scripts/seed-demo.ts
+ * 우동 - 초기 데이터 시드
+ * 실행: npm run seed 또는 npx tsx scripts/seed.ts
  * 필요 env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- * (마이그레이션 001, 002 적용 후 실행)
  */
 try {
-  require("dotenv").config();
+  require("dotenv").config({ path: ".env.local" });
 } catch {
   // dotenv optional
 }
@@ -21,90 +20,100 @@ if (!url || !serviceKey) {
 
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-const DEMO_EMAIL = "demo@clubmanagement.local";
-const DEMO_PASSWORD = "Demo1234!";
+const SEED_EMAIL = "seed@udong.club";
+const SEED_PASSWORD = "SeedPass1!";
 
 async function main() {
-  // 1) 체험용 Auth 유저 생성 (없으면)
+  // 1) 시드용 Auth 유저 생성 (없으면)
   const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
-    email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
+    email: SEED_EMAIL,
+    password: SEED_PASSWORD,
     email_confirm: true,
+    user_metadata: { name: "김동아" },
   });
 
   let userId: string;
   if (authErr) {
     if (authErr.message?.includes("already been registered")) {
       const { data: list } = await supabase.auth.admin.listUsers();
-      const existing = list?.users?.find((u) => u.email === DEMO_EMAIL);
+      const existing = list?.users?.find((u) => u.email === SEED_EMAIL);
       if (!existing) {
         console.error("이메일 중복인데 유저 조회 실패:", authErr);
         process.exit(1);
       }
       userId = existing.id;
-      console.log("기존 체험 유저 사용:", userId);
+      console.log("기존 시드 유저 사용:", userId);
     } else {
       console.error("Auth 유저 생성 실패:", authErr);
       process.exit(1);
     }
   } else {
     userId = authUser.user!.id;
-    console.log("체험 유저 생성:", userId);
+    console.log("시드 유저 생성:", userId);
   }
 
-  // 2) public.users
   await supabase.from("users").upsert(
-    { id: userId, email: DEMO_EMAIL, name: "체험용 리더", updated_at: new Date().toISOString() },
+    { id: userId, email: SEED_EMAIL, name: "김동아", updated_at: new Date().toISOString() },
     { onConflict: "id" }
   );
 
-  // 3) 동아리 3개 (이미 있으면 재사용)
-  let { data: existingClubs } = await supabase.from("clubs").select("id, name").eq("owner_id", userId);
-  const names = [
-    "힙합 크루 동아리",
-    "캠퍼스 밴드",
-    "러닝 크루",
-  ];
-  const toInsert = [
+  // 2) 대분류 ID 조회
+  const { data: majors } = await supabase.from("category_major").select("id, name").in("name", ["댄스", "음악/밴드", "스포츠/운동"]);
+  const majorByName = Object.fromEntries((majors ?? []).map((m) => [m.name, m.id]));
+  const danceMajorId = majorByName["댄스"];
+  const bandMajorId = majorByName["음악/밴드"];
+  const sportsMajorId = majorByName["스포츠/운동"];
+
+  // 3) 동아리 3개 (실제 데이터 형식, category_major_id 사용)
+  const clubRows = [
     {
-      name: names[0],
+      name_ko: "힙합 크루 동아리",
+      name_en: "Hip-hop Crew",
       description: "힙합과 스트릿 댄스에 관심 있는 분들 모집합니다. 정기 공연과 영상 촬영 프로젝트를 진행해요.",
-      category: "댄스",
+      category_major_id: danceMajorId,
       max_members: 30,
       is_recruiting: true,
       owner_id: userId,
       recruitment_deadline_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
-      name: names[1],
+      name_ko: "캠퍼스 밴드",
+      name_en: "Campus Band",
       description: "밴드 연주와 정기 공연을 함께할 멤버를 찾습니다. 재즈, 록, 인디 등 다양한 장르 환영.",
-      category: "밴드",
+      category_major_id: bandMajorId,
       max_members: 20,
       is_recruiting: true,
       owner_id: userId,
       recruitment_deadline_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
-      name: names[2],
+      name_ko: "러닝 크루",
+      name_en: "Running Crew",
       description: "주말 마라톤·러닝 모임입니다. 초보자도 환영합니다.",
-      category: "운동",
+      category_major_id: sportsMajorId,
       max_members: 50,
       is_recruiting: false,
       owner_id: userId,
     },
   ];
-  for (const row of toInsert) {
-    if (existingClubs?.some((c) => c.name === row.name)) continue;
-    const { error: insErr } = await supabase.from("clubs").insert(row);
-    if (insErr) console.warn("club insert skip:", insErr.message);
-  }
-  const { data: clubs } = await supabase.from("clubs").select("id, name").eq("owner_id", userId).in("name", names);
-  const clubIds = clubs?.map((c) => c.id) ?? [];
-  const club1 = clubs?.find((c) => c.name === names[0])?.id;
-  const club2 = clubs?.find((c) => c.name === names[1])?.id;
-  const club3 = clubs?.find((c) => c.name === names[2])?.id;
 
-  // 4) 동아리 회원 (리더 + 일반 회원)
+  for (const row of clubRows) {
+    const { error: insErr } = await supabase.from("clubs").insert(row);
+    if (insErr) {
+      if (insErr.code === "23505" || insErr.message?.includes("duplicate")) {
+        // 이미 존재하면 스킵
+        continue;
+      }
+      console.warn("club insert skip:", insErr.message);
+    }
+  }
+
+  const { data: clubs } = await supabase.from("clubs").select("id, name").eq("owner_id", userId);
+  const club1 = clubs?.find((c) => c.name === "힙합 크루 동아리")?.id;
+  const club2 = clubs?.find((c) => c.name === "캠퍼스 밴드")?.id;
+  const club3 = clubs?.find((c) => c.name === "러닝 크루")?.id;
+
+  // 4) 동아리 회원
   if (club1) {
     await supabase.from("members").upsert(
       [
@@ -121,11 +130,11 @@ async function main() {
     );
   }
 
-  // 5) 프로젝트 (예정/진행/종료, 공개 2개 포함)
   const now = new Date();
   const nextMonth = new Date(now);
   nextMonth.setMonth(nextMonth.getMonth() + 1);
 
+  // 5) 프로젝트
   const projectDefs = [
     {
       club_id: club1,
@@ -183,14 +192,10 @@ async function main() {
     if (!exists) await supabase.from("projects").insert(row);
   }
 
-  const { data: projectList } = await supabase
-    .from("projects")
-    .select("id, name")
-    .in("club_id", [club1, club2].filter(Boolean) as string[]);
+  const { data: projectList } = await supabase.from("projects").select("id, name").in("club_id", [club1, club2].filter(Boolean) as string[]);
   const projects = projectList ?? [];
   const projectIds = projects.map((p) => p.id);
 
-  // 6) 프로젝트 참여자
   for (const pid of projectIds) {
     await supabase.from("project_members").upsert(
       [{ project_id: pid, user_id: userId, role: "lead" }],
@@ -198,7 +203,6 @@ async function main() {
     );
   }
 
-  // 7) 할일 (tasks)
   const inProgressProject = projects.find((p) => p.name === "댄스 영상 촬영");
   if (inProgressProject) {
     const due1 = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
@@ -212,7 +216,6 @@ async function main() {
     );
   }
 
-  // 8) 일정 (schedules)
   if (club1) {
     const start1 = new Date(now);
     start1.setDate(start1.getDate() + 3);
@@ -235,7 +238,7 @@ async function main() {
     );
   }
 
-  console.log("시드 완료. 체험 계정:", DEMO_EMAIL, "/", DEMO_PASSWORD);
+  console.log("시드 완료. 계정:", SEED_EMAIL);
 }
 
 main();

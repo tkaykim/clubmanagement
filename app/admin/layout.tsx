@@ -7,14 +7,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="min-h-screen bg-background">
       <header
         className="sticky top-0 z-40 flex h-14 shrink-0 items-center border-b border-border/60 bg-background/95 px-4 backdrop-blur-md"
         style={{ paddingTop: "max(env(safe-area-inset-top), 0px)" }}
       >
-        <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center">
+        <div className="mx-auto grid w-full max-w-2xl grid-cols-[1fr_auto_1fr] items-center">
           <Link
-            href="/dashboard"
+            href="/"
             className="-ml-1 flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95"
           >
             <span className="text-sm font-medium">닫기</span>
@@ -26,7 +26,7 @@ export default function AdminLayout({
           <div className="size-10" />
         </div>
       </header>
-      <div className="flex-1">{children}</div>
+      <main className="mx-auto max-w-2xl">{children}</main>
     </div>
   );
 }

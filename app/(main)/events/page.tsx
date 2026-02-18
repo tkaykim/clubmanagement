@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockPublicProjects } from "@/lib/mock-data";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +17,6 @@ export default async function EventsPage() {
   const supabase = createServerSupabaseClient();
 
   let events: { id: string; name: string; description: string | null; poster_url: string | null; starts_at: string | null; ends_at: string | null; project_type: string }[] = [];
-
   if (supabase) {
     const { data } = await supabase
       .from("projects")
@@ -26,16 +24,6 @@ export default async function EventsPage() {
       .eq("visibility", "public")
       .order("starts_at", { ascending: true });
     events = data ?? [];
-  } else {
-    events = getMockPublicProjects().map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      poster_url: p.poster_url,
-      starts_at: p.starts_at,
-      ends_at: p.ends_at,
-      project_type: p.project_type,
-    }));
   }
 
   return (
@@ -46,6 +34,9 @@ export default async function EventsPage() {
           누구나 참여할 수 있는 공개 프로젝트·공연입니다.
         </p>
         <div className="space-y-4">
+          {events.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">공개 이벤트가 없습니다.</p>
+          )}
           {events.map((ev) => (
             <Link key={ev.id} href={`/events/${ev.id}`}>
               <Card className="overflow-hidden border-0 shadow-sm transition-shadow active:shadow-md">

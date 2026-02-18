@@ -4,7 +4,7 @@ const links = [
   { href: "/", label: "홈" },
   { href: "/clubs", label: "동아리" },
   { href: "/events", label: "공개 이벤트" },
-  { href: "/dashboard", label: "체험 대시" },
+  { href: "/dashboard", label: "마이" },
   { href: "/calendar", label: "캘린더" },
 ];
 

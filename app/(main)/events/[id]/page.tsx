@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockProjectById, getMockClubById } from "@/lib/mock-data";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,45 +21,19 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let project: {
-    name: string;
-    description: string | null;
-    poster_url: string | null;
-    project_type: string;
-    starts_at: string | null;
-    ends_at: string | null;
-    club_id: string;
-  } | null = null;
-  let clubName: string | null = null;
+  const { data: projectData, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", id)
+    .eq("visibility", "public")
+    .single();
+  if (error || !projectData) notFound();
 
-  if (supabase) {
-    const { data: projectData, error } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", id)
-      .eq("visibility", "public")
-      .single();
-    if (error || !projectData) {
-      const mock = getMockProjectById(id);
-      if (!mock || mock.visibility !== "public") notFound();
-      project = { name: mock.name, description: mock.description, poster_url: mock.poster_url, project_type: mock.project_type, starts_at: mock.starts_at, ends_at: mock.ends_at, club_id: mock.club_id };
-      const club = getMockClubById(mock.club_id);
-      clubName = club?.name ?? null;
-    } else {
-      project = { name: projectData.name, description: projectData.description, poster_url: projectData.poster_url, project_type: projectData.project_type, starts_at: projectData.starts_at, ends_at: projectData.ends_at, club_id: projectData.club_id };
-      const { data: club } = await supabase.from("clubs").select("name").eq("id", projectData.club_id).single();
-      clubName = club?.name ?? null;
-    }
-  } else {
-    const mock = getMockProjectById(id);
-    if (!mock || mock.visibility !== "public") notFound();
-    project = { name: mock.name, description: mock.description, poster_url: mock.poster_url, project_type: mock.project_type, starts_at: mock.starts_at, ends_at: mock.ends_at, club_id: mock.club_id };
-    const club = getMockClubById(mock.club_id);
-    clubName = club?.name ?? null;
-  }
-
-  if (!project) notFound();
+  const project = { name: projectData.name, description: projectData.description, poster_url: projectData.poster_url, project_type: projectData.project_type, starts_at: projectData.starts_at, ends_at: projectData.ends_at, club_id: projectData.club_id };
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", projectData.club_id).single();
+  const clubName = club?.name ?? null;
 
   return (
     <div className="flex flex-col">
@@ -109,10 +81,7 @@ export default async function EventDetailPage({
 
           <Card className="border-dashed bg-muted/30">
             <CardContent className="p-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                체험 모드에서는 관람 신청이 비활성화됩니다.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">로그인 후 관람 신청을 이용할 수 있습니다.</p>
+              <p className="text-sm text-muted-foreground">로그인 후 관람 신청을 이용할 수 있습니다.</p>
               <Button variant="outline" className="mt-3 rounded-xl" disabled>
                 관람 신청 (준비 중)
               </Button>

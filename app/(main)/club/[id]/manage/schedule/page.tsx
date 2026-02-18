@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById, getMockSchedulesByClubId } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, MapPin } from "lucide-react";
 
@@ -14,36 +12,21 @@ export default async function ClubManageSchedulePage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let clubName = "";
-  let schedules: { id: string; title: string; starts_at: string; ends_at: string; location: string | null }[] = [];
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
+  if (!club) notFound();
 
-  if (supabase) {
-    const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
-    if (!club) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      clubName = mock.name;
-      schedules = getMockSchedulesByClubId(id).map((s) => ({ id: s.id, title: s.title, starts_at: s.starts_at, ends_at: s.ends_at, location: s.location }));
-    } else {
-      clubName = club.name;
-      const { data } = await supabase.from("schedules").select("id, title, starts_at, ends_at, location").eq("club_id", id).order("starts_at", { ascending: true });
-      schedules = data ?? [];
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    clubName = mock.name;
-    schedules = getMockSchedulesByClubId(id).map((s) => ({ id: s.id, title: s.title, starts_at: s.starts_at, ends_at: s.ends_at, location: s.location }));
-  }
+  const { data: schedules } = await supabase.from("schedules").select("id, title, starts_at, ends_at, location").eq("club_id", id).order("starts_at", { ascending: true });
+  const scheduleList = schedules ?? [];
 
   return (
     <div className="flex flex-col">
       <div className="px-4 py-4">
         <p className="mb-4 text-sm text-muted-foreground">
-          {clubName} 일정입니다.
+          {club.name} 일정입니다.
         </p>
-        {schedules.length === 0 ? (
+        {scheduleList.length === 0 ? (
           <Card className="border-0 border-dashed bg-muted/30">
             <CardContent className="py-10 text-center">
               <Calendar className="mx-auto size-10 text-muted-foreground/50" />
@@ -52,7 +35,7 @@ export default async function ClubManageSchedulePage({
           </Card>
         ) : (
           <div className="space-y-2">
-            {schedules.map((s) => (
+            {scheduleList.map((s) => (
               <Card key={s.id} className="border-0 shadow-sm">
                 <CardContent className="p-4">
                   <p className="font-medium text-foreground">{s.title}</p>

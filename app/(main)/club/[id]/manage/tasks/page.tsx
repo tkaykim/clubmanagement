@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ListTodo, CheckCircle2 } from "lucide-react";
@@ -14,34 +13,17 @@ export default async function ClubManageTasksPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let clubName = "";
-  let tasks: { id: string; title: string; due_date: string | null; status: string; project_name: string }[] = [];
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
+  if (!club) notFound();
 
-  if (supabase) {
-    const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
-    if (!club) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      clubName = mock.name;
-      tasks = [
-        { id: "t1", title: "대관 일정 잡기", due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), status: "in_progress", project_name: "댄스 영상 촬영" },
-        { id: "t2", title: "촬영 장소 확정", due_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), status: "todo", project_name: "댄스 영상 촬영" },
-      ];
-    } else {
-      clubName = club.name;
-      const { data: t } = await supabase.from("tasks").select("id, title, due_date, status").in("project_id", (await supabase.from("projects").select("id").eq("club_id", id)).data?.map((p) => p.id) ?? []);
-      tasks = (t ?? []).map((x) => ({ ...x, project_name: "" }));
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    clubName = mock.name;
-    tasks = [
-      { id: "t1", title: "대관 일정 잡기", due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), status: "in_progress", project_name: "댄스 영상 촬영" },
-      { id: "t2", title: "촬영 장소 확정", due_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), status: "todo", project_name: "댄스 영상 촬영" },
-    ];
-  }
+  const { data: projectIds } = await supabase.from("projects").select("id").eq("club_id", id);
+  const ids = projectIds?.map((p) => p.id) ?? [];
+  const { data: t } = ids.length > 0 ? await supabase.from("tasks").select("id, title, due_date, status, project_id").in("project_id", ids) : { data: [] };
+  const projects = await (ids.length > 0 ? supabase.from("projects").select("id, name").in("id", ids) : { data: [] as { id: string; name: string }[] });
+  const projectByName = Object.fromEntries((projects.data ?? []).map((p) => [p.id, p.name]));
+  const tasks = (t ?? []).map((x) => ({ ...x, project_name: projectByName[x.project_id] ?? "" }));
 
   const statusLabel: Record<string, string> = { todo: "할 일", in_progress: "진행 중", done: "완료" };
 
@@ -49,7 +31,7 @@ export default async function ClubManageTasksPage({
     <div className="flex flex-col">
       <div className="px-4 py-4">
         <p className="mb-4 text-sm text-muted-foreground">
-          {clubName} 프로젝트별 할일입니다.
+          {club.name} 프로젝트별 할일입니다.
         </p>
         {tasks.length === 0 ? (
           <Card className="border-0 border-dashed bg-muted/30">

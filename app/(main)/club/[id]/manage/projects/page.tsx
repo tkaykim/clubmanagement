@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById, getMockProjectsByClubId } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, FolderOpen } from "lucide-react";
@@ -19,36 +18,21 @@ export default async function ClubManageProjectsPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let clubName = "";
-  let projects: { id: string; name: string; status: string; starts_at: string | null; visibility: string }[] = [];
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
+  if (!club) notFound();
 
-  if (supabase) {
-    const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
-    if (!club) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      clubName = mock.name;
-      projects = getMockProjectsByClubId(id).map((p) => ({ id: p.id, name: p.name, status: p.status, starts_at: p.starts_at, visibility: p.visibility }));
-    } else {
-      clubName = club.name;
-      const { data } = await supabase.from("projects").select("id, name, status, starts_at, visibility").eq("club_id", id).order("starts_at", { ascending: false });
-      projects = data ?? [];
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    clubName = mock.name;
-    projects = getMockProjectsByClubId(id).map((p) => ({ id: p.id, name: p.name, status: p.status, starts_at: p.starts_at, visibility: p.visibility }));
-  }
+  const { data: projects } = await supabase.from("projects").select("id, name, status, starts_at, visibility").eq("club_id", id).order("starts_at", { ascending: false });
+  const projectList = projects ?? [];
 
   return (
     <div className="flex flex-col">
       <div className="px-4 py-4">
         <p className="mb-4 text-sm text-muted-foreground">
-          {clubName} 프로젝트 목록입니다.
+          {club.name} 프로젝트 목록입니다.
         </p>
-        {projects.length === 0 ? (
+        {projectList.length === 0 ? (
           <Card className="border-0 border-dashed bg-muted/30">
             <CardContent className="py-10 text-center">
               <FolderOpen className="mx-auto size-10 text-muted-foreground/50" />
@@ -57,7 +41,7 @@ export default async function ClubManageProjectsPage({
           </Card>
         ) : (
           <div className="space-y-2">
-            {projects.map((p) => (
+            {projectList.map((p) => (
               <Link key={p.id} href={p.visibility === "public" ? `/events/${p.id}` : `/club/${id}/manage/projects`}>
                 <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
                   <CardContent className="flex flex-row items-center gap-3 p-4">

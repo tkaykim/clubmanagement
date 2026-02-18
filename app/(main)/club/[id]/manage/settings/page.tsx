@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById } from "@/lib/mock-data";
+import { ClubInterestEditor } from "@/components/club/ClubInterestEditor";
+import { ClubNameForm } from "@/components/club/ClubNameForm";
+import { ClubUniversityForm } from "@/components/club/ClubUniversityForm";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,23 +18,14 @@ export default async function ClubManageSettingsPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let club: { name: string; description: string | null; category: string; max_members: number; is_recruiting: boolean } | null = null;
+  const { data: clubData, error } = await supabase.from("clubs").select("name, name_ko, name_en, description, category, max_members, is_recruiting, is_university_based, university_id").eq("id", id).single();
+  if (error || !clubData) notFound();
 
-  if (supabase) {
-    const { data, error } = await supabase.from("clubs").select("name, description, category, max_members, is_recruiting").eq("id", id).single();
-    if (error || !data) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      club = { name: mock.name, description: mock.description, category: mock.category, max_members: mock.max_members, is_recruiting: mock.is_recruiting };
-    } else {
-      club = data;
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    club = { name: mock.name, description: mock.description, category: mock.category, max_members: mock.max_members, is_recruiting: mock.is_recruiting };
-  }
+  const club = { ...clubData, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null };
+  const { data: ci } = await supabase.from("club_interests").select("interest_id").eq("club_id", id);
+  const clubInterestIds = (ci ?? []).map((r) => r.interest_id);
 
   return (
     <div className="flex flex-col">
@@ -43,8 +36,8 @@ export default async function ClubManageSettingsPage({
         <Card className="border-0 shadow-sm">
           <CardContent className="space-y-5 p-4">
             <div className="space-y-2">
-              <Label htmlFor="name">동아리 이름</Label>
-              <Input id="name" defaultValue={club.name} className="rounded-lg" placeholder="동아리 이름" />
+              <Label>동아리 이름</Label>
+              <ClubNameForm clubId={id} initialNameKo={club.name_ko} initialNameEn={club.name_en} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">카테고리</Label>
@@ -53,6 +46,13 @@ export default async function ClubManageSettingsPage({
             <div className="space-y-2">
               <Label htmlFor="description">소개</Label>
               <Textarea id="description" defaultValue={club.description ?? ""} className="min-h-[100px] rounded-lg" placeholder="동아리 소개" />
+            </div>
+            <div className="space-y-2">
+              <ClubInterestEditor clubId={id} initialInterestIds={clubInterestIds} />
+            </div>
+            <div className="space-y-2">
+              <Label>대학 기반 동아리</Label>
+              <ClubUniversityForm clubId={id} initialIsUniversityBased={club.is_university_based} initialUniversityId={club.university_id} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="max_members">최대 회원 수</Label>

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { mockClubs, getMockUpcomingProjects, getMockRecruitingClubs } from "@/lib/mock-data";
 import { MobileHeader } from "@/components/layout/MobileHeader";
+import { AuthLinks } from "@/components/auth/AuthLinks";
+import { DashboardMyClubs } from "@/components/dashboard/DashboardMyClubs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, LayoutDashboard, CalendarClock, UserPlus, Shield } from "lucide-react";
+import { ChevronRight, CalendarClock, UserPlus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,6 @@ export default async function DashboardPage() {
     const clubIds = [...new Set(projects.map((p) => p.club_id).filter(Boolean))] as string[];
     const { data: clubList } = await supabase.from("clubs").select("id, name").in("id", clubIds);
     clubByName = Object.fromEntries((clubList ?? []).map((c) => [c.id, c.name]));
-  } else {
-    clubs = mockClubs.map((c) => ({ id: c.id, name: c.name, category: c.category, is_recruiting: c.is_recruiting }));
-    projects = getMockUpcomingProjects().map((p) => ({ id: p.id, name: p.name, status: p.status, recruitment_deadline_at: p.recruitment_deadline_at, club_id: p.club_id }));
-    clubByName = Object.fromEntries(mockClubs.map((c) => [c.id, c.name]));
   }
 
   const recruitingClubs = clubs.filter((c) => c.is_recruiting).map((c) => ({ id: c.id, name: c.name, category: c.category }));
@@ -44,13 +41,22 @@ export default async function DashboardPage() {
     <div className="flex flex-col">
       <MobileHeader title="마이" />
       <div className="flex-1 px-4 py-4">
-        {/* 모집 중인 동아리 (회원 모집 공고) */}
-        {recruitingClubs.length > 0 && (
-          <section className="mb-6">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <UserPlus className="size-4" />
-              모집 중인 동아리
-            </h2>
+        <div className="mb-4 flex justify-end">
+          <AuthLinks />
+        </div>
+        {/* 내 동아리: 가입한 동아리만 표시, 리더 칩으로 구분 */}
+        <DashboardMyClubs />
+
+        {/* 현재 모집 중인 동아리 (전체 공고) */}
+        <section className="mb-6 rounded-xl bg-muted/30 px-3 py-4">
+          <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <UserPlus className="size-4" />
+            현재 모집 중인 동아리
+          </h2>
+          <p className="mb-3 text-xs text-muted-foreground">지금 회원을 모집하는 동아리입니다.</p>
+          {recruitingClubs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">모집 중인 동아리가 없습니다.</p>
+          ) : (
             <div className="space-y-2">
               {recruitingClubs.map((c) => (
                 <Link key={c.id} href={`/clubs/${c.id}`}>
@@ -67,39 +73,16 @@ export default async function DashboardPage() {
                 </Link>
               ))}
             </div>
-          </section>
-        )}
-
-        {/* 내 동아리 */}
-        <section className="mb-6">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <LayoutDashboard className="size-4" />
-            내 동아리
-          </h2>
-          <div className="space-y-2">
-            {clubs.map((club) => (
-              <Link key={club.id} href={`/clubs/${club.id}`}>
-                <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
-                  <CardContent className="flex flex-row items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-muted-foreground">{club.category}</p>
-                      <p className="font-medium text-foreground">{club.name}</p>
-                    </div>
-                    {club.is_recruiting && <Badge variant="secondary" className="text-xs">모집 중</Badge>}
-                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          )}
         </section>
 
         {/* 모집/진행 중 프로젝트 */}
         <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-foreground">
             <CalendarClock className="size-4" />
             모집·진행 중
           </h2>
+          <p className="mb-3 text-xs text-muted-foreground">동아리별 프로젝트 모집 및 진행 일정입니다.</p>
           <div className="space-y-2">
             {projects.map((p) => (
               <Link key={p.id} href={p.club_id ? `/clubs/${p.club_id}` : "/dashboard"}>
@@ -120,24 +103,6 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-        </section>
-
-        {/* 관리자 */}
-        <section className="mt-8 border-t border-border/60 pt-6">
-          <Link href="/admin">
-            <Card className="border-0 border-dashed bg-muted/30 shadow-sm transition-colors active:bg-muted/50">
-              <CardContent className="flex flex-row items-center gap-3 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                  <Shield className="size-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">관리자</p>
-                  <p className="text-xs text-muted-foreground">플랫폼 전체 관리</p>
-                </div>
-                <ChevronRight className="ml-auto size-5 shrink-0 text-muted-foreground" />
-              </CardContent>
-            </Card>
-          </Link>
         </section>
       </div>
     </div>

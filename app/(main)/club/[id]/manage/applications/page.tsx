@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById, getMockApplicationsByClubId } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,34 +14,32 @@ export default async function ClubManageApplicationsPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let clubName = "";
-  let applications: { id: string; applicant_name: string; applicant_contact: string; applied_at: string; status: string }[] = [];
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
+  if (!club) notFound();
 
-  if (supabase) {
-    const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
-    if (!club) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      clubName = mock.name;
-      applications = getMockApplicationsByClubId(id);
-    } else {
-      clubName = club.name;
-      // club_applications 테이블이 없을 수 있음
-      applications = getMockApplicationsByClubId(id);
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    clubName = mock.name;
-    applications = getMockApplicationsByClubId(id);
-  }
+  const { data: appRows } = await supabase.from("club_applications").select("id, user_id, status, applied_at").eq("club_id", id).eq("status", "pending");
+  const userIds = [...new Set((appRows ?? []).map((a) => a.user_id))];
+  const { data: users } = userIds.length > 0 ? await supabase.from("users").select("id, name, email").in("id", userIds) : { data: [] };
+  const userMap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
+
+  const applications = (appRows ?? []).map((a) => {
+    const u = userMap[a.user_id];
+    return {
+      id: a.id,
+      applicant_name: u?.name ?? "회원",
+      applicant_contact: u?.email ?? "",
+      applied_at: a.applied_at,
+      status: a.status,
+    };
+  });
 
   return (
     <div className="flex flex-col">
       <div className="px-4 py-4">
         <p className="mb-4 text-sm text-muted-foreground">
-          {clubName} 지원자 목록입니다. 승인·거절을 처리할 수 있습니다.
+          {club.name} 지원자 목록입니다. 승인·거절을 처리할 수 있습니다.
         </p>
         {applications.length === 0 ? (
           <Card className="border-0 border-dashed bg-muted/30">

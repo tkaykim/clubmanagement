@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import {
-  getMockClubById,
-  getMockProjectsByClubId,
-  getMockMembersCountByClubId,
-} from "@/lib/mock-data";
+import { getClubDisplayName } from "@/lib/types";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,44 +27,36 @@ export default async function ClubDetailPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let club: { name: string; description: string | null; category: string; max_members: number; is_recruiting: boolean } | null = null;
-  let projects: { id: string; name: string; status: string; starts_at: string | null; ends_at: string | null; visibility: string }[] = [];
-  let membersApproved = 0;
+  const { data: clubData, error } = await supabase.from("clubs").select("*").eq("id", id).single();
+  if (error || !clubData) notFound();
 
-  if (supabase) {
-    const { data: clubData, error } = await supabase.from("clubs").select("*").eq("id", id).single();
-    if (error || !clubData) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      club = { name: mock.name, description: mock.description, category: mock.category, max_members: mock.max_members, is_recruiting: mock.is_recruiting };
-      projects = getMockProjectsByClubId(id).map((p) => ({ id: p.id, name: p.name, status: p.status, starts_at: p.starts_at, ends_at: p.ends_at, visibility: p.visibility }));
-      membersApproved = getMockMembersCountByClubId(id);
-    } else {
-      club = { name: clubData.name, description: clubData.description, category: clubData.category, max_members: clubData.max_members, is_recruiting: clubData.is_recruiting };
-      const { data: members } = await supabase.from("members").select("id, role, status").eq("club_id", id);
-      const { data: projectsData } = await supabase.from("projects").select("id, name, status, starts_at, ends_at, visibility").eq("club_id", id).order("starts_at", { ascending: false });
-      projects = projectsData ?? [];
-      membersApproved = (members ?? []).filter((m) => m.status === "approved").length;
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    club = { name: mock.name, description: mock.description, category: mock.category, max_members: mock.max_members, is_recruiting: mock.is_recruiting };
-    projects = getMockProjectsByClubId(id).map((p) => ({ id: p.id, name: p.name, status: p.status, starts_at: p.starts_at, ends_at: p.ends_at, visibility: p.visibility }));
-    membersApproved = getMockMembersCountByClubId(id);
+  let university_name: string | null = null;
+  if (clubData.university_id) {
+    const { data: u } = await supabase.from("universities").select("name").eq("id", clubData.university_id).single();
+    university_name = u?.name ?? null;
   }
+  const club = { name: clubData.name, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, description: clubData.description, category: clubData.category, max_members: clubData.max_members, is_recruiting: clubData.is_recruiting, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null, university_name };
 
-  if (!club) notFound();
+  const { data: members } = await supabase.from("members").select("id, role, status").eq("club_id", id);
+  const { data: projectsData } = await supabase.from("projects").select("id, name, status, starts_at, ends_at, visibility").eq("club_id", id).order("starts_at", { ascending: false });
+  const projects = projectsData ?? [];
+  const membersApproved = (members ?? []).filter((m) => m.status === "approved").length;
 
   return (
     <div className="flex flex-col">
-      <MobileHeader title={club.name} backHref="/clubs" />
+      <MobileHeader title={getClubDisplayName(club)} backHref="/clubs" />
       <div className="flex-1 px-4 py-4">
         {/* 상단 요약 + 관리 버튼 (리더/관리자용) */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{club.category}</Badge>
+            {club.is_university_based && (
+              <Badge variant="outline" className="text-xs">
+                대학 기반{club.university_name ? ` · ${club.university_name}` : ""}
+              </Badge>
+            )}
             {club.is_recruiting && <Badge>모집 중</Badge>}
             <span className="text-sm text-muted-foreground">최대 {club.max_members}명</span>
           </div>

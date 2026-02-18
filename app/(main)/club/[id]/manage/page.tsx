@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById, getMockMembersByClubId, getMockApplicationsByClubId, getMockProjectsByClubId } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, Users, UserPlus, FolderOpen, ListTodo, Calendar, Settings } from "lucide-react";
@@ -24,54 +23,38 @@ export default async function ClubManagePage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let clubName = "";
-  let membersCount = 0;
-  let applicationsCount = 0;
-  let projectsCount = 0;
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
+  if (!club) notFound();
 
-  if (supabase) {
-    const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
-    if (!club) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      clubName = mock.name;
-      membersCount = getMockMembersByClubId(id).length;
-      applicationsCount = getMockApplicationsByClubId(id).length;
-      projectsCount = getMockProjectsByClubId(id).length;
-    } else {
-      clubName = club.name;
-      const [m, a, p] = await Promise.all([
-        supabase.from("members").select("id", { count: "exact", head: true }).eq("club_id", id).eq("status", "approved"),
-        supabase.from("club_applications").select("id", { count: "exact", head: true }).eq("club_id", id).eq("status", "pending").then((r) => r),
-        supabase.from("projects").select("id", { count: "exact", head: true }).eq("club_id", id),
-      ]);
-      membersCount = m.count ?? 0;
-      applicationsCount = 0; // club_applications might not exist
-      projectsCount = p.count ?? 0;
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    clubName = mock.name;
-    membersCount = getMockMembersByClubId(id).length;
-    applicationsCount = getMockApplicationsByClubId(id).length;
-    projectsCount = getMockProjectsByClubId(id).length;
+  const [m, a, p, s] = await Promise.all([
+    supabase.from("members").select("id", { count: "exact", head: true }).eq("club_id", id).eq("status", "approved"),
+    supabase.from("club_applications").select("id", { count: "exact", head: true }).eq("club_id", id).eq("status", "pending"),
+    supabase.from("projects").select("id", { count: "exact", head: true }).eq("club_id", id),
+    supabase.from("schedules").select("id", { count: "exact", head: true }).eq("club_id", id),
+  ]);
+
+  const projectIds = (await supabase.from("projects").select("id").eq("club_id", id)).data?.map((x) => x.id) ?? [];
+  let tasksCount = 0;
+  if (projectIds.length > 0) {
+    const tRes = await supabase.from("tasks").select("id", { count: "exact", head: true }).in("project_id", projectIds);
+    tasksCount = tRes.count ?? 0;
   }
 
   const counts: Record<string, number> = {
-    members: membersCount,
-    applications: applicationsCount,
-    projects: projectsCount,
-    tasks: 2,
-    schedule: 1,
+    members: m.count ?? 0,
+    applications: a.count ?? 0,
+    projects: p.count ?? 0,
+    tasks: tasksCount,
+    schedule: s.count ?? 0,
     settings: 0,
   };
 
   return (
     <div className="flex flex-col">
       <div className="px-4 py-5">
-        <p className="mb-1 text-sm text-muted-foreground">{clubName}</p>
+        <p className="mb-1 text-sm text-muted-foreground">{club.name}</p>
         <p className="mb-5 text-xs text-muted-foreground">리더·관리자 메뉴입니다.</p>
         <div className="space-y-2">
           {menuItems.map(({ key, label, icon: Icon, href }) => (

@@ -1,5 +1,4 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockSchedules, mockClubs } from "@/lib/mock-data";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarDays, MapPin } from "lucide-react";
@@ -10,6 +9,7 @@ export default async function CalendarPage() {
   const supabase = createServerSupabaseClient();
 
   let schedules: { id: string; title: string; description: string | null; location: string | null; starts_at: string; ends_at: string; club_id: string }[] = [];
+  let clubByName: Record<string, string> = {};
 
   if (supabase) {
     const { data } = await supabase
@@ -17,19 +17,10 @@ export default async function CalendarPage() {
       .select("id, title, description, location, starts_at, ends_at, club_id")
       .order("starts_at", { ascending: true });
     schedules = data ?? [];
-  } else {
-    schedules = getMockSchedules().map((s) => ({
-      id: s.id,
-      title: s.title,
-      description: s.description,
-      location: s.location,
-      starts_at: s.starts_at,
-      ends_at: s.ends_at,
-      club_id: s.club_id,
-    }));
+    const clubIds = [...new Set(schedules.map((s) => s.club_id).filter(Boolean))] as string[];
+    const { data: clubList } = clubIds.length > 0 ? await supabase.from("clubs").select("id, name").in("id", clubIds) : { data: [] };
+    clubByName = Object.fromEntries((clubList ?? []).map((c) => [c.id, c.name]));
   }
-
-  const clubByName = Object.fromEntries(mockClubs.map((c) => [c.id, c.name]));
   const byDate = schedules.reduce<Record<string, typeof schedules>>((acc, s) => {
     const date = s.starts_at ? new Date(s.starts_at).toISOString().slice(0, 10) : "";
     if (!date) return acc;

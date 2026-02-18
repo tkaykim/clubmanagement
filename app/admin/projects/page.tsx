@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { mockProjects, mockClubs } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, FolderOpen } from "lucide-react";
@@ -28,9 +27,6 @@ export default async function AdminProjectsPage() {
     const clubIds = [...new Set(projects.map((p) => p.club_id).filter(Boolean))] as string[];
     const { data: clubList } = await supabase.from("clubs").select("id, name").in("id", clubIds);
     clubByName = Object.fromEntries((clubList ?? []).map((c) => [c.id, c.name]));
-  } else {
-    projects = mockProjects.map((p) => ({ id: p.id, name: p.name, status: p.status, club_id: p.club_id, visibility: p.visibility }));
-    clubByName = Object.fromEntries(mockClubs.map((c) => [c.id, c.name]));
   }
 
   return (
@@ -40,6 +36,9 @@ export default async function AdminProjectsPage() {
           전체 프로젝트 목록입니다.
         </p>
         <div className="space-y-2">
+          {projects.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">등록된 프로젝트가 없습니다.</p>
+          )}
           {projects.map((p) => (
             <Link key={p.id} href={p.visibility === "public" ? `/events/${p.id}` : `/club/${p.club_id}/manage/projects`}>
               <Card className="border-0 shadow-sm transition-shadow active:shadow-md">

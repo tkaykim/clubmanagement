@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { mockClubs, getMockPublicProjects } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,9 +20,6 @@ export default async function HomePage() {
     ]);
     clubs = clubsRes.data ?? [];
     events = eventsRes.data ?? [];
-  } else {
-    clubs = mockClubs.slice(0, 3).map((c) => ({ id: c.id, name: c.name, description: c.description, category: c.category, is_recruiting: c.is_recruiting }));
-    events = getMockPublicProjects().slice(0, 4).map((p) => ({ id: p.id, name: p.name, description: p.description, poster_url: p.poster_url, starts_at: p.starts_at }));
   }
 
   return (
@@ -39,6 +35,13 @@ export default async function HomePage() {
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           동아리를 탐색하고, 공개 이벤트를 확인해 보세요.
         </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          처음이신가요?{" "}
+          <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+            회원가입
+          </Link>
+          하고 MBTI·관심사를 입력하면 맞춤 동아리를 추천받을 수 있어요.
+        </p>
       </section>
 
       {/* 추천 동아리 */}
@@ -50,6 +53,9 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="space-y-3">
+          {clubs.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">등록된 동아리가 없습니다.</p>
+          )}
           {clubs.map((club) => (
             <Link key={club.id} href={`/clubs/${club.id}`}>
               <Card className="overflow-hidden border-0 bg-card shadow-sm transition-shadow active:shadow-md">
@@ -82,6 +88,9 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          {events.length === 0 && (
+            <p className="py-6 text-sm text-muted-foreground">공개 이벤트가 없습니다.</p>
+          )}
           {events.map((ev) => (
             <Link key={ev.id} href={`/events/${ev.id}`} className="w-[72%] shrink-0 sm:w-[280px]">
               <Card className="overflow-hidden border-0 shadow-sm transition-shadow active:shadow-md">
@@ -107,7 +116,7 @@ export default async function HomePage() {
         <Link href="/dashboard">
           <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
             <CardContent className="p-5">
-              <p className="text-sm text-muted-foreground">체험용 데이터로 둘러보기</p>
+              <p className="text-sm text-muted-foreground">내 동아리와 일정을 확인하세요</p>
               <Button className="mt-3 w-full rounded-xl" size="lg">
                 마이 대시 가기
               </Button>

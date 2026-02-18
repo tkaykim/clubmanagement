@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { mockClubs, mockProjects } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronRight, Users, FolderOpen, Globe } from "lucide-react";
 
@@ -22,10 +21,6 @@ export default async function AdminDashboardPage() {
     clubCount = c.count ?? 0;
     projectCount = p.count ?? 0;
     publicEventCount = pub.count ?? 0;
-  } else {
-    clubCount = mockClubs.length;
-    projectCount = mockProjects.length;
-    publicEventCount = mockProjects.filter((x) => x.visibility === "public").length;
   }
 
   const stats = [

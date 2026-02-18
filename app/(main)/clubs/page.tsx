@@ -1,73 +1,52 @@
-import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { mockClubs } from "@/lib/mock-data";
-import { MobileHeader } from "@/components/layout/MobileHeader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Users } from "lucide-react";
+import { ClubsListClient } from "./ClubsListClient";
+import type { ClubRow } from "./ClubsListClient";
+import type { Interest } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClubsPage() {
   const supabase = createServerSupabaseClient();
 
-  let clubs: { id: string; name: string; description: string | null; category: string; max_members: number; is_recruiting: boolean; recruitment_deadline_at: string | null }[] = [];
+  let clubs: ClubRow[] = [];
+  let interests: Interest[] = [];
 
   if (supabase) {
-    const { data } = await supabase
-      .from("clubs")
-      .select("id, name, description, category, max_members, is_recruiting, recruitment_deadline_at")
-      .order("name");
-    clubs = data ?? [];
-  } else {
-    clubs = mockClubs.map((c) => ({
-      id: c.id,
-      name: c.name,
-      description: c.description,
-      category: c.category,
-      max_members: c.max_members,
-      is_recruiting: c.is_recruiting,
-      recruitment_deadline_at: c.recruitment_deadline_at,
+    const [clubsRes, clubInterestsRes, interestsRes, universitiesRes] = await Promise.all([
+      supabase
+        .from("clubs")
+        .select("id, name, name_ko, name_en, description, category, max_members, is_recruiting, recruitment_deadline_at, is_university_based, university_id")
+        .order("name"),
+      supabase.from("club_interests").select("club_id, interest_id"),
+      supabase.from("interests").select("id, name, sort_order, created_at").order("sort_order"),
+      supabase.from("universities").select("id, name"),
+    ]);
+
+    const clubList = clubsRes.data ?? [];
+    const ciList = clubInterestsRes.data ?? [];
+    const interestList = (interestsRes.data ?? []) as Interest[];
+    const universityList = (universitiesRes.data ?? []) as { id: string; name: string }[];
+    const universityByName = new Map(universityList.map((u) => [u.id, u.name]));
+
+    const interestIdsByClub = new Map<string, string[]>();
+    for (const row of ciList) {
+      const arr = interestIdsByClub.get(row.club_id) ?? [];
+      arr.push(row.interest_id);
+      interestIdsByClub.set(row.club_id, arr);
+    }
+
+    clubs = clubList.map((c) => ({
+      ...c,
+      name_ko: c.name_ko ?? null,
+      name_en: c.name_en ?? null,
+      recruitment_deadline_at: c.recruitment_deadline_at ?? null,
+      is_university_based: c.is_university_based ?? false,
+      university_id: c.university_id ?? null,
+      university_name: c.university_id ? universityByName.get(c.university_id) ?? null : null,
+      interest_ids: interestIdsByClub.get(c.id) ?? [],
     }));
+    interests = interestList;
   }
 
-  return (
-    <div className="flex flex-col">
-      <MobileHeader title="동아리" />
-      <div className="flex-1 px-4 py-4">
-        <p className="mb-4 text-sm text-muted-foreground">
-          관심 있는 동아리를 찾아보세요.
-        </p>
-        <div className="space-y-3">
-          {clubs.map((club) => (
-            <Link key={club.id} href={`/clubs/${club.id}`}>
-              <Card className="overflow-hidden border-0 bg-card shadow-sm transition-shadow active:shadow-md">
-                <CardContent className="flex flex-row items-center gap-4 p-4">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <Users className="size-6 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground">{club.category}</p>
-                    <h2 className="mt-0.5 font-semibold text-foreground">{club.name}</h2>
-                    <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{club.description}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {club.is_recruiting && (
-                        <Badge variant="secondary" className="text-xs">모집 중</Badge>
-                      )}
-                      {club.recruitment_deadline_at && (
-                        <span className="text-xs text-muted-foreground">
-                          마감 {new Date(club.recruitment_deadline_at).toLocaleDateString("ko-KR")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <ClubsListClient clubs={clubs} interests={interests} />;
 }

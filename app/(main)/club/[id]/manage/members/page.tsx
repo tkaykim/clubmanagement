@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getMockClubById, getMockMembersByClubId } from "@/lib/mock-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, User } from "lucide-react";
@@ -18,40 +17,25 @@ export default async function ClubManageMembersPage({
 }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
+  if (!supabase) notFound();
 
-  let clubName = "";
-  let members: { id: string; display_name: string; role: string; status: string; joined_at: string }[] = [];
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
+  if (!club) notFound();
 
-  if (supabase) {
-    const { data: club } = await supabase.from("clubs").select("name").eq("id", id).single();
-    if (!club) {
-      const mock = getMockClubById(id);
-      if (!mock) notFound();
-      clubName = mock.name;
-      members = getMockMembersByClubId(id);
-    } else {
-      clubName = club.name;
-      const { data: m } = await supabase.from("members").select("id, user_id, role, status, joined_at").eq("club_id", id).order("joined_at", { ascending: false });
-      members = (m ?? []).map((x) => ({
-        id: x.id,
-        display_name: "회원",
-        role: x.role,
-        status: x.status === "approved" ? "active" : "inactive",
-        joined_at: x.joined_at,
-      }));
-    }
-  } else {
-    const mock = getMockClubById(id);
-    if (!mock) notFound();
-    clubName = mock.name;
-    members = getMockMembersByClubId(id);
-  }
+  const { data: m } = await supabase.from("members").select("id, user_id, role, status, joined_at").eq("club_id", id).order("joined_at", { ascending: false });
+  const members = (m ?? []).map((x) => ({
+    id: x.id,
+    display_name: "회원",
+    role: x.role,
+    status: x.status === "approved" ? "active" : "inactive",
+    joined_at: x.joined_at,
+  }));
 
   return (
     <div className="flex flex-col">
       <div className="px-4 py-4">
         <p className="mb-4 text-sm text-muted-foreground">
-          {clubName} 회원 목록입니다. 활성·비활성·탈퇴 상태를 확인할 수 있습니다.
+          {club.name} 회원 목록입니다. 활성·비활성·탈퇴 상태를 확인할 수 있습니다.
         </p>
         {members.length === 0 ? (
           <Card className="border-0 border-dashed bg-muted/30">
