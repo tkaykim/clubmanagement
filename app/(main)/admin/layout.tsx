@@ -21,7 +21,7 @@ export default function AdminLayout({
           </Link>
           <h1 className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
             <Shield className="size-5 text-primary" />
-            관리자
+            우동 관리자
           </h1>
           <div className="size-10" />
         </div>

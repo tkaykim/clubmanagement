@@ -30,11 +30,11 @@ export default async function HomePage() {
     <div className="flex flex-col">
       {/* 히어로 */}
       <section className="px-5 pt-6 pb-8">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">동아리 플랫폼</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-primary">우동 - 우리들의 동아리</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
           안녕하세요,
           <br />
-          <span className="text-primary">동아리</span>와 함께해요
+          <span className="text-primary">우리들의 동아리</span>와 함께해요
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           동아리를 탐색하고, 공개 이벤트를 확인해 보세요.

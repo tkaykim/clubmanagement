@@ -1,4 +1,4 @@
-# Club Management Platform (동아리 관리 플랫폼)
+# 우동 - 우리들의 동아리 (Club Management Platform)
 
 ## Overview
 동아리 회원, 일정, 프로젝트를 관리하는 웹 플랫폼.

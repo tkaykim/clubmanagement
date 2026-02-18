@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "동아리 플랫폼",
-  description: "동아리 운영·관리 플랫폼",
+  title: "우동 - 우리들의 동아리",
+  description: "우리들의 동아리, 우동",
 };
 
 export const viewport = {

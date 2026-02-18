@@ -1,5 +1,5 @@
 /**
- * 동아리 플랫폼 더미 데이터 시드
+ * 우동 - 우리들의 동아리 더미 데이터 시드
  * 실행: npm run seed 또는 npx tsx scripts/seed-demo.ts
  * 필요 env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  * (마이그레이션 001, 002 적용 후 실행)
