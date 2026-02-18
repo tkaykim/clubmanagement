@@ -164,3 +164,38 @@ export function getMockSchedules() {
 export function getMockMembersCountByClubId(_clubId: string) {
   return 3;
 }
+
+/** 리더/관리자용: 동아리별 회원 목록 (목 데이터) */
+export const mockMembersByClub: Record<string, { id: string; display_name: string; role: string; status: string; joined_at: string }[]> = {
+  [CLUB_1]: [
+    { id: "m1", display_name: "김리더", role: "owner", status: "active", joined_at: "2025-01-10T00:00:00Z" },
+    { id: "m2", display_name: "이멤버", role: "member", status: "active", joined_at: "2025-02-01T00:00:00Z" },
+    { id: "m3", display_name: "박멤버", role: "member", status: "active", joined_at: "2025-02-15T00:00:00Z" },
+  ],
+  [CLUB_2]: [
+    { id: "m4", display_name: "최리더", role: "owner", status: "active", joined_at: "2025-01-05T00:00:00Z" },
+  ],
+  [CLUB_3]: [],
+};
+
+/** 리더/관리자용: 동아리별 지원자 목록 (목 데이터) */
+export const mockApplicationsByClub: Record<string, { id: string; applicant_name: string; applicant_contact: string; applied_at: string; status: string }[]> = {
+  [CLUB_1]: [
+    { id: "a1", applicant_name: "신규지원", applicant_contact: "010-1234-5678", applied_at: new Date().toISOString(), status: "pending" },
+  ],
+  [CLUB_2]: [],
+  [CLUB_3]: [],
+};
+
+export function getMockMembersByClubId(clubId: string) {
+  return mockMembersByClub[clubId] ?? [];
+}
+
+export function getMockApplicationsByClubId(clubId: string) {
+  return mockApplicationsByClub[clubId] ?? [];
+}
+
+/** 모집 중인 동아리 (회원 모집 공고) */
+export function getMockRecruitingClubs() {
+  return mockClubs.filter((c) => c.is_recruiting);
+}

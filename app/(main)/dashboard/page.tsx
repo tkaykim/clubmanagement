@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { mockClubs, getMockUpcomingProjects } from "@/lib/mock-data";
+import { mockClubs, getMockUpcomingProjects, getMockRecruitingClubs } from "@/lib/mock-data";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, LayoutDashboard, CalendarClock } from "lucide-react";
+import { ChevronRight, LayoutDashboard, CalendarClock, UserPlus, Shield } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +38,38 @@ export default async function DashboardPage() {
     clubByName = Object.fromEntries(mockClubs.map((c) => [c.id, c.name]));
   }
 
+  const recruitingClubs = clubs.filter((c) => c.is_recruiting).map((c) => ({ id: c.id, name: c.name, category: c.category }));
+
   return (
     <div className="flex flex-col">
       <MobileHeader title="마이" />
       <div className="flex-1 px-4 py-4">
+        {/* 모집 중인 동아리 (회원 모집 공고) */}
+        {recruitingClubs.length > 0 && (
+          <section className="mb-6">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <UserPlus className="size-4" />
+              모집 중인 동아리
+            </h2>
+            <div className="space-y-2">
+              {recruitingClubs.map((c) => (
+                <Link key={c.id} href={`/clubs/${c.id}`}>
+                  <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
+                    <CardContent className="flex flex-row items-center gap-3 p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-muted-foreground">{c.category}</p>
+                        <p className="font-medium text-foreground">{c.name}</p>
+                      </div>
+                      <Badge className="text-xs">모집 중</Badge>
+                      <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* 내 동아리 */}
         <section className="mb-6">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -92,6 +120,24 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
+        </section>
+
+        {/* 관리자 */}
+        <section className="mt-8 border-t border-border/60 pt-6">
+          <Link href="/admin">
+            <Card className="border-0 border-dashed bg-muted/30 shadow-sm transition-colors active:bg-muted/50">
+              <CardContent className="flex flex-row items-center gap-3 p-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <Shield className="size-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">관리자</p>
+                  <p className="text-xs text-muted-foreground">플랫폼 전체 관리</p>
+                </div>
+                <ChevronRight className="ml-auto size-5 shrink-0 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
         </section>
       </div>
     </div>

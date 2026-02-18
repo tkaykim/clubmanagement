@@ -9,7 +9,8 @@ import {
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Users, FolderOpen } from "lucide-react";
+import { ChevronRight, Users, FolderOpen, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -64,11 +65,19 @@ export default async function ClubDetailPage({
     <div className="flex flex-col">
       <MobileHeader title={club.name} backHref="/clubs" />
       <div className="flex-1 px-4 py-4">
-        {/* 상단 요약 */}
-        <div className="mb-6 flex items-center gap-2">
-          <Badge variant="secondary">{club.category}</Badge>
-          {club.is_recruiting && <Badge>모집 중</Badge>}
-          <span className="text-sm text-muted-foreground">최대 {club.max_members}명</span>
+        {/* 상단 요약 + 관리 버튼 (리더/관리자용) */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{club.category}</Badge>
+            {club.is_recruiting && <Badge>모집 중</Badge>}
+            <span className="text-sm text-muted-foreground">최대 {club.max_members}명</span>
+          </div>
+          <Link href={`/club/${id}/manage`}>
+            <Button variant="outline" size="sm" className="gap-1.5 rounded-lg">
+              <Settings className="size-4" />
+              관리
+            </Button>
+          </Link>
         </div>
 
         {club.description && (
