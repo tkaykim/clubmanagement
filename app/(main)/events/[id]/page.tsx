@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { getMockProjectById, getMockClubById } from "@/lib/mock-data";
+import { MobileHeader } from "@/components/layout/MobileHeader";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar, Building2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -59,35 +64,60 @@ export default async function EventDetailPage({
   if (!project) notFound();
 
   return (
-    <div className="space-y-8">
-      <Link href="/events" className="text-sm text-muted-foreground hover:underline">← 공개 이벤트</Link>
-
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        {project.poster_url ? (
-          <img src={project.poster_url} alt="" className="h-64 w-full object-cover sm:h-80" />
-        ) : (
-          <div className="h-64 w-full bg-muted sm:h-80" />
-        )}
-        <div className="p-6">
-          <span className="text-sm text-muted-foreground">{typeLabel[project.project_type] ?? project.project_type}</span>
-          {clubName && (
-            <p className="text-sm text-muted-foreground">주최: {clubName}</p>
+    <div className="flex flex-col">
+      <MobileHeader title="이벤트" backHref="/events" />
+      <div className="flex-1">
+        {/* 포스터 */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+          {project.poster_url ? (
+            <img src={project.poster_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-muted" />
           )}
-          <h1 className="mt-2 text-2xl font-bold">{project.name}</h1>
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4">
+            <Badge className="bg-white/90 text-foreground">{typeLabel[project.project_type] ?? project.project_type}</Badge>
+            <h1 className="mt-2 text-xl font-bold text-white drop-shadow-md">{project.name}</h1>
+          </div>
+        </div>
+
+        <div className="px-4 py-5">
+          {clubName && (
+            <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="size-4" />
+              주최: {clubName}
+            </div>
+          )}
+
           {project.starts_at && (
-            <p className="mt-2 text-muted-foreground">
+            <div className="mb-4 flex items-center gap-2 text-sm text-foreground">
+              <Calendar className="size-4 text-muted-foreground" />
               {new Date(project.starts_at).toLocaleDateString("ko-KR")}
               {project.ends_at && project.ends_at !== project.starts_at
                 ? ` ~ ${new Date(project.ends_at).toLocaleDateString("ko-KR")}`
                 : ""}
-            </p>
+            </div>
           )}
+
           {project.description && (
-            <div className="mt-4 whitespace-pre-wrap text-foreground">{project.description}</div>
+            <Card className="mb-6 border-0 shadow-sm">
+              <CardContent className="p-4">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{project.description}</p>
+              </CardContent>
+            </Card>
           )}
-          <div className="mt-6 rounded-md border border-dashed border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-            체험 모드에서는 관람 신청 버튼이 비활성화됩니다. 로그인 후 실제 관람 신청을 이용할 수 있습니다.
-          </div>
+
+          <Card className="border-dashed bg-muted/30">
+            <CardContent className="p-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                체험 모드에서는 관람 신청이 비활성화됩니다.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">로그인 후 관람 신청을 이용할 수 있습니다.</p>
+              <Button variant="outline" className="mt-3 rounded-xl" disabled>
+                관람 신청 (준비 중)
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

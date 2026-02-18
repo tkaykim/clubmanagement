@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { mockClubs, getMockUpcomingProjects } from "@/lib/mock-data";
+import { MobileHeader } from "@/components/layout/MobileHeader";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ChevronRight, LayoutDashboard, CalendarClock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -35,53 +39,61 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">체험 대시</h1>
-        <p className="mt-1 text-muted-foreground">체험용 데이터로 동아리·모집 중인 프로젝트를 확인해 보세요.</p>
-      </div>
-
-      <section>
-        <h2 className="text-lg font-semibold">내 동아리 (체험용 전체 목록)</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {clubs.map((club) => (
-            <Link
-              key={club.id}
-              href={`/clubs/${club.id}`}
-              className="rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50"
-            >
-              <span className="text-xs text-muted-foreground">{club.category}</span>
-              <h3 className="mt-1 font-medium">{club.name}</h3>
-              {club.is_recruiting && (
-                <span className="mt-2 inline-block text-xs text-primary">모집 중</span>
-              )}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="text-lg font-semibold">모집 중 / 진행 중인 프로젝트</h2>
-        <ul className="mt-3 space-y-2">
-          {projects.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={p.club_id ? `/clubs/${p.club_id}` : "/dashboard"}
-                className="block rounded border border-border bg-card p-3 transition-colors hover:bg-muted/50"
-              >
-                <span className="font-medium">{p.name}</span>
-                <span className="ml-2 text-sm text-muted-foreground">{clubByName[p.club_id] ?? ""}</span>
-                <span className="ml-2 text-sm text-muted-foreground">{statusLabel[p.status] ?? p.status}</span>
-                {p.recruitment_deadline_at && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    모집 마감 {new Date(p.recruitment_deadline_at).toLocaleDateString("ko-KR")}
-                  </span>
-                )}
+    <div className="flex flex-col">
+      <MobileHeader title="마이" />
+      <div className="flex-1 px-4 py-4">
+        {/* 내 동아리 */}
+        <section className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <LayoutDashboard className="size-4" />
+            내 동아리
+          </h2>
+          <div className="space-y-2">
+            {clubs.map((club) => (
+              <Link key={club.id} href={`/clubs/${club.id}`}>
+                <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
+                  <CardContent className="flex flex-row items-center gap-3 p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground">{club.category}</p>
+                      <p className="font-medium text-foreground">{club.name}</p>
+                    </div>
+                    {club.is_recruiting && <Badge variant="secondary" className="text-xs">모집 중</Badge>}
+                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                  </CardContent>
+                </Card>
               </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+            ))}
+          </div>
+        </section>
+
+        {/* 모집/진행 중 프로젝트 */}
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CalendarClock className="size-4" />
+            모집·진행 중
+          </h2>
+          <div className="space-y-2">
+            {projects.map((p) => (
+              <Link key={p.id} href={p.club_id ? `/clubs/${p.club_id}` : "/dashboard"}>
+                <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
+                  <CardContent className="p-3">
+                    <p className="font-medium text-foreground">{p.name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{clubByName[p.club_id] ?? ""}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{statusLabel[p.status] ?? p.status}</Badge>
+                      {p.recruitment_deadline_at && (
+                        <span className="text-xs text-muted-foreground">
+                          마감 {new Date(p.recruitment_deadline_at).toLocaleDateString("ko-KR")}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,10 @@ import {
   getMockProjectsByClubId,
   getMockMembersCountByClubId,
 } from "@/lib/mock-data";
+import { MobileHeader } from "@/components/layout/MobileHeader";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ChevronRight, Users, FolderOpen } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -57,49 +61,64 @@ export default async function ClubDetailPage({
   if (!club) notFound();
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Link href="/clubs" className="text-sm text-muted-foreground hover:underline">← 동아리 목록</Link>
-        <h1 className="mt-2 text-2xl font-bold">{club.name}</h1>
-        <p className="mt-1 text-muted-foreground">{club.category} · 최대 {club.max_members}명</p>
-        {club.is_recruiting && (
-          <span className="mt-2 inline-block rounded bg-primary/10 px-2 py-1 text-sm text-primary">모집 중</span>
+    <div className="flex flex-col">
+      <MobileHeader title={club.name} backHref="/clubs" />
+      <div className="flex-1 px-4 py-4">
+        {/* 상단 요약 */}
+        <div className="mb-6 flex items-center gap-2">
+          <Badge variant="secondary">{club.category}</Badge>
+          {club.is_recruiting && <Badge>모집 중</Badge>}
+          <span className="text-sm text-muted-foreground">최대 {club.max_members}명</span>
+        </div>
+
+        {club.description && (
+          <Card className="mb-6 border-0 shadow-sm">
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold text-muted-foreground">소개</h2>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{club.description}</p>
+            </CardContent>
+          </Card>
         )}
-      </div>
 
-      {club.description && (
-        <section>
-          <h2 className="text-sm font-medium text-muted-foreground">소개</h2>
-          <p className="mt-1 whitespace-pre-wrap text-foreground">{club.description}</p>
-        </section>
-      )}
-
-      <section>
-        <h2 className="text-lg font-semibold">프로젝트</h2>
-        <ul className="mt-2 space-y-2">
-          {projects.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={p.visibility === "public" ? `/events/${p.id}` : `/dashboard`}
-                className="block rounded border border-border bg-card p-3 transition-colors hover:bg-muted/50"
-              >
-                <span className="font-medium">{p.name}</span>
-                <span className="ml-2 text-sm text-muted-foreground">{statusLabel[p.status] ?? p.status}</span>
-                {p.starts_at && (
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    {new Date(p.starts_at).toLocaleDateString("ko-KR")} ~ {p.ends_at ? new Date(p.ends_at).toLocaleDateString("ko-KR") : ""}
-                  </span>
-                )}
+        {/* 프로젝트 */}
+        <section className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <FolderOpen className="size-4" />
+            프로젝트
+          </h2>
+          <div className="space-y-2">
+            {projects.map((p) => (
+              <Link key={p.id} href={p.visibility === "public" ? `/events/${p.id}` : "/dashboard"}>
+                <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
+                  <CardContent className="flex flex-row items-center gap-3 p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground">{p.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {statusLabel[p.status] ?? p.status}
+                        {p.starts_at && ` · ${new Date(p.starts_at).toLocaleDateString("ko-KR")}`}
+                      </p>
+                    </div>
+                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                  </CardContent>
+                </Card>
               </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">회원</h2>
-        <p className="mt-1 text-sm text-muted-foreground">승인 회원 {membersApproved}명</p>
-      </section>
+        {/* 회원 */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="flex flex-row items-center gap-3 p-4">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+              <Users className="size-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">승인 회원</p>
+              <p className="text-sm text-muted-foreground">{membersApproved}명</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

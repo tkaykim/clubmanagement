@@ -1,5 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { getMockSchedules, mockClubs } from "@/lib/mock-data";
+import { MobileHeader } from "@/components/layout/MobileHeader";
+import { Card, CardContent } from "@/components/ui/card";
+import { CalendarDays, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +30,6 @@ export default async function CalendarPage() {
   }
 
   const clubByName = Object.fromEntries(mockClubs.map((c) => [c.id, c.name]));
-
   const byDate = schedules.reduce<Record<string, typeof schedules>>((acc, s) => {
     const date = s.starts_at ? new Date(s.starts_at).toISOString().slice(0, 10) : "";
     if (!date) return acc;
@@ -35,42 +37,55 @@ export default async function CalendarPage() {
     acc[date].push(s);
     return acc;
   }, {});
-
   const sortedDates = Object.keys(byDate).sort();
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">캘린더</h1>
-      <p className="text-muted-foreground">동아리 일정을 확인하세요.</p>
-
-      <div className="space-y-6">
+    <div className="flex flex-col">
+      <MobileHeader title="캘린더" />
+      <div className="flex-1 px-4 py-4">
+        <p className="mb-4 text-sm text-muted-foreground">
+          동아리 일정을 확인하세요.
+        </p>
         {sortedDates.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-muted-foreground">
-            이번 주 일정이 없습니다.
-          </p>
+          <Card className="border-0 border-dashed bg-muted/30">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <CalendarDays className="size-12 text-muted-foreground/50" />
+              <p className="mt-3 text-sm text-muted-foreground">이번 주 일정이 없습니다</p>
+            </CardContent>
+          </Card>
         ) : (
-          sortedDates.map((date) => (
-            <section key={date} className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                {new Date(date).toLocaleDateString("ko-KR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-              </h2>
-              <ul className="mt-3 space-y-2">
-                {(byDate[date] ?? []).map((s) => (
-                  <li key={s.id} className="flex flex-wrap items-baseline gap-2 rounded border border-border bg-muted/30 p-3">
-                    <span className="font-medium">{s.title}</span>
-                    {s.club_id && clubByName[s.club_id] && (
-                      <span className="text-sm text-muted-foreground">{clubByName[s.club_id]}</span>
-                    )}
-                    <span className="text-sm text-muted-foreground">
-                      {s.starts_at && new Date(s.starts_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                      {s.ends_at && ` - ${new Date(s.ends_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}
-                    </span>
-                    {s.location && <span className="text-sm text-muted-foreground">· {s.location}</span>}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))
+          <div className="space-y-5">
+            {sortedDates.map((date) => (
+              <section key={date}>
+                <h2 className="mb-2 text-sm font-semibold text-foreground">
+                  {new Date(date).toLocaleDateString("ko-KR", { weekday: "long", month: "long", day: "numeric" })}
+                </h2>
+                <div className="space-y-2">
+                  {(byDate[date] ?? []).map((s) => (
+                    <Card key={s.id} className="border-0 shadow-sm">
+                      <CardContent className="p-4">
+                        <p className="font-medium text-foreground">{s.title}</p>
+                        {s.club_id && clubByName[s.club_id] && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{clubByName[s.club_id]}</p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>
+                            {s.starts_at && new Date(s.starts_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                            {s.ends_at && ` - ${new Date(s.ends_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}
+                          </span>
+                          {s.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="size-3" /> {s.location}
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
       </div>
     </div>
