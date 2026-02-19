@@ -6,8 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronRight, Users, Sparkles, Search } from "lucide-react";
+import { ChevronRight, Users, Sparkles, Search, Plus } from "lucide-react";
 import { getClubDisplayName } from "@/lib/types";
 import type { Interest } from "@/lib/types";
 
@@ -36,10 +37,12 @@ export function ClubsListClient({ clubs: initialClubs, interests }: Props) {
   const [search, setSearch] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<Set<string>>(new Set());
   const [userInterestIds, setUserInterestIds] = useState<string[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
       if (!user) return;
       const { data } = await supabase.from("user_interests").select("interest_id").eq("user_id", user.id);
       setUserInterestIds((data ?? []).map((r) => r.interest_id));
@@ -94,7 +97,19 @@ export function ClubsListClient({ clubs: initialClubs, interests }: Props) {
 
   return (
     <div className="flex flex-col">
-      <MobileHeader title="동아리" />
+      <MobileHeader
+        title="동아리"
+        rightSlot={
+          isLoggedIn ? (
+            <Link href="/clubs/new">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-primary">
+                <Plus className="size-4" />
+                만들기
+              </Button>
+            </Link>
+          ) : undefined
+        }
+      />
       <div className="flex-1 px-4 py-4">
         <p className="mb-4 text-sm text-muted-foreground">
           관심 있는 동아리를 찾아보세요. 검색·태그로 필터할 수 있어요.

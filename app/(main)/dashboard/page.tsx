@@ -5,7 +5,7 @@ import { AuthLinks } from "@/components/auth/AuthLinks";
 import { DashboardMyClubs } from "@/components/dashboard/DashboardMyClubs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, CalendarClock, UserPlus } from "lucide-react";
+import { ChevronRight, CalendarClock, UserPlus, PlusCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +44,21 @@ export default async function DashboardPage() {
         <div className="mb-4 flex justify-end">
           <AuthLinks />
         </div>
+        {/* 동아리 만들기 / 관리 진입 */}
+        <Link href="/clubs/new" className="mb-4 block">
+          <Card className="border-primary/30 bg-primary/5 shadow-sm transition-shadow active:shadow-md">
+            <CardContent className="flex flex-row items-center gap-3 p-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+                <PlusCircle className="size-6 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground">동아리 만들기</p>
+                <p className="text-xs text-muted-foreground">새 동아리를 생성하고 회원을 모집해 보세요.</p>
+              </div>
+              <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
         {/* 내 동아리: 가입한 동아리만 표시, 리더 칩으로 구분 */}
         <DashboardMyClubs />
 

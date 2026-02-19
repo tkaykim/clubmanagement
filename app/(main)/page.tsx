@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { HomeHeader } from "@/components/layout/HomeHeader";
+import { HomeHero } from "@/components/home/HomeHero";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,25 +26,8 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* 히어로 */}
-      <section className="px-5 pt-6 pb-8">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">우동 - 우리들의 동아리</p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-          안녕하세요,
-          <br />
-          <span className="text-primary">우리들의 동아리</span>와 함께해요
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          동아리를 탐색하고, 공개 이벤트를 확인해 보세요.
-        </p>
-        <p className="mt-3 text-sm text-muted-foreground">
-          처음이신가요?{" "}
-          <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
-            회원가입
-          </Link>
-          하고 MBTI·관심사를 입력하면 맞춤 동아리를 추천받을 수 있어요.
-        </p>
-      </section>
+      <HomeHeader />
+      <HomeHero />
 
       {/* 추천 동아리 */}
       <section className="px-4 pb-8">
