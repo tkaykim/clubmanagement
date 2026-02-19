@@ -5,7 +5,7 @@ import { getClubDisplayName } from "@/lib/types";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Users, FolderOpen, Settings } from "lucide-react";
+import { ChevronRight, Users, FolderOpen, Settings, Instagram } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function ClubDetailPage({
     const { data: u } = await supabase.from("universities").select("name").eq("id", clubData.university_id).single();
     university_name = u?.name ?? null;
   }
-  const club = { name: clubData.name, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, description: clubData.description, category: clubData.category, max_members: clubData.max_members, is_recruiting: clubData.is_recruiting, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null, university_name };
+  const club = { name: clubData.name, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, description: clubData.description, category: clubData.category, max_members: clubData.max_members, is_recruiting: clubData.is_recruiting, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null, university_name, instagram_url: clubData.instagram_url ?? null };
 
   const { data: members } = await supabase.from("members").select("id, role, status").eq("club_id", id);
   const { data: projectsData } = await supabase.from("projects").select("id, name, status, starts_at, ends_at, visibility").eq("club_id", id).order("starts_at", { ascending: false });
@@ -73,6 +73,22 @@ export default async function ClubDetailPage({
             <CardContent className="p-4">
               <h2 className="text-sm font-semibold text-muted-foreground">소개</h2>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{club.description}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {club.instagram_url && (
+          <Card className="mb-6 border-0 shadow-sm">
+            <CardContent className="p-4">
+              <a
+                href={club.instagram_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm font-medium text-foreground hover:underline"
+              >
+                <Instagram className="size-5 shrink-0" />
+                공식 인스타그램
+              </a>
             </CardContent>
           </Card>
         )}

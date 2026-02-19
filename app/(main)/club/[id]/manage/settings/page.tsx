@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { ClubInstagramForm } from "@/components/club/ClubInstagramForm";
 import { ClubInterestEditor } from "@/components/club/ClubInterestEditor";
 import { ClubNameForm } from "@/components/club/ClubNameForm";
 import { ClubUniversityForm } from "@/components/club/ClubUniversityForm";
@@ -20,10 +21,10 @@ export default async function ClubManageSettingsPage({
   const supabase = createServerSupabaseClient();
   if (!supabase) notFound();
 
-  const { data: clubData, error } = await supabase.from("clubs").select("name, name_ko, name_en, description, category, max_members, is_recruiting, is_university_based, university_id").eq("id", id).single();
+  const { data: clubData, error } = await supabase.from("clubs").select("name, name_ko, name_en, description, category, max_members, is_recruiting, is_university_based, university_id, instagram_url").eq("id", id).single();
   if (error || !clubData) notFound();
 
-  const club = { ...clubData, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null };
+  const club = { ...clubData, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null, instagram_url: clubData.instagram_url ?? null };
   const { data: ci } = await supabase.from("club_interests").select("interest_id").eq("club_id", id);
   const clubInterestIds = (ci ?? []).map((r) => r.interest_id);
 
@@ -46,6 +47,10 @@ export default async function ClubManageSettingsPage({
             <div className="space-y-2">
               <Label htmlFor="description">소개</Label>
               <Textarea id="description" defaultValue={club.description ?? ""} className="min-h-[100px] rounded-lg" placeholder="동아리 소개" />
+            </div>
+            <div className="space-y-2">
+              <Label>공식 인스타그램</Label>
+              <ClubInstagramForm clubId={id} initialUrl={club.instagram_url} />
             </div>
             <div className="space-y-2">
               <ClubInterestEditor clubId={id} initialInterestIds={clubInterestIds} />

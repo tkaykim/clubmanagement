@@ -128,6 +128,38 @@ export type ProjectMember = {
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 
+/** 프로젝트 모집 폼 문항 타입 */
+export type RecruitmentQuestionType =
+  | "short_text"
+  | "long_text"
+  | "paragraph_short"
+  | "paragraph_long"
+  | "radio"
+  | "checkbox"
+  | "select"
+  | "file_upload";
+
+export type ProjectRecruitmentForm = {
+  id: string;
+  project_id: string;
+  title: string | null;
+  description: string | null;
+  poster_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectRecruitmentQuestion = {
+  id: string;
+  form_id: string;
+  sort_order: number;
+  type: RecruitmentQuestionType;
+  label: string;
+  required: boolean;
+  options: string[] | null;
+  created_at: string;
+};
+
 export type Task = {
   id: string;
   project_id: string;

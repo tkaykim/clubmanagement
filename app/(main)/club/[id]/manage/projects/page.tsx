@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, FolderOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, FolderOpen, Plus, FileEdit } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,15 @@ export default async function ClubManageProjectsPage({
   return (
     <div className="flex flex-col">
       <div className="px-4 py-4">
-        <p className="mb-4 text-sm text-muted-foreground">
-          {club.name} 프로젝트 목록입니다.
-        </p>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">{club.name} 프로젝트 목록입니다.</p>
+          <Link href={`/club/${id}/manage/projects/new`}>
+            <Button size="sm" className="gap-1.5 rounded-lg">
+              <Plus className="size-4" />
+              프로젝트 추가
+            </Button>
+          </Link>
+        </div>
         {projectList.length === 0 ? (
           <Card className="border-0 border-dashed bg-muted/30">
             <CardContent className="py-10 text-center">
@@ -42,9 +49,9 @@ export default async function ClubManageProjectsPage({
         ) : (
           <div className="space-y-2">
             {projectList.map((p) => (
-              <Link key={p.id} href={p.visibility === "public" ? `/events/${p.id}` : `/club/${id}/manage/projects`}>
-                <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
-                  <CardContent className="flex flex-row items-center gap-3 p-4">
+              <Card key={p.id} className="border-0 shadow-sm transition-shadow active:shadow-md">
+                <CardContent className="flex flex-row items-center gap-3 p-4">
+                  <Link href={p.visibility === "public" ? `/events/${p.id}` : `/club/${id}/manage/projects`} className="flex min-w-0 flex-1 flex-row items-center gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
                       <FolderOpen className="size-5 text-muted-foreground" />
                     </div>
@@ -59,9 +66,15 @@ export default async function ClubManageProjectsPage({
                       )}
                     </div>
                     <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-                  </CardContent>
-                </Card>
-              </Link>
+                  </Link>
+                  <Link href={`/club/${id}/manage/projects/${p.id}/form`}>
+                    <Button variant="outline" size="sm" className="gap-1.5 rounded-lg">
+                      <FileEdit className="size-4" />
+                      모집 폼
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

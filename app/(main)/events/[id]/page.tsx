@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { MobileHeader } from "@/components/layout/MobileHeader";
+import { ProjectRecruitmentApplyForm } from "@/components/project/ProjectRecruitmentApplyForm";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Calendar, Building2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -79,14 +79,9 @@ export default async function EventDetailPage({
             </Card>
           )}
 
-          <Card className="border-dashed bg-muted/30">
-            <CardContent className="p-4 text-center">
-              <p className="text-sm text-muted-foreground">로그인 후 관람 신청을 이용할 수 있습니다.</p>
-              <Button variant="outline" className="mt-3 rounded-xl" disabled>
-                관람 신청 (준비 중)
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="mb-6">
+            <ProjectRecruitmentApplyForm projectId={id} />
+          </div>
         </div>
       </div>
     </div>
