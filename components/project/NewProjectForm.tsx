@@ -103,34 +103,33 @@ export function NewProjectForm() {
     }
     setSubmitting(true);
     try {
-      const { data: project, error: insertErr } = await supabase
-        .from("projects")
-        .insert({
-          owner_id: user.id,
-          title: trimmedTitle,
-          description: description.trim() || null,
-          category: "general",
-          poster_url: posterUrl.trim() || null,
-          start_date: scheduleUndecided ? null : startDate || null,
-          end_date: scheduleUndecided ? null : endDate || null,
-          schedule_undecided: scheduleUndecided,
-          budget: hasFee ? budget : 0,
-          recruitment_start_at: recruitmentStartAt || null,
-          due_date: hasDeadline && dueDate ? dueDate.slice(0, 10) : null,
-          max_participants: hasMaxParticipants ? maxParticipants : null,
-          status: "recruiting",
-        })
-        .select("id")
-        .single();
-      if (insertErr) {
-        setError(insertErr.message || "생성에 실패했습니다.");
+      const { data: newProjectId, error: insertErr } = await supabase.rpc(
+        "create_project",
+        {
+          p_owner_id: user.id,
+          p_title: trimmedTitle,
+          p_description: description.trim() || null,
+          p_category: "general",
+          p_poster_url: posterUrl.trim() || null,
+          p_start_date: scheduleUndecided ? null : startDate || null,
+          p_end_date: scheduleUndecided ? null : endDate || null,
+          p_schedule_undecided: scheduleUndecided,
+          p_budget: hasFee ? budget : 0,
+          p_recruitment_start_at: recruitmentStartAt || null,
+          p_due_date: hasDeadline && dueDate ? dueDate.slice(0, 10) : null,
+          p_max_participants: hasMaxParticipants ? maxParticipants : null,
+          p_status: "recruiting",
+        }
+      );
+      if (insertErr || !newProjectId) {
+        setError(insertErr?.message || "생성에 실패했습니다.");
         setSubmitting(false);
         return;
       }
 
       if (scheduleDates.length > 0) {
         const dateRows = scheduleDates.map((date, i) => ({
-          project_id: project.id,
+          project_id: newProjectId,
           date,
           sort_order: i,
         }));
@@ -142,7 +141,7 @@ export function NewProjectForm() {
         }
       }
 
-      router.push(`/manage/projects/${project.id}/form`);
+      router.push(`/manage/projects/${newProjectId}/form`);
     } catch {
       setError("생성에 실패했습니다.");
       setSubmitting(false);
