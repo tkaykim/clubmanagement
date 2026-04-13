@@ -113,37 +113,43 @@ export function NewProjectForm() {
     }
     setSubmitting(true);
     try {
-      const { data: newProjectId, error: insertErr } = await supabase.rpc(
-        "create_project",
-        {
-          p_owner_id: user.id,
-          p_title: trimmedTitle,
-          p_description: description.trim() || null,
-          p_poster_url: posterUrl.trim() || null,
-          p_start_date: scheduleUndecided ? null : startDate || null,
-          p_end_date: scheduleUndecided ? null : endDate || null,
-          p_schedule_undecided: scheduleUndecided,
-          p_fee: hasFee ? fee : 0,
-          p_recruitment_start_at: recruitmentStartAt
+      const { data: inserted, error: insertErr } = await supabase
+        .from("projects")
+        .insert({
+          owner_id: user.id,
+          title: trimmedTitle,
+          description: description.trim() || null,
+          poster_url: posterUrl.trim() || null,
+          start_date: scheduleUndecided ? null : startDate || null,
+          end_date: scheduleUndecided ? null : endDate || null,
+          schedule_undecided: scheduleUndecided,
+          fee: hasFee ? fee : 0,
+          recruitment_start_at: recruitmentStartAt
             ? new Date(recruitmentStartAt).toISOString()
             : null,
-          p_recruitment_end_at:
+          recruitment_end_at:
             hasDeadline && recruitmentEndAt ? recruitmentEndAt : null,
-          p_max_participants: hasMaxParticipants ? maxParticipants : null,
-          p_status: "recruiting",
-        },
-      );
-      if (insertErr || !newProjectId) {
+          max_participants: hasMaxParticipants ? maxParticipants : null,
+          status: "recruiting",
+        })
+        .select("id")
+        .single();
+
+      if (insertErr || !inserted) {
         setError(insertErr?.message || "생성에 실패했습니다.");
         setSubmitting(false);
         return;
       }
 
       if (scheduleDates.length > 0) {
-        const { error: dateErr } = await supabase.rpc("add_schedule_dates", {
-          p_project_id: newProjectId,
-          p_dates: scheduleDates,
-        });
+        const rows = scheduleDates.map((date, i) => ({
+          project_id: inserted.id,
+          date,
+          sort_order: i,
+        }));
+        const { error: dateErr } = await supabase
+          .from("project_schedule_dates")
+          .insert(rows);
         if (dateErr) {
           console.error("일정 후보 저장 실패:", dateErr.message);
         }
