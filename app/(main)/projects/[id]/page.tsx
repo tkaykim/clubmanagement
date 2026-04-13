@@ -178,7 +178,7 @@ export default async function ProjectDetailPage({
               {project.schedule_undecided ? (
                 <div className="flex items-center gap-2 text-sm text-amber-600">
                   <AlertCircle className="size-4" />
-                  <span>일정 미정 — 아래에서 가능한 일정을 투표해주세요</span>
+                  <span>일정 미정 — 아래에서 연습 가능 일정을 투표해주세요</span>
                 </div>
               ) : project.start_date ? (
                 <p className="text-sm text-foreground">

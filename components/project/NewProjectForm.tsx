@@ -26,7 +26,10 @@ export function NewProjectForm() {
   const [hasMaxParticipants, setHasMaxParticipants] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState<number>(20);
   const [scheduleDates, setScheduleDates] = useState<string[]>([]);
+  const [addMode, setAddMode] = useState<"single" | "range">("single");
   const [newDate, setNewDate] = useState("");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +41,36 @@ export function NewProjectForm() {
     }
     setScheduleDates((prev) => [...prev, newDate].sort());
     setNewDate("");
+    setError(null);
+  }
+
+  function addScheduleRange() {
+    if (!rangeStart || !rangeEnd) return;
+    const start = new Date(rangeStart + "T00:00:00");
+    const end = new Date(rangeEnd + "T00:00:00");
+    if (start > end) {
+      setError("시작일이 종료일보다 늦을 수 없습니다.");
+      return;
+    }
+    const diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    if (diff > 90) {
+      setError("최대 90일 구간까지 추가할 수 있습니다.");
+      return;
+    }
+    const newDates: string[] = [];
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const ds = cursor.toISOString().slice(0, 10);
+      if (!scheduleDates.includes(ds)) newDates.push(ds);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (newDates.length === 0) {
+      setError("이미 모두 추가된 날짜입니다.");
+      return;
+    }
+    setScheduleDates((prev) => [...prev, ...newDates].sort());
+    setRangeStart("");
+    setRangeEnd("");
     setError(null);
   }
 
@@ -83,7 +116,7 @@ export function NewProjectForm() {
           schedule_undecided: scheduleUndecided,
           budget: hasFee ? budget : 0,
           recruitment_start_at: recruitmentStartAt || null,
-          due_date: hasDeadline && dueDate ? dueDate : null,
+          due_date: hasDeadline && dueDate ? dueDate.slice(0, 10) : null,
           max_participants: hasMaxParticipants ? maxParticipants : null,
           status: "recruiting",
         })
@@ -251,7 +284,7 @@ export function NewProjectForm() {
               {hasDeadline && (
                 <Input
                   id="due_date"
-                  type="datetime-local"
+                  type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
                   className="rounded-lg"
@@ -343,38 +376,102 @@ export function NewProjectForm() {
             )}
             {scheduleUndecided && (
               <p className="text-xs text-muted-foreground">
-                일정이 미정인 경우 아래 후보 날짜를 설정하여 참여자들의 가능 일정을 취합할 수 있습니다.
+                일정이 미정인 경우 아래 후보 날짜를 설정하여 참여자들의 연습 가능 일정을 취합할 수 있습니다.
               </p>
             )}
           </div>
 
-          {/* 참여 가능 일정 후보 */}
+          {/* 연습 가능 일정 후보 */}
           <div className="space-y-3">
             <Label className="flex items-center gap-1.5 text-sm font-medium">
               <CalendarDays className="size-4" />
-              참여 가능 일정 후보
+              연습 가능 일정 후보
             </Label>
             <p className="text-xs text-muted-foreground">
               참여자들이 각 날짜별로 가능한 시간대를 투표합니다.
             </p>
+
+            {/* 추가 모드 선택 */}
             <div className="flex gap-2">
-              <Input
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                className="flex-1 rounded-lg"
-              />
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={addScheduleDate}
-                className="shrink-0 rounded-lg gap-1"
+                onClick={() => setAddMode("single")}
+                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                  addMode === "single"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <Plus className="size-4" />
-                추가
-              </Button>
+                날짜 개별 추가
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMode("range")}
+                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                  addMode === "range"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                구간으로 추가
+              </button>
             </div>
+
+            {addMode === "single" ? (
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="flex-1 rounded-lg"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addScheduleDate}
+                  className="shrink-0 rounded-lg gap-1"
+                >
+                  <Plus className="size-4" />
+                  추가
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">시작일</Label>
+                    <Input
+                      type="date"
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value)}
+                      className="rounded-lg"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">종료일</Label>
+                    <Input
+                      type="date"
+                      value={rangeEnd}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                      className="rounded-lg"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addScheduleRange}
+                  disabled={!rangeStart || !rangeEnd}
+                  className="w-full rounded-lg gap-1"
+                >
+                  <Plus className="size-4" />
+                  구간 날짜 일괄 추가
+                </Button>
+              </div>
+            )}
+
             {scheduleDates.length > 0 && (
               <div className="space-y-1.5">
                 {scheduleDates.map((date) => (
@@ -400,9 +497,18 @@ export function NewProjectForm() {
                     </button>
                   </div>
                 ))}
-                <p className="text-xs text-muted-foreground">
-                  {scheduleDates.length}개 후보 날짜가 설정되었습니다.
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {scheduleDates.length}개 후보 날짜가 설정되었습니다.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleDates([])}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    전체 삭제
+                  </button>
+                </div>
               </div>
             )}
           </div>

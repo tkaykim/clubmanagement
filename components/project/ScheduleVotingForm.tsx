@@ -346,7 +346,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
           );
         if (error) throw error;
       }
-      setMessage({ type: "success", text: "일정 투표가 저장되었습니다!" });
+      setMessage({ type: "success", text: "연습 일정 투표가 저장되었습니다!" });
     } catch (err) {
       setMessage({
         type: "error",
@@ -369,7 +369,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             <CalendarDays className="size-4" />
-            일정 투표
+            연습 일정 투표
           </h2>
           {userId && (
             <button
@@ -393,7 +393,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
           )}
         </div>
         <p className="mb-4 text-xs text-muted-foreground">
-          각 날짜별로 참여 가능 여부와 시간대를 선택해주세요.
+          각 날짜별로 연습 가능 여부와 시간대를 선택해주세요.
         </p>
 
         {/* 복사 패널 */}
