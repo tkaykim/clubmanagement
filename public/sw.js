@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oneshot-v1';
+const CACHE_NAME = 'oneshot-v2';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
