@@ -21,7 +21,10 @@ export function NewProjectForm() {
   const [budget, setBudget] = useState(0);
   const [hasFee, setHasFee] = useState(false);
   const [recruitmentStartAt, setRecruitmentStartAt] = useState("");
+  const [hasDeadline, setHasDeadline] = useState(true);
   const [dueDate, setDueDate] = useState("");
+  const [hasMaxParticipants, setHasMaxParticipants] = useState(false);
+  const [maxParticipants, setMaxParticipants] = useState<number>(20);
   const [scheduleDates, setScheduleDates] = useState<string[]>([]);
   const [newDate, setNewDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -50,12 +53,8 @@ export function NewProjectForm() {
       setError("프로젝트 이름을 입력하세요.");
       return;
     }
-    if (!recruitmentStartAt || !dueDate) {
-      setError("모집 기간(시작일, 종료일)을 설정하세요.");
-      return;
-    }
-    if (new Date(recruitmentStartAt) > new Date(dueDate)) {
-      setError("모집 시작일이 종료일보다 늦을 수 없습니다.");
+    if (hasDeadline && recruitmentStartAt && dueDate && new Date(recruitmentStartAt) > new Date(dueDate)) {
+      setError("모집 시작일이 마감일보다 늦을 수 없습니다.");
       return;
     }
     if (!scheduleUndecided && !startDate) {
@@ -84,7 +83,8 @@ export function NewProjectForm() {
           schedule_undecided: scheduleUndecided,
           budget: hasFee ? budget : 0,
           recruitment_start_at: recruitmentStartAt || null,
-          due_date: dueDate || null,
+          due_date: hasDeadline && dueDate ? dueDate : null,
+          max_participants: hasMaxParticipants ? maxParticipants : null,
           status: "recruiting",
         })
         .select("id")
@@ -218,35 +218,86 @@ export function NewProjectForm() {
 
           {/* 모집 기간 */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">모집 기간 *</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="recruitment_start" className="text-xs text-muted-foreground">
-                  시작일
-                </Label>
-                <Input
-                  id="recruitment_start"
-                  type="datetime-local"
-                  value={recruitmentStartAt}
-                  onChange={(e) => setRecruitmentStartAt(e.target.value)}
-                  className="rounded-lg"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
+            <Label className="text-sm font-medium">모집 기간</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="recruitment_start" className="text-xs text-muted-foreground">
+                모집 시작일
+              </Label>
+              <Input
+                id="recruitment_start"
+                type="datetime-local"
+                value={recruitmentStartAt}
+                onChange={(e) => setRecruitmentStartAt(e.target.value)}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
                 <Label htmlFor="due_date" className="text-xs text-muted-foreground">
-                  종료일
+                  모집 마감일
                 </Label>
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={!hasDeadline}
+                    onChange={(e) => {
+                      setHasDeadline(!e.target.checked);
+                      if (e.target.checked) setDueDate("");
+                    }}
+                  />
+                  마감일 없음
+                </label>
+              </div>
+              {hasDeadline && (
                 <Input
                   id="due_date"
                   type="datetime-local"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
                   className="rounded-lg"
-                  required
                 />
+              )}
+            </div>
+          </div>
+
+          {/* 참여 인원 제한 */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Label className="text-sm font-medium">참여 인원</Label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="radio"
+                    name="hasMax"
+                    checked={!hasMaxParticipants}
+                    onChange={() => setHasMaxParticipants(false)}
+                  />
+                  제한 없음
+                </label>
+                <label className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="radio"
+                    name="hasMax"
+                    checked={hasMaxParticipants}
+                    onChange={() => setHasMaxParticipants(true)}
+                  />
+                  인원 제한
+                </label>
               </div>
             </div>
+            {hasMaxParticipants && (
+              <div className="space-y-1.5">
+                <Input
+                  type="number"
+                  min={1}
+                  value={maxParticipants}
+                  onChange={(e) => setMaxParticipants(Number(e.target.value) || 1)}
+                  placeholder="최대 인원 수"
+                  className="rounded-lg"
+                />
+                <p className="text-xs text-muted-foreground">최대 {maxParticipants}명까지 지원 받습니다</p>
+              </div>
+            )}
           </div>
 
           {/* 프로젝트 일정 */}

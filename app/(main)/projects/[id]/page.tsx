@@ -45,7 +45,12 @@ function formatDateTimeKR(dateStr: string): string {
   });
 }
 
-function getRecruitmentStatus(startAt: string | null, deadlineAt: string | null) {
+function getRecruitmentStatus(
+  startAt: string | null,
+  deadlineAt: string | null,
+  applicantCount: number,
+  maxParticipants: number | null
+) {
   const now = new Date();
   if (startAt && new Date(startAt) > now) {
     return { label: "모집 예정", variant: "outline" as const, open: false };
@@ -53,8 +58,8 @@ function getRecruitmentStatus(startAt: string | null, deadlineAt: string | null)
   if (deadlineAt && new Date(deadlineAt) < now) {
     return { label: "모집 마감", variant: "destructive" as const, open: false };
   }
-  if (startAt || deadlineAt) {
-    return { label: "모집 중", variant: "default" as const, open: true };
+  if (maxParticipants !== null && applicantCount >= maxParticipants) {
+    return { label: "모집 마감 (정원 초과)", variant: "destructive" as const, open: false };
   }
   return { label: "모집 중", variant: "default" as const, open: true };
 }
@@ -87,10 +92,14 @@ export default async function ProjectDetailPage({
     .eq("project_id", projectId);
 
   const fee = project.budget ?? 0;
+  const maxParticipants: number | null = project.max_participants ?? null;
+  const currentApplicants = applicantCount ?? 0;
   const hasScheduleDates = (scheduleDateCount ?? 0) > 0;
   const recruitment = getRecruitmentStatus(
     project.recruitment_start_at,
-    project.due_date
+    project.due_date,
+    currentApplicants,
+    maxParticipants
   );
 
   return (
@@ -142,22 +151,22 @@ export default async function ProjectDetailPage({
           </div>
 
           {/* 모집 기간 */}
-          {(project.recruitment_start_at || project.due_date) && (
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="size-4 text-primary" />
-                  <h2 className="text-sm font-semibold text-foreground">모집 기간</h2>
-                </div>
-                <div className="text-sm text-foreground">
-                  {project.recruitment_start_at && formatDateTimeKR(project.recruitment_start_at)}
-                  {project.due_date && (
-                    <> ~ {formatDateTimeKR(project.due_date)}</>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground">모집 기간</h2>
+              </div>
+              <div className="text-sm text-foreground">
+                {project.recruitment_start_at
+                  ? formatDateTimeKR(project.recruitment_start_at)
+                  : "시작일 미정"}
+                {project.due_date
+                  ? <> ~ {formatDateTimeKR(project.due_date)}</>
+                  : <span className="text-muted-foreground"> ~ 마감일 없음</span>}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 프로젝트 일정 */}
           <Card className="border-0 shadow-sm">
@@ -184,13 +193,16 @@ export default async function ProjectDetailPage({
             </CardContent>
           </Card>
 
-          {/* 지원자 수 */}
-          {applicantCount !== null && applicantCount > 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="size-4 shrink-0" />
-              <span>현재 지원자 {applicantCount}명</span>
-            </div>
-          )}
+          {/* 지원자 수 / 인원 제한 */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="size-4 shrink-0" />
+            <span>
+              현재 지원자 {currentApplicants}명
+              {maxParticipants !== null && (
+                <> / 최대 {maxParticipants}명</>
+              )}
+            </span>
+          </div>
 
           {/* 프로젝트 소개 */}
           {project.description && (
@@ -229,7 +241,11 @@ export default async function ProjectDetailPage({
           {/* 지원 폼 */}
           {recruitment.open && (
             <div className="pt-2">
-              <ProjectRecruitmentApplyForm projectId={projectId} />
+              <ProjectRecruitmentApplyForm
+                projectId={projectId}
+                maxParticipants={maxParticipants}
+                currentApplicants={currentApplicants}
+              />
             </div>
           )}
 

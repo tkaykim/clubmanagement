@@ -12,7 +12,7 @@ import type { RecruitmentQuestionType } from "@/lib/types";
 type FormRow = { id: string; title: string | null; description: string | null; poster_url: string | null };
 type QuestionRow = { id: string; sort_order: number; type: RecruitmentQuestionType; label: string; required: boolean; options: string[] | null };
 
-export function ProjectRecruitmentApplyForm({ projectId }: { projectId: string }) {
+export function ProjectRecruitmentApplyForm({ projectId, maxParticipants, currentApplicants }: { projectId: string; maxParticipants?: number | null; currentApplicants?: number }) {
   const [form, setForm] = useState<FormRow | null>(null);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +100,8 @@ export function ProjectRecruitmentApplyForm({ projectId }: { projectId: string }
   if (loading) return <p className="text-sm text-muted-foreground">불러오는 중…</p>;
   if (!form || questions.length === 0) return null;
 
+  const isFull = maxParticipants != null && (currentApplicants ?? 0) >= maxParticipants;
+
   const sorted = [...questions].sort((a, b) => a.sort_order - b.sort_order);
   const opts = (q: QuestionRow): string[] => (Array.isArray(q.options) ? q.options : q.options ? [String(q.options)] : []);
 
@@ -110,6 +112,8 @@ export function ProjectRecruitmentApplyForm({ projectId }: { projectId: string }
         {form.description && <p className="mb-4 text-xs text-muted-foreground">{form.description}</p>}
         {alreadyApplied ? (
           <p className="text-sm text-muted-foreground">이미 지원하셨습니다.</p>
+        ) : isFull ? (
+          <p className="text-sm text-muted-foreground">모집 인원이 마감되었습니다.</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {sorted.map((q) => (
