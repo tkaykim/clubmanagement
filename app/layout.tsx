@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "우동 - 우리들의 동아리",
-  description: "우리들의 동아리, 우동",
+  title: "원샷 관리툴",
+  description: "원샷 프로젝트 관리 플랫폼",
 };
 
 export const viewport = {

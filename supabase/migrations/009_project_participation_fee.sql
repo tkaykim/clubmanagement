@@ -1,0 +1,2 @@
+ALTER TABLE public.projects
+  ADD COLUMN IF NOT EXISTS participation_fee INTEGER NOT NULL DEFAULT 0;

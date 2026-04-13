@@ -8,141 +8,357 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Plus, X, CalendarDays, ImageIcon } from "lucide-react";
 
-type Props = {
-  clubId: string;
-};
-
-export function NewProjectForm({ clubId }: Props) {
+export function NewProjectForm() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [recruitmentDeadlineAt, setRecruitmentDeadlineAt] = useState("");
-  const [visibility, setVisibility] = useState<"club_only" | "public">("club_only");
+  const [posterUrl, setPosterUrl] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [scheduleUndecided, setScheduleUndecided] = useState(false);
+  const [budget, setBudget] = useState(0);
+  const [hasFee, setHasFee] = useState(false);
+  const [recruitmentStartAt, setRecruitmentStartAt] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [scheduleDates, setScheduleDates] = useState<string[]>([]);
+  const [newDate, setNewDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function addScheduleDate() {
+    if (!newDate) return;
+    if (scheduleDates.includes(newDate)) {
+      setError("이미 추가된 날짜입니다.");
+      return;
+    }
+    setScheduleDates((prev) => [...prev, newDate].sort());
+    setNewDate("");
+    setError(null);
+  }
+
+  function removeScheduleDate(date: string) {
+    setScheduleDates((prev) => prev.filter((d) => d !== date));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const trimmedName = name.trim();
-    if (!trimmedName) {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
       setError("프로젝트 이름을 입력하세요.");
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
+    if (!recruitmentStartAt || !dueDate) {
+      setError("모집 기간(시작일, 종료일)을 설정하세요.");
+      return;
+    }
+    if (new Date(recruitmentStartAt) > new Date(dueDate)) {
+      setError("모집 시작일이 종료일보다 늦을 수 없습니다.");
+      return;
+    }
+    if (!scheduleUndecided && !startDate) {
+      setError("프로젝트 일정을 설정하거나 '미정'으로 표시하세요.");
+      return;
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       setError("로그인이 필요합니다.");
       return;
     }
     setSubmitting(true);
-    const { data: project, error: insertErr } = await supabase
-      .from("projects")
-      .insert({
-        club_id: clubId,
-        name: trimmedName,
-        description: description.trim() || null,
-        starts_at: startsAt || null,
-        ends_at: endsAt || null,
-        recruitment_deadline_at: recruitmentDeadlineAt || null,
-        visibility,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-    setSubmitting(false);
-    if (insertErr) {
-      setError(insertErr.message || "생성에 실패했습니다.");
-      return;
+    try {
+      const { data: project, error: insertErr } = await supabase
+        .from("projects")
+        .insert({
+          owner_id: user.id,
+          title: trimmedTitle,
+          description: description.trim() || null,
+          category: "general",
+          poster_url: posterUrl.trim() || null,
+          start_date: scheduleUndecided ? null : startDate || null,
+          end_date: scheduleUndecided ? null : endDate || null,
+          schedule_undecided: scheduleUndecided,
+          budget: hasFee ? budget : 0,
+          recruitment_start_at: recruitmentStartAt || null,
+          due_date: dueDate || null,
+          status: "recruiting",
+        })
+        .select("id")
+        .single();
+      if (insertErr) {
+        setError(insertErr.message || "생성에 실패했습니다.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (scheduleDates.length > 0) {
+        const dateRows = scheduleDates.map((date, i) => ({
+          project_id: project.id,
+          date,
+          sort_order: i,
+        }));
+        const { error: dateErr } = await supabase
+          .from("project_schedule_dates")
+          .insert(dateRows);
+        if (dateErr) {
+          console.error("일정 후보 저장 실패:", dateErr.message);
+        }
+      }
+
+      router.push(`/manage/projects/${project.id}/form`);
+    } catch {
+      setError("생성에 실패했습니다.");
+      setSubmitting(false);
     }
-    router.push(`/club/${clubId}/manage/projects/${project.id}/form`);
   }
 
   return (
     <Card className="border-0 shadow-sm">
       <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* 기본 정보 */}
           <div className="space-y-2">
-            <Label htmlFor="name">프로젝트 이름 *</Label>
+            <Label htmlFor="title">프로젝트 이름 *</Label>
             <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 2025 정기 공연"
               className="rounded-lg"
               required
             />
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="description">설명</Label>
+            <Label htmlFor="description">프로젝트 설명</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="프로젝트 소개"
-              className="min-h-[80px] rounded-lg"
+              placeholder="프로젝트에 대해 소개해주세요"
+              className="min-h-[100px] rounded-lg"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="starts_at">시작일</Label>
-              <Input
-                id="starts_at"
-                type="date"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="rounded-lg"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ends_at">종료일</Label>
-              <Input
-                id="ends_at"
-                type="date"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                className="rounded-lg"
-              />
-            </div>
-          </div>
+
+          {/* 포스터 이미지 */}
           <div className="space-y-2">
-            <Label htmlFor="recruitment_deadline_at">모집 마감일시</Label>
+            <Label htmlFor="poster_url" className="flex items-center gap-1.5">
+              <ImageIcon className="size-4" />
+              포스터 이미지 URL
+            </Label>
             <Input
-              id="recruitment_deadline_at"
-              type="datetime-local"
-              value={recruitmentDeadlineAt}
-              onChange={(e) => setRecruitmentDeadlineAt(e.target.value)}
+              id="poster_url"
+              type="url"
+              value={posterUrl}
+              onChange={(e) => setPosterUrl(e.target.value)}
+              placeholder="https://example.com/poster.jpg"
               className="rounded-lg"
             />
+            {posterUrl && (
+              <div className="relative mt-2 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
+                <img
+                  src={posterUrl}
+                  alt="포스터 미리보기"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
+            )}
           </div>
+
+          {/* 참여비 */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Label className="text-sm font-medium">참여비</Label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="radio"
+                    name="hasFee"
+                    checked={!hasFee}
+                    onChange={() => {
+                      setHasFee(false);
+                      setBudget(0);
+                    }}
+                  />
+                  무료
+                </label>
+                <label className="flex items-center gap-1.5 text-sm">
+                  <input
+                    type="radio"
+                    name="hasFee"
+                    checked={hasFee}
+                    onChange={() => setHasFee(true)}
+                  />
+                  유료
+                </label>
+              </div>
+            </div>
+            {hasFee && (
+              <div className="space-y-1.5">
+                <Input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={budget}
+                  onChange={(e) => setBudget(Number(e.target.value) || 0)}
+                  placeholder="금액 입력"
+                  className="rounded-lg"
+                />
+                <p className="text-xs text-muted-foreground">원 단위로 입력하세요</p>
+              </div>
+            )}
+          </div>
+
+          {/* 모집 기간 */}
           <div className="space-y-2">
-            <Label>공개 범위</Label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={visibility === "club_only"}
-                  onChange={() => setVisibility("club_only")}
+            <Label className="text-sm font-medium">모집 기간 *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="recruitment_start" className="text-xs text-muted-foreground">
+                  시작일
+                </Label>
+                <Input
+                  id="recruitment_start"
+                  type="datetime-local"
+                  value={recruitmentStartAt}
+                  onChange={(e) => setRecruitmentStartAt(e.target.value)}
+                  className="rounded-lg"
+                  required
                 />
-                동아리만
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={visibility === "public"}
-                  onChange={() => setVisibility("public")}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="due_date" className="text-xs text-muted-foreground">
+                  종료일
+                </Label>
+                <Input
+                  id="due_date"
+                  type="datetime-local"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="rounded-lg"
+                  required
                 />
-                전체 공개
-              </label>
+              </div>
             </div>
           </div>
+
+          {/* 프로젝트 일정 */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">프로젝트 일정</Label>
+              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={scheduleUndecided}
+                  onChange={(e) => setScheduleUndecided(e.target.checked)}
+                />
+                미정
+              </label>
+            </div>
+            {!scheduleUndecided && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="start_date" className="text-xs text-muted-foreground">
+                    시작일
+                  </Label>
+                  <Input
+                    id="start_date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="rounded-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="end_date" className="text-xs text-muted-foreground">
+                    종료일
+                  </Label>
+                  <Input
+                    id="end_date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+            {scheduleUndecided && (
+              <p className="text-xs text-muted-foreground">
+                일정이 미정인 경우 아래 후보 날짜를 설정하여 참여자들의 가능 일정을 취합할 수 있습니다.
+              </p>
+            )}
+          </div>
+
+          {/* 참여 가능 일정 후보 */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-1.5 text-sm font-medium">
+              <CalendarDays className="size-4" />
+              참여 가능 일정 후보
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              참여자들이 각 날짜별로 가능한 시간대를 투표합니다.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="flex-1 rounded-lg"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addScheduleDate}
+                className="shrink-0 rounded-lg gap-1"
+              >
+                <Plus className="size-4" />
+                추가
+              </Button>
+            </div>
+            {scheduleDates.length > 0 && (
+              <div className="space-y-1.5">
+                {scheduleDates.map((date) => (
+                  <div
+                    key={date}
+                    className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm"
+                  >
+                    <span className="flex items-center gap-2">
+                      <CalendarDays className="size-3.5 text-muted-foreground" />
+                      {new Date(date + "T00:00:00").toLocaleDateString("ko-KR", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        weekday: "short",
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeScheduleDate(date)}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  {scheduleDates.length}개 후보 날짜가 설정되었습니다.
+                </p>
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" disabled={submitting} className="w-full rounded-xl">
-            {submitting ? "생성 중…" : "프로젝트 생성 후 모집 폼 설정"}
+            {submitting ? "생성 중…" : "프로젝트 공지하기"}
           </Button>
         </form>
       </CardContent>

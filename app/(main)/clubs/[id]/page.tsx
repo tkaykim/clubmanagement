@@ -5,7 +5,7 @@ import { getClubDisplayName } from "@/lib/types";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Users, FolderOpen, Settings, Instagram } from "lucide-react";
+import { ChevronRight, Users, FolderOpen, Settings, Instagram, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +40,7 @@ export default async function ClubDetailPage({
   const club = { name: clubData.name, name_ko: clubData.name_ko ?? null, name_en: clubData.name_en ?? null, description: clubData.description, category: clubData.category, max_members: clubData.max_members, is_recruiting: clubData.is_recruiting, is_university_based: clubData.is_university_based ?? false, university_id: clubData.university_id ?? null, university_name, instagram_url: clubData.instagram_url ?? null };
 
   const { data: members } = await supabase.from("members").select("id, role, status").eq("club_id", id);
-  const { data: projectsData } = await supabase.from("projects").select("id, name, status, starts_at, ends_at, visibility").eq("club_id", id).order("starts_at", { ascending: false });
+  const { data: projectsData } = await supabase.from("projects").select("id, name, status, starts_at, ends_at, visibility, participation_fee").eq("club_id", id).order("starts_at", { ascending: false });
   const projects = projectsData ?? [];
   const membersApproved = (members ?? []).filter((m) => m.status === "approved").length;
 
@@ -100,22 +100,31 @@ export default async function ClubDetailPage({
             프로젝트
           </h2>
           <div className="space-y-2">
-            {projects.map((p) => (
-              <Link key={p.id} href={p.visibility === "public" ? `/events/${p.id}` : "/dashboard"}>
-                <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
-                  <CardContent className="flex flex-row items-center gap-3 p-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground">{p.name}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {statusLabel[p.status] ?? p.status}
-                        {p.starts_at && ` · ${new Date(p.starts_at).toLocaleDateString("ko-KR")}`}
-                      </p>
-                    </div>
-                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+            {projects.map((p) => {
+              const fee = p.participation_fee ?? 0;
+              return (
+                <Link key={p.id} href={`/club/${id}/projects/${p.id}`}>
+                  <Card className="border-0 shadow-sm transition-shadow active:shadow-md">
+                    <CardContent className="flex flex-row items-center gap-3 p-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">{p.name}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {statusLabel[p.status] ?? p.status}
+                            {p.starts_at && ` · ${new Date(p.starts_at).toLocaleDateString("ko-KR")}`}
+                          </span>
+                          <Badge variant={fee === 0 ? "secondary" : "outline"} className="gap-0.5 text-[10px] px-1.5 py-0">
+                            <Banknote className="size-3" />
+                            {fee === 0 ? "무료" : `${fee.toLocaleString()}원`}
+                          </Badge>
+                        </div>
+                      </div>
+                      <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </section>
 

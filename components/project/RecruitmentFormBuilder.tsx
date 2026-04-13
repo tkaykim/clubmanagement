@@ -42,13 +42,13 @@ type QuestionDraft = {
 };
 
 type Props = {
-  clubId: string;
+  clubId?: string;
   projectId: string;
   initialForm: ProjectRecruitmentForm | null;
   initialQuestions: ProjectRecruitmentQuestion[];
 };
 
-export function RecruitmentFormBuilder({ clubId, projectId, initialForm, initialQuestions }: Props) {
+export function RecruitmentFormBuilder({ projectId, initialForm, initialQuestions }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(initialForm?.title ?? "");
   const [description, setDescription] = useState(initialForm?.description ?? "");

@@ -9,9 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,16 +29,37 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error: err } = await supabase.auth.signUp({
+
+    const phoneDigits = phone.replace(/\D/g, "");
+
+    const { data: signUpData, error: err } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name: name || undefined } },
+      options: { data: { name: name || undefined, phone: phoneDigits || undefined } },
     });
-    setLoading(false);
     if (err) {
       setError(err.message ?? "회원가입에 실패했습니다.");
+      setLoading(false);
       return;
     }
+
+    const userId = signUpData.user?.id;
+    if (userId && phoneDigits) {
+      await supabase
+        .from("users")
+        .update({ phone: phoneDigits })
+        .eq("id", userId);
+
+      if (name.trim()) {
+        await supabase.rpc("link_guest_applications", {
+          p_user_id: userId,
+          p_name: name.trim(),
+          p_phone: phoneDigits,
+        });
+      }
+    }
+
+    setLoading(false);
     router.push("/onboarding");
     router.refresh();
   }
@@ -53,6 +82,20 @@ export default function SignupPage() {
               placeholder="홍길동"
               className="rounded-lg"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">전화번호</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(formatPhone(e.target.value))}
+              placeholder="010-1234-5678"
+              className="rounded-lg"
+            />
+            <p className="text-xs text-muted-foreground">
+              수기 등록된 동아리 활동 이력이 있다면 자동으로 연결됩니다.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">이메일</Label>

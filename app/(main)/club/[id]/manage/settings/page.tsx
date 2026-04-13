@@ -3,12 +3,10 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ClubInstagramForm } from "@/components/club/ClubInstagramForm";
 import { ClubInterestEditor } from "@/components/club/ClubInterestEditor";
 import { ClubNameForm } from "@/components/club/ClubNameForm";
+import { ClubGeneralSettingsForm } from "@/components/club/ClubGeneralSettingsForm";
 import { ClubUniversityForm } from "@/components/club/ClubUniversityForm";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 export const dynamic = "force-dynamic";
 
@@ -41,14 +39,6 @@ export default async function ClubManageSettingsPage({
               <ClubNameForm clubId={id} initialNameKo={club.name_ko} initialNameEn={club.name_en} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">카테고리</Label>
-              <Input id="category" defaultValue={club.category} className="rounded-lg" placeholder="예: 댄스, 밴드" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">소개</Label>
-              <Textarea id="description" defaultValue={club.description ?? ""} className="min-h-[100px] rounded-lg" placeholder="동아리 소개" />
-            </div>
-            <div className="space-y-2">
               <Label>공식 인스타그램</Label>
               <ClubInstagramForm clubId={id} initialUrl={club.instagram_url} />
             </div>
@@ -59,20 +49,16 @@ export default async function ClubManageSettingsPage({
               <Label>대학 기반 동아리</Label>
               <ClubUniversityForm clubId={id} initialIsUniversityBased={club.is_university_based} initialUniversityId={club.university_id} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="max_members">최대 회원 수</Label>
-              <Input id="max_members" type="number" defaultValue={club.max_members} className="rounded-lg" />
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
-              <div>
-                <p className="font-medium text-foreground">회원 모집 열기</p>
-                <p className="text-xs text-muted-foreground">모집 중일 때만 지원을 받습니다.</p>
-              </div>
-              <div className="flex h-9 w-12 items-center rounded-full bg-muted px-1">
-                <div className={`size-7 rounded-full bg-primary ${club.is_recruiting ? "translate-x-4" : "translate-x-0"} transition-transform`} />
-              </div>
-            </div>
-            <Button className="w-full rounded-xl">저장하기</Button>
+
+            <hr className="border-border/60" />
+
+            <ClubGeneralSettingsForm
+              clubId={id}
+              initialCategory={club.category}
+              initialDescription={club.description ?? ""}
+              initialMaxMembers={club.max_members}
+              initialIsRecruiting={club.is_recruiting}
+            />
           </CardContent>
         </Card>
       </div>

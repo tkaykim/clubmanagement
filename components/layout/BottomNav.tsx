@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Ticket, LayoutDashboard, Calendar } from "lucide-react";
+import { Home, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/", label: "홈", icon: Home },
-  { href: "/clubs", label: "동아리", icon: Users },
-  { href: "/events", label: "이벤트", icon: Ticket },
-  { href: "/dashboard", label: "마이", icon: LayoutDashboard },
-  { href: "/calendar", label: "캘린더", icon: Calendar },
+  { href: "/manage", label: "관리", icon: Settings },
+  { href: "/mypage", label: "내 정보", icon: User },
 ];
 
 export function BottomNav() {

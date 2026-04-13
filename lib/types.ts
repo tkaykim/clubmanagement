@@ -4,6 +4,7 @@ export type User = {
   id: string;
   email: string;
   name: string;
+  phone: string | null;
   avatar_url: string | null;
   mbti: string | null;
   created_at: string;
@@ -111,6 +112,12 @@ export type Project = {
   status: ProjectStatus;
   starts_at: string | null;
   ends_at: string | null;
+  participation_fee: number;
+  recruitment_start_at: string | null;
+  recruitment_deadline_at: string | null;
+  schedule_undecided: boolean;
+  poster_url: string | null;
+  visibility: "club_only" | "public";
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -172,6 +179,20 @@ export type Task = {
   updated_at: string;
 };
 
+export type ProjectApplicationStatus = "pending" | "approved" | "rejected";
+
+export type ProjectApplication = {
+  id: string;
+  project_id: string;
+  user_id: string;
+  status: ProjectApplicationStatus;
+  created_at: string;
+};
+
+export type ProjectApplicationWithUser = ProjectApplication & {
+  user: Pick<User, "id" | "name" | "email" | "avatar_url">;
+};
+
 // ===== Join / Extended Types =====
 
 export type MemberWithUser = Member & {
@@ -218,6 +239,44 @@ export type PlazaPost = {
   created_at: string;
 };
 
+// ===== 프로젝트 일정 투표 =====
+
+export type ProjectScheduleDate = {
+  id: string;
+  project_id: string;
+  date: string;
+  label: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type AvailabilityStatus = "available" | "unavailable" | "maybe";
+
+export type TimeSlot = {
+  start: string;
+  end: string;
+};
+
+export type ProjectAvailabilityVote = {
+  id: string;
+  schedule_date_id: string;
+  user_id: string;
+  status: AvailabilityStatus;
+  time_slots: TimeSlot[];
+  note: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectAvailabilityVoteWithUser = ProjectAvailabilityVote & {
+  user: Pick<User, "id" | "name" | "avatar_url">;
+};
+
+export type ProjectScheduleDateWithVotes = ProjectScheduleDate & {
+  votes: ProjectAvailabilityVoteWithUser[];
+};
+
 // ===== API Response Types =====
 
 export type ApiResponse<T> = { data: T } | { error: string };
@@ -246,6 +305,13 @@ export type ProjectFormData = {
   status: ProjectStatus;
   starts_at?: string;
   ends_at?: string;
+  participation_fee?: number;
+  recruitment_start_at?: string;
+  recruitment_deadline_at?: string;
+  schedule_undecided?: boolean;
+  poster_url?: string;
+  visibility?: "club_only" | "public";
+  schedule_dates?: string[];
 };
 
 export type TaskFormData = {

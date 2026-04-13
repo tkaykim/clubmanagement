@@ -238,6 +238,95 @@ async function main() {
     );
   }
 
+  // ===== oneshot 댄스동아리 시드 =====
+  const oneshotRow = {
+    name: "oneshot",
+    name_ko: "원샷",
+    name_en: "oneshot",
+    description:
+      "댄스 동아리 oneshot입니다.\n\n다양한 장르의 댄스를 함께 즐기고, 정기 공연과 영상 프로젝트를 진행합니다.\n코레오, 프리스타일, 커버 댄스 등 모든 장르 환영!",
+    category_major_id: danceMajorId,
+    max_members: 40,
+    is_recruiting: true,
+    owner_id: userId,
+    recruitment_deadline_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+  {
+    const { error: insErr } = await supabase.from("clubs").insert(oneshotRow);
+    if (insErr && insErr.code !== "23505" && !insErr.message?.includes("duplicate")) {
+      console.warn("oneshot club insert skip:", insErr.message);
+    }
+  }
+  const { data: oneshotClub } = await supabase.from("clubs").select("id").eq("name", "oneshot").maybeSingle();
+  const oneshotId = oneshotClub?.id;
+
+  if (oneshotId) {
+    await supabase.from("members").upsert(
+      [{ club_id: oneshotId, user_id: userId, role: "owner", status: "approved" }],
+      { onConflict: "club_id,user_id", ignoreDuplicates: true }
+    );
+
+    const oneshotProjects = [
+      {
+        club_id: oneshotId,
+        name: "2026 여름 정기 공연",
+        description:
+          "oneshot 여름 정기 공연입니다!\n\n다양한 장르의 무대를 선보이며, 관객 분들도 함께 즐길 수 있는 시간입니다.\n참여를 원하시는 동아리원은 지원해주세요.",
+        status: "scheduled",
+        starts_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        ends_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        participation_fee: 0,
+        created_by: userId,
+        visibility: "public",
+        project_type: "free",
+        recruitment_deadline_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        club_id: oneshotId,
+        name: "댄스 커버 영상 촬영",
+        description:
+          "K-POP 댄스 커버 영상을 촬영합니다.\n\n촬영 장소 대관비, 편집비 등이 포함된 참여 비용이 있습니다.\n촬영 경험이 없어도 괜찮습니다!",
+        status: "in_progress",
+        starts_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        ends_at: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        participation_fee: 15000,
+        created_by: userId,
+        visibility: "club_only",
+        project_type: "paid",
+        recruitment_deadline_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        club_id: oneshotId,
+        name: "봄 워크숍 - 코레오 기초",
+        description:
+          "코레오(안무 창작) 기초를 배우는 워크숍입니다.\n\n외부 강사를 초빙하여 진행하며, 워크숍 비용이 발생합니다.",
+        status: "planning",
+        starts_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        participation_fee: 20000,
+        created_by: userId,
+        visibility: "club_only",
+        project_type: "paid",
+        recruitment_deadline_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    for (const row of oneshotProjects) {
+      const { data: exists } = await supabase.from("projects").select("id").eq("club_id", oneshotId).eq("name", row.name).maybeSingle();
+      if (!exists) await supabase.from("projects").insert(row);
+    }
+
+    const { data: oneshotProjectList } = await supabase.from("projects").select("id").eq("club_id", oneshotId);
+    for (const p of oneshotProjectList ?? []) {
+      await supabase.from("project_members").upsert(
+        [{ project_id: p.id, user_id: userId, role: "lead" }],
+        { onConflict: "project_id,user_id", ignoreDuplicates: true }
+      );
+    }
+
+    console.log("oneshot 댄스동아리 시드 완료. 클럽 ID:", oneshotId);
+  }
+
   console.log("시드 완료. 계정:", SEED_EMAIL);
 }
 
