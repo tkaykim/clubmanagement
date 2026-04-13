@@ -25,7 +25,6 @@ export function NewProjectForm() {
   const [recruitmentEndAt, setRecruitmentEndAt] = useState("");
   const [hasMaxParticipants, setHasMaxParticipants] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState<number>(20);
-  const [syncRecruitment, setSyncRecruitment] = useState(true);
   const [scheduleDates, setScheduleDates] = useState<string[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -34,12 +33,8 @@ export function NewProjectForm() {
 
   function handleStartDateChange(value: string) {
     setStartDate(value);
-    const effectiveEnd = value && endDate && value > endDate ? value : endDate;
     if (value && endDate && value > endDate) setEndDate(value);
-    if (syncRecruitment) {
-      setRecruitmentStartAt(value ? value + "T00:00" : "");
-      if (hasDeadline) setRecruitmentEndAt(effectiveEnd || value);
-    }
+    const effectiveEnd = value && endDate && value > endDate ? value : endDate;
     setRangeStart(value);
     setRangeEnd(effectiveEnd || value);
   }
@@ -47,7 +42,6 @@ export function NewProjectForm() {
   function handleEndDateChange(value: string) {
     if (value && startDate && value < startDate) return;
     setEndDate(value);
-    if (syncRecruitment && hasDeadline) setRecruitmentEndAt(value);
     setRangeEnd(value);
   }
 
@@ -376,54 +370,38 @@ export function NewProjectForm() {
               </label>
             </div>
             {!scheduleUndecided && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="start_date"
-                      className="text-xs text-muted-foreground"
-                    >
-                      시작일
-                    </Label>
-                    <Input
-                      id="start_date"
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => handleStartDateChange(e.target.value)}
-                      className="rounded-lg"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="end_date"
-                      className="text-xs text-muted-foreground"
-                    >
-                      종료일
-                    </Label>
-                    <Input
-                      id="end_date"
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => handleEndDateChange(e.target.value)}
-                      min={startDate || undefined}
-                      className="rounded-lg"
-                    />
-                  </div>
-                </div>
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={syncRecruitment}
-                    onChange={(e) => {
-                      setSyncRecruitment(e.target.checked);
-                      if (e.target.checked && startDate) {
-                        setRecruitmentStartAt(startDate + "T00:00");
-                        if (hasDeadline) setRecruitmentEndAt(endDate || startDate);
-                      }
-                    }}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="start_date"
+                    className="text-xs text-muted-foreground"
+                  >
+                    시작일
+                  </Label>
+                  <Input
+                    id="start_date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    className="rounded-lg"
                   />
-                  모집 기간을 프로젝트 기간과 동일하게 설정
-                </label>
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="end_date"
+                    className="text-xs text-muted-foreground"
+                  >
+                    종료일
+                  </Label>
+                  <Input
+                    id="end_date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                    min={startDate || undefined}
+                    className="rounded-lg"
+                  />
+                </div>
               </div>
             )}
             {scheduleUndecided && (
