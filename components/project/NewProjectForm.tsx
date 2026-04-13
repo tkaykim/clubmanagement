@@ -18,11 +18,11 @@ export function NewProjectForm() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [scheduleUndecided, setScheduleUndecided] = useState(false);
-  const [budget, setBudget] = useState(0);
+  const [fee, setFee] = useState(0);
   const [hasFee, setHasFee] = useState(false);
   const [recruitmentStartAt, setRecruitmentStartAt] = useState("");
   const [hasDeadline, setHasDeadline] = useState(true);
-  const [dueDate, setDueDate] = useState("");
+  const [recruitmentEndAt, setRecruitmentEndAt] = useState("");
   const [hasMaxParticipants, setHasMaxParticipants] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState<number>(20);
   const [scheduleDates, setScheduleDates] = useState<string[]>([]);
@@ -86,7 +86,12 @@ export function NewProjectForm() {
       setError("프로젝트 이름을 입력하세요.");
       return;
     }
-    if (hasDeadline && recruitmentStartAt && dueDate && new Date(recruitmentStartAt) > new Date(dueDate)) {
+    if (
+      hasDeadline &&
+      recruitmentStartAt &&
+      recruitmentEndAt &&
+      new Date(recruitmentStartAt) > new Date(recruitmentEndAt)
+    ) {
       setError("모집 시작일이 마감일보다 늦을 수 없습니다.");
       return;
     }
@@ -109,17 +114,17 @@ export function NewProjectForm() {
           p_owner_id: user.id,
           p_title: trimmedTitle,
           p_description: description.trim() || null,
-          p_category: "general",
           p_poster_url: posterUrl.trim() || null,
           p_start_date: scheduleUndecided ? null : startDate || null,
           p_end_date: scheduleUndecided ? null : endDate || null,
           p_schedule_undecided: scheduleUndecided,
-          p_budget: hasFee ? budget : 0,
+          p_fee: hasFee ? fee : 0,
           p_recruitment_start_at: recruitmentStartAt || null,
-          p_due_date: hasDeadline && dueDate ? dueDate.slice(0, 10) : null,
+          p_recruitment_end_at:
+            hasDeadline && recruitmentEndAt ? recruitmentEndAt : null,
           p_max_participants: hasMaxParticipants ? maxParticipants : null,
           p_status: "recruiting",
-        }
+        },
       );
       if (insertErr || !newProjectId) {
         setError(insertErr?.message || "생성에 실패했습니다.");
@@ -128,20 +133,16 @@ export function NewProjectForm() {
       }
 
       if (scheduleDates.length > 0) {
-        const dateRows = scheduleDates.map((date, i) => ({
-          project_id: newProjectId,
-          date,
-          sort_order: i,
-        }));
-        const { error: dateErr } = await supabase
-          .from("project_schedule_dates")
-          .insert(dateRows);
+        const { error: dateErr } = await supabase.rpc("add_schedule_dates", {
+          p_project_id: newProjectId,
+          p_dates: scheduleDates,
+        });
         if (dateErr) {
           console.error("일정 후보 저장 실패:", dateErr.message);
         }
       }
 
-      router.push(`/manage/projects/${newProjectId}/form`);
+      router.push("/manage");
     } catch {
       setError("생성에 실패했습니다.");
       setSubmitting(false);
@@ -192,6 +193,7 @@ export function NewProjectForm() {
             />
             {posterUrl && (
               <div className="relative mt-2 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={posterUrl}
                   alt="포스터 미리보기"
@@ -216,7 +218,7 @@ export function NewProjectForm() {
                     checked={!hasFee}
                     onChange={() => {
                       setHasFee(false);
-                      setBudget(0);
+                      setFee(0);
                     }}
                   />
                   무료
@@ -238,12 +240,14 @@ export function NewProjectForm() {
                   type="number"
                   min={0}
                   step={1000}
-                  value={budget}
-                  onChange={(e) => setBudget(Number(e.target.value) || 0)}
+                  value={fee}
+                  onChange={(e) => setFee(Number(e.target.value) || 0)}
                   placeholder="금액 입력"
                   className="rounded-lg"
                 />
-                <p className="text-xs text-muted-foreground">원 단위로 입력하세요</p>
+                <p className="text-xs text-muted-foreground">
+                  원 단위로 입력하세요
+                </p>
               </div>
             )}
           </div>
@@ -252,7 +256,10 @@ export function NewProjectForm() {
           <div className="space-y-2">
             <Label className="text-sm font-medium">모집 기간</Label>
             <div className="space-y-1.5">
-              <Label htmlFor="recruitment_start" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="recruitment_start"
+                className="text-xs text-muted-foreground"
+              >
                 모집 시작일
               </Label>
               <Input
@@ -265,7 +272,10 @@ export function NewProjectForm() {
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="due_date" className="text-xs text-muted-foreground">
+                <Label
+                  htmlFor="recruitment_end"
+                  className="text-xs text-muted-foreground"
+                >
                   모집 마감일
                 </Label>
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -274,7 +284,7 @@ export function NewProjectForm() {
                     checked={!hasDeadline}
                     onChange={(e) => {
                       setHasDeadline(!e.target.checked);
-                      if (e.target.checked) setDueDate("");
+                      if (e.target.checked) setRecruitmentEndAt("");
                     }}
                   />
                   마감일 없음
@@ -282,10 +292,10 @@ export function NewProjectForm() {
               </div>
               {hasDeadline && (
                 <Input
-                  id="due_date"
+                  id="recruitment_end"
                   type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  value={recruitmentEndAt}
+                  onChange={(e) => setRecruitmentEndAt(e.target.value)}
                   className="rounded-lg"
                 />
               )}
@@ -323,11 +333,15 @@ export function NewProjectForm() {
                   type="number"
                   min={1}
                   value={maxParticipants}
-                  onChange={(e) => setMaxParticipants(Number(e.target.value) || 1)}
+                  onChange={(e) =>
+                    setMaxParticipants(Number(e.target.value) || 1)
+                  }
                   placeholder="최대 인원 수"
                   className="rounded-lg"
                 />
-                <p className="text-xs text-muted-foreground">최대 {maxParticipants}명까지 지원 받습니다</p>
+                <p className="text-xs text-muted-foreground">
+                  최대 {maxParticipants}명까지 지원 받습니다
+                </p>
               </div>
             )}
           </div>
@@ -348,7 +362,10 @@ export function NewProjectForm() {
             {!scheduleUndecided && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="start_date" className="text-xs text-muted-foreground">
+                  <Label
+                    htmlFor="start_date"
+                    className="text-xs text-muted-foreground"
+                  >
                     시작일
                   </Label>
                   <Input
@@ -360,7 +377,10 @@ export function NewProjectForm() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="end_date" className="text-xs text-muted-foreground">
+                  <Label
+                    htmlFor="end_date"
+                    className="text-xs text-muted-foreground"
+                  >
                     종료일
                   </Label>
                   <Input
@@ -375,7 +395,8 @@ export function NewProjectForm() {
             )}
             {scheduleUndecided && (
               <p className="text-xs text-muted-foreground">
-                일정이 미정인 경우 아래 후보 날짜를 설정하여 참여자들의 연습 가능 일정을 취합할 수 있습니다.
+                일정이 미정인 경우 아래 후보 날짜를 설정하여 참여자들의 연습
+                가능 일정을 취합할 수 있습니다.
               </p>
             )}
           </div>
@@ -390,7 +411,6 @@ export function NewProjectForm() {
               참여자들이 각 날짜별로 가능한 시간대를 투표합니다.
             </p>
 
-            {/* 추가 모드 선택 */}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -401,7 +421,7 @@ export function NewProjectForm() {
                     : "border-border text-muted-foreground hover:text-foreground"
                 }`}
               >
-                날짜 개별 추가
+                개별 추가
               </button>
               <button
                 type="button"
@@ -412,7 +432,7 @@ export function NewProjectForm() {
                     : "border-border text-muted-foreground hover:text-foreground"
                 }`}
               >
-                구간으로 추가
+                구간 추가
               </button>
             </div>
 
@@ -439,7 +459,9 @@ export function NewProjectForm() {
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">시작일</Label>
+                    <Label className="text-xs text-muted-foreground">
+                      시작일
+                    </Label>
                     <Input
                       type="date"
                       value={rangeStart}
@@ -448,7 +470,9 @@ export function NewProjectForm() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">종료일</Label>
+                    <Label className="text-xs text-muted-foreground">
+                      종료일
+                    </Label>
                     <Input
                       type="date"
                       value={rangeEnd}
@@ -480,17 +504,20 @@ export function NewProjectForm() {
                   >
                     <span className="flex items-center gap-2">
                       <CalendarDays className="size-3.5 text-muted-foreground" />
-                      {new Date(date + "T00:00:00").toLocaleDateString("ko-KR", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        weekday: "short",
-                      })}
+                      {new Date(date + "T00:00:00").toLocaleDateString(
+                        "ko-KR",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          weekday: "short",
+                        },
+                      )}
                     </span>
                     <button
                       type="button"
                       onClick={() => removeScheduleDate(date)}
-                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      className="text-muted-foreground transition-colors hover:text-destructive"
                     >
                       <X className="size-4" />
                     </button>
@@ -513,7 +540,11 @@ export function NewProjectForm() {
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="w-full rounded-xl">
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl"
+          >
             {submitting ? "생성 중…" : "프로젝트 공지하기"}
           </Button>
         </form>

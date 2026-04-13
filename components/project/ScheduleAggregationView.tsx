@@ -16,12 +16,12 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
-  Edit3,
-  Save,
   Plus,
   X,
+  AlertCircle,
+  Minus,
 } from "lucide-react";
-import type { AvailabilityStatus, TimeSlot } from "@/lib/types";
+import type { VoteStatus, TimeSlot } from "@/lib/types";
 
 type ScheduleDateRow = {
   id: string;
@@ -34,25 +34,25 @@ type VoteRow = {
   id: string;
   schedule_date_id: string;
   user_id: string;
-  status: AvailabilityStatus;
+  status: VoteStatus;
   time_slots: TimeSlot[];
   note: string | null;
-  user: { id: string; name: string; avatar_url: string | null };
+  users: { id: string; name: string } | null;
 };
 
-type EditingVote = {
-  voteId: string;
-  status: AvailabilityStatus;
-  timeSlots: TimeSlot[];
+const STATUS_LABEL: Record<VoteStatus, string> = {
+  available: "가능",
+  maybe: "미정",
+  unavailable: "불가",
 };
 
-const STATUS_ICON: Record<AvailabilityStatus, React.ReactNode> = {
+const STATUS_ICON: Record<VoteStatus, React.ReactNode> = {
   available: <Check className="size-3.5 text-emerald-600" />,
   maybe: <HelpCircle className="size-3.5 text-amber-600" />,
   unavailable: <XCircle className="size-3.5 text-red-500" />,
 };
 
-const STATUS_BG: Record<AvailabilityStatus, string> = {
+const STATUS_BG: Record<VoteStatus, string> = {
   available: "bg-emerald-50",
   maybe: "bg-amber-50",
   unavailable: "bg-red-50",
@@ -68,13 +68,17 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export function ScheduleAggregationView({ projectId }: { projectId: string }) {
+export function ScheduleAggregationView({
+  projectId,
+}: {
+  projectId: string;
+}) {
   const [dates, setDates] = useState<ScheduleDateRow[]>([]);
-  const [votesByDate, setVotesByDate] = useState<Record<string, VoteRow[]>>({});
+  const [votesByDate, setVotesByDate] = useState<
+    Record<string, VoteRow[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const [editingVote, setEditingVote] = useState<EditingVote | null>(null);
-  const [saving, setSaving] = useState(false);
   const [newDate, setNewDate] = useState("");
   const [addingDate, setAddingDate] = useState(false);
 
@@ -83,7 +87,7 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
       .from("project_schedule_dates")
       .select("id, date, label, sort_order")
       .eq("project_id", projectId)
-      .order("sort_order");
+      .order("date");
 
     const dateList = (scheduleDates ?? []) as ScheduleDateRow[];
     setDates(dateList);
@@ -95,8 +99,10 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
 
     const dateIds = dateList.map((d) => d.id);
     const { data: votes } = await supabase
-      .from("project_availability_votes")
-      .select("id, schedule_date_id, user_id, status, time_slots, note, user:users(id, name, avatar_url)")
+      .from("schedule_votes")
+      .select(
+        "id, schedule_date_id, user_id, status, time_slots, note, users:user_id(id, name)"
+      )
       .in("schedule_date_id", dateIds);
 
     const grouped: Record<string, VoteRow[]> = {};
@@ -128,34 +134,10 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
     const votes = votesByDate[dateId] ?? [];
     const available = votes.filter((v) => v.status === "available").length;
     const maybe = votes.filter((v) => v.status === "maybe").length;
-    const unavailable = votes.filter((v) => v.status === "unavailable").length;
+    const unavailable = votes.filter(
+      (v) => v.status === "unavailable"
+    ).length;
     return { total: votes.length, available, maybe, unavailable };
-  }
-
-  function startEditing(vote: VoteRow) {
-    setEditingVote({
-      voteId: vote.id,
-      status: vote.status,
-      timeSlots: Array.isArray(vote.time_slots) ? [...vote.time_slots] : [],
-    });
-  }
-
-  async function saveEdit() {
-    if (!editingVote) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("project_availability_votes")
-      .update({
-        status: editingVote.status,
-        time_slots: editingVote.timeSlots,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", editingVote.voteId);
-    setSaving(false);
-    if (!error) {
-      setEditingVote(null);
-      loadData();
-    }
   }
 
   async function addScheduleDate() {
@@ -174,7 +156,12 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
   }
 
   async function removeScheduleDate(dateId: string) {
-    if (!confirm("이 날짜를 삭제하시겠습니까? 관련 투표도 모두 삭제됩니다.")) return;
+    if (!confirm("이 날짜를 삭제하시겠습니까? 관련 투표도 모두 삭제됩니다."))
+      return;
+    await supabase
+      .from("schedule_votes")
+      .delete()
+      .eq("schedule_date_id", dateId);
     await supabase.from("project_schedule_dates").delete().eq("id", dateId);
     loadData();
   }
@@ -185,7 +172,6 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-4">
-      {/* 후보 날짜 추가 */}
       <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
           <Label className="text-sm font-semibold flex items-center gap-1.5 mb-3">
@@ -216,7 +202,7 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
       {dates.length === 0 ? (
         <Card className="border-0 bg-muted/30">
           <CardContent className="py-10 text-center">
-            <CalendarDays className="mx-auto size-10 text-muted-foreground/50" />
+            <AlertCircle className="mx-auto size-10 text-muted-foreground/50" />
             <p className="mt-3 text-sm text-muted-foreground">
               설정된 후보 날짜가 없습니다.
             </p>
@@ -229,9 +215,11 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
           const votes = votesByDate[d.id] ?? [];
 
           return (
-            <Card key={d.id} className="border-0 shadow-sm overflow-hidden">
+            <Card
+              key={d.id}
+              className="border-0 shadow-sm overflow-hidden"
+            >
               <CardContent className="p-0">
-                {/* 날짜 헤더 */}
                 <button
                   type="button"
                   onClick={() => toggleDate(d.id)}
@@ -242,14 +230,16 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
                       <CalendarDays className="size-5 text-primary" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-medium">{formatDate(d.date)}</p>
+                      <p className="text-sm font-medium">
+                        {formatDate(d.date)}
+                      </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="flex items-center gap-0.5 text-xs text-emerald-600">
                           <Check className="size-3" />
                           {summary.available}
                         </span>
                         <span className="flex items-center gap-0.5 text-xs text-amber-600">
-                          <HelpCircle className="size-3" />
+                          <Minus className="size-3" />
                           {summary.maybe}
                         </span>
                         <span className="flex items-center gap-0.5 text-xs text-red-500">
@@ -281,7 +271,6 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
                   </div>
                 </button>
 
-                {/* 투표 상세 */}
                 {expanded && (
                   <div className="border-t px-4 pb-4">
                     {votes.length === 0 ? (
@@ -291,138 +280,51 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
                     ) : (
                       <div className="divide-y">
                         {votes.map((v) => {
-                          const isEditing = editingVote?.voteId === v.id;
-                          const slots = Array.isArray(v.time_slots) ? v.time_slots : [];
+                          const slots = Array.isArray(v.time_slots)
+                            ? v.time_slots
+                            : [];
+                          const userName =
+                            v.users?.name ?? "알 수 없음";
 
                           return (
-                            <div key={v.id} className={`py-3 ${STATUS_BG[v.status]} rounded-lg my-1 px-3`}>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                                    {v.user.name.charAt(0)}
-                                  </div>
-                                  <span className="text-sm font-medium">{v.user.name}</span>
-                                  {!isEditing && (
-                                    <span className="flex items-center gap-0.5">
-                                      {STATUS_ICON[v.status]}
-                                    </span>
-                                  )}
+                            <div
+                              key={v.id}
+                              className={`py-3 ${STATUS_BG[v.status]} rounded-lg my-1 px-3`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                                  {userName.charAt(0)}
                                 </div>
-                                {!isEditing ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => startEditing(v)}
-                                    className="text-muted-foreground hover:text-foreground p-1"
-                                  >
-                                    <Edit3 className="size-3.5" />
-                                  </button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    onClick={saveEdit}
-                                    disabled={saving}
-                                    className="gap-1 h-7 text-xs rounded-lg"
-                                  >
-                                    <Save className="size-3" />
-                                    저장
-                                  </Button>
-                                )}
+                                <span className="text-sm font-medium">
+                                  {userName}
+                                </span>
+                                <span className="flex items-center gap-0.5">
+                                  {STATUS_ICON[v.status]}
+                                  <span className="text-xs text-muted-foreground">
+                                    {STATUS_LABEL[v.status]}
+                                  </span>
+                                </span>
                               </div>
 
-                              {isEditing && editingVote ? (
-                                <div className="mt-2 space-y-2">
-                                  <div className="flex gap-1.5">
-                                    {(["available", "maybe", "unavailable"] as AvailabilityStatus[]).map((s) => (
-                                      <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() =>
-                                          setEditingVote({ ...editingVote, status: s })
-                                        }
-                                        className={`flex-1 flex items-center justify-center gap-1 rounded-md py-1.5 text-xs font-medium border transition-all ${
-                                          editingVote.status === s
-                                            ? s === "available"
-                                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                              : s === "maybe"
-                                              ? "bg-amber-100 text-amber-800 border-amber-300"
-                                              : "bg-red-100 text-red-800 border-red-300"
-                                            : "bg-background border-border"
-                                        }`}
-                                      >
-                                        {STATUS_ICON[s]}
-                                        {s === "available" ? "가능" : s === "maybe" ? "미정" : "불가"}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  {editingVote.status !== "unavailable" && (
-                                    <div className="space-y-1">
-                                      {editingVote.timeSlots.map((slot, i) => (
-                                        <div key={i} className="flex items-center gap-1">
-                                          <Input
-                                            type="time"
-                                            value={slot.start}
-                                            onChange={(e) => {
-                                              const next = [...editingVote.timeSlots];
-                                              next[i] = { ...next[i], start: e.target.value };
-                                              setEditingVote({ ...editingVote, timeSlots: next });
-                                            }}
-                                            className="flex-1 h-7 text-xs rounded-md"
-                                          />
-                                          <span className="text-xs">~</span>
-                                          <Input
-                                            type="time"
-                                            value={slot.end}
-                                            onChange={(e) => {
-                                              const next = [...editingVote.timeSlots];
-                                              next[i] = { ...next[i], end: e.target.value };
-                                              setEditingVote({ ...editingVote, timeSlots: next });
-                                            }}
-                                            className="flex-1 h-7 text-xs rounded-md"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const next = editingVote.timeSlots.filter((_, j) => j !== i);
-                                              setEditingVote({ ...editingVote, timeSlots: next });
-                                            }}
-                                            className="text-muted-foreground hover:text-destructive"
-                                          >
-                                            <X className="size-3" />
-                                          </button>
-                                        </div>
-                                      ))}
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setEditingVote({
-                                            ...editingVote,
-                                            timeSlots: [...editingVote.timeSlots, { start: "09:00", end: "18:00" }],
-                                          })
-                                        }
-                                        className="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                      >
-                                        <Plus className="size-3" />
-                                        시간 추가
-                                      </button>
-                                    </div>
-                                  )}
+                              {slots.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {slots.map((s, i) => (
+                                    <Badge
+                                      key={i}
+                                      variant="outline"
+                                      className="gap-1 text-xs"
+                                    >
+                                      <Clock className="size-2.5" />
+                                      {s.start} ~ {s.end}
+                                    </Badge>
+                                  ))}
                                 </div>
-                              ) : (
-                                <>
-                                  {slots.length > 0 && (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {slots.map((s, i) => (
-                                        <Badge key={i} variant="outline" className="gap-1 text-xs">
-                                          <Clock className="size-2.5" />
-                                          {s.start} ~ {s.end}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {v.note && (
-                                    <p className="mt-1 text-xs text-muted-foreground">{v.note}</p>
-                                  )}
-                                </>
+                              )}
+
+                              {v.note && (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {v.note}
+                                </p>
                               )}
                             </div>
                           );
@@ -437,7 +339,6 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
         })
       )}
 
-      {/* 전체 요약 */}
       {dates.length > 0 && (
         <Card className="border-0 shadow-sm bg-primary/5">
           <CardContent className="p-4">
@@ -448,7 +349,10 @@ export function ScheduleAggregationView({ projectId }: { projectId: string }) {
             <div className="space-y-2">
               {dates.map((d) => {
                 const summary = getDateSummary(d.id);
-                const ratio = summary.total > 0 ? summary.available / summary.total : 0;
+                const ratio =
+                  summary.total > 0
+                    ? summary.available / summary.total
+                    : 0;
                 return (
                   <div key={d.id} className="flex items-center gap-3">
                     <span className="text-xs font-medium min-w-[100px]">

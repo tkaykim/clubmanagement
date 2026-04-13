@@ -19,7 +19,7 @@ import {
   ChevronDown,
   FolderOpen,
 } from "lucide-react";
-import type { AvailabilityStatus, TimeSlot } from "@/lib/types";
+import type { VoteStatus, TimeSlot } from "@/lib/types";
 
 type ScheduleDateRow = {
   id: string;
@@ -28,16 +28,8 @@ type ScheduleDateRow = {
   sort_order: number;
 };
 
-type ExistingVote = {
-  id: string;
-  schedule_date_id: string;
-  status: AvailabilityStatus;
-  time_slots: TimeSlot[];
-  note: string | null;
-};
-
 type DateVoteState = {
-  status: AvailabilityStatus;
+  status: VoteStatus;
   timeSlots: TimeSlot[];
   note: string;
 };
@@ -47,11 +39,11 @@ type CopySourceProject = {
   projectTitle: string;
   matchCount: number;
   totalDates: number;
-  votes: Record<string, { status: AvailabilityStatus; timeSlots: TimeSlot[] }>;
+  votes: Record<string, { status: VoteStatus; timeSlots: TimeSlot[] }>;
 };
 
 const STATUS_CONFIG: Record<
-  AvailabilityStatus,
+  VoteStatus,
   { label: string; icon: React.ReactNode; className: string }
 > = {
   available: {
@@ -91,7 +83,6 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
   } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 복사 기능 상태
   const [showCopyPanel, setShowCopyPanel] = useState(false);
   const [copySources, setCopySources] = useState<CopySourceProject[]>([]);
   const [loadingCopySources, setLoadingCopySources] = useState(false);
@@ -106,7 +97,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
       .from("project_schedule_dates")
       .select("id, date, label, sort_order")
       .eq("project_id", projectId)
-      .order("sort_order");
+      .order("date");
 
     const dateList = (scheduleDates ?? []) as ScheduleDateRow[];
     setDates(dateList);
@@ -124,16 +115,23 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
     if (user) {
       const dateIds = dateList.map((d) => d.id);
       const { data: existingVotes } = await supabase
-        .from("project_availability_votes")
+        .from("schedule_votes")
         .select("id, schedule_date_id, status, time_slots, note")
         .in("schedule_date_id", dateIds)
         .eq("user_id", user.id);
 
-      for (const v of (existingVotes ?? []) as ExistingVote[]) {
-        initialVotes[v.schedule_date_id] = {
-          status: v.status,
-          timeSlots: Array.isArray(v.time_slots) ? v.time_slots : [],
-          note: v.note ?? "",
+      for (const v of existingVotes ?? []) {
+        const ev = v as {
+          id: string;
+          schedule_date_id: string;
+          status: VoteStatus;
+          time_slots: TimeSlot[];
+          note: string | null;
+        };
+        initialVotes[ev.schedule_date_id] = {
+          status: ev.status,
+          timeSlots: Array.isArray(ev.time_slots) ? ev.time_slots : [],
+          note: ev.note ?? "",
         };
       }
     }
@@ -152,9 +150,8 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
 
     const currentDateStrings = new Set(dates.map((d) => d.date));
 
-    // 이 유저가 투표한 다른 프로젝트의 schedule_date들 조회
     const { data: myVotes } = await supabase
-      .from("project_availability_votes")
+      .from("schedule_votes")
       .select(
         "status, time_slots, schedule_date_id, schedule_date:project_schedule_dates(id, date, project_id)"
       )
@@ -166,14 +163,10 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
       return;
     }
 
-    // 프로젝트별로 그룹핑 (현재 프로젝트 제외)
     const byProject: Record<
       string,
       {
-        dates: Record<
-          string,
-          { status: AvailabilityStatus; timeSlots: TimeSlot[] }
-        >;
+        dates: Record<string, { status: VoteStatus; timeSlots: TimeSlot[] }>;
         totalDates: number;
       }
     > = {};
@@ -191,14 +184,13 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
       }
       byProject[sd.project_id].totalDates++;
       byProject[sd.project_id].dates[sd.date] = {
-        status: v.status as AvailabilityStatus,
+        status: v.status as VoteStatus,
         timeSlots: Array.isArray(v.time_slots)
           ? (v.time_slots as TimeSlot[])
           : [],
       };
     }
 
-    // 겹치는 날짜 수 계산 + 프로젝트 이름 조회
     const projectIds = Object.keys(byProject);
     if (projectIds.length === 0) {
       setCopySources([]);
@@ -225,7 +217,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
 
       const matchedVotes: Record<
         string,
-        { status: AvailabilityStatus; timeSlots: TimeSlot[] }
+        { status: VoteStatus; timeSlots: TimeSlot[] }
       > = {};
       for (const d of matchingDates) {
         matchedVotes[d] = data.dates[d];
@@ -273,7 +265,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
     });
   }
 
-  function updateVoteStatus(dateId: string, status: AvailabilityStatus) {
+  function updateVoteStatus(dateId: string, status: VoteStatus) {
     setVotes((prev) => ({
       ...prev,
       [dateId]: { ...prev[dateId], status },
@@ -333,7 +325,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
       for (const dateId of Object.keys(votes)) {
         const vote = votes[dateId];
         const { error } = await supabase
-          .from("project_availability_votes")
+          .from("schedule_votes")
           .upsert(
             {
               schedule_date_id: dateId,
@@ -396,7 +388,6 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
           각 날짜별로 연습 가능 여부와 시간대를 선택해주세요.
         </p>
 
-        {/* 복사 패널 */}
         {showCopyPanel && (
           <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
             <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -476,9 +467,7 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
                 </div>
 
                 <div className="flex gap-1.5">
-                  {(
-                    Object.keys(STATUS_CONFIG) as AvailabilityStatus[]
-                  ).map((s) => {
+                  {(Object.keys(STATUS_CONFIG) as VoteStatus[]).map((s) => {
                     const c = STATUS_CONFIG[s];
                     const isActive = vote.status === s;
                     return (
