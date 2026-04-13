@@ -21,8 +21,8 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
   cancelled: "destructive",
 };
 
-function formatFee(fee: number | null): string {
-  if (!fee || fee === 0) return "무료";
+function formatFee(fee: number | null): string | null {
+  if (!fee || fee === 0) return null;
   return `${fee.toLocaleString("ko-KR")}원`;
 }
 
@@ -115,10 +115,12 @@ export default async function HomePage() {
                             <Badge variant={statusVariant[p.status] ?? "outline"} className="text-xs">
                               {statusLabel[p.status] ?? p.status}
                             </Badge>
-                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                              <Banknote className="size-3" />
-                              {formatFee(p.fee)}
-                            </span>
+                            {formatFee(p.fee) && (
+                              <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                <Banknote className="size-3" />
+                                {formatFee(p.fee)}
+                              </span>
+                            )}
                           </div>
 
                           {p.start_date && (
@@ -157,10 +159,12 @@ export default async function HomePage() {
                               <Badge variant={statusVariant[p.status] ?? "outline"} className="text-[10px] px-1.5 py-0">
                                 {statusLabel[p.status] ?? p.status}
                               </Badge>
-                              <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                                <Banknote className="size-3" />
-                                {formatFee(p.fee)}
-                              </span>
+                              {formatFee(p.fee) && (
+                                <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                  <Banknote className="size-3" />
+                                  {formatFee(p.fee)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

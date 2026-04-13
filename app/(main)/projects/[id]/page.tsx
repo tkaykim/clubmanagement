@@ -45,8 +45,8 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatFee(fee: number): string {
-  if (!fee || fee === 0) return "무료";
+function formatFee(fee: number): string | null {
+  if (!fee || fee === 0) return null;
   return `${fee.toLocaleString("ko-KR")}원`;
 }
 
@@ -111,10 +111,12 @@ export default async function ProjectDetailPage({ params }: Props) {
             <Badge variant={recruitment.open ? "default" : "secondary"}>
               {recruitment.label}
             </Badge>
-            <Badge variant="outline">
-              <Banknote className="size-3" />
-              {formatFee(project.fee ?? 0)}
-            </Badge>
+            {formatFee(project.fee ?? 0) && (
+              <Badge variant="outline">
+                <Banknote className="size-3" />
+                {formatFee(project.fee ?? 0)}
+              </Badge>
+            )}
           </div>
         </div>
 

@@ -46,8 +46,8 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString("ko-KR");
 }
 
-function formatFee(fee: number): string {
-  if (!fee) return "무료";
+function formatFee(fee: number): string | null {
+  if (!fee || fee === 0) return null;
   return `${fee.toLocaleString("ko-KR")}원`;
 }
 
@@ -138,10 +138,12 @@ export default async function ApplicantsPage({ params }: Props) {
               {project.end_date && ` ~ ${formatDate(project.end_date)}`}
             </Badge>
           )}
-          <Badge variant="outline" className="text-xs gap-1">
-            <Banknote className="size-3" />
-            {formatFee(project.fee)}
-          </Badge>
+          {formatFee(project.fee) && (
+            <Badge variant="outline" className="text-xs gap-1">
+              <Banknote className="size-3" />
+              {formatFee(project.fee)}
+            </Badge>
+          )}
         </div>
 
         {/* Summary */}

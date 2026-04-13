@@ -133,12 +133,12 @@ export default async function ManagePage() {
                         >
                           {statusLabel[p.status] ?? p.status}
                         </Badge>
-                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                          <Banknote className="size-3" />
-                          {p.fee === 0
-                            ? "무료"
-                            : `${p.fee.toLocaleString()}원`}
-                        </span>
+                        {p.fee > 0 && (
+                          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <Banknote className="size-3" />
+                            {`${p.fee.toLocaleString()}원`}
+                          </span>
+                        )}
                       </div>
                       {p.start_date && (
                         <p className="mt-1 text-xs text-muted-foreground">
