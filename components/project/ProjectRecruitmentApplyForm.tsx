@@ -88,7 +88,12 @@ export function ProjectRecruitmentApplyForm({ projectId, maxParticipants, curren
           value: Array.isArray(value) ? value : value,
         });
       }
-      setMessage({ type: "success", text: "지원이 완료되었습니다." });
+      const { count } = await supabase
+        .from("project_applications")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", projectId);
+      const orderText = count ? ` (${count}번째 신청)` : "";
+      setMessage({ type: "success", text: `지원이 완료되었습니다.${orderText}` });
       setAlreadyApplied(true);
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "지원에 실패했습니다." });

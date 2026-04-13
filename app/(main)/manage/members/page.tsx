@@ -64,12 +64,14 @@ export default function ManageMembersPage() {
   const canManage = myRole === "owner" || myRole === "admin";
 
   const loadMembers = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error: fetchErr } = await supabase
       .from("crew_members")
       .select("id, user_id, name, email, phone, role, is_active, joined_at")
       .eq("is_active", true)
-      .order("role", { ascending: true })
       .order("joined_at", { ascending: true });
+    if (fetchErr) {
+      console.error("crew_members 조회 오류:", fetchErr);
+    }
     setMembers((data ?? []) as CrewMemberRow[]);
 
     const {

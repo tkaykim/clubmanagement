@@ -83,11 +83,12 @@ export function ApplicantStatusToggle({ applicants: initial, projectId }: Props)
       </div>
 
       <div className="space-y-2">
-        {applicants.map((app) => {
+        {applicants.map((app, idx) => {
           const config = statusConfig[app.status] ?? statusConfig.pending;
           const isUpdating = updating === app.id;
           const isGuest = !app.user_id;
           const displayName = isGuest ? app.guest_name ?? "이름 없음" : app.user_name;
+          const orderNum = idx + 1;
 
           return (
             <Card key={app.id} className="border-0 shadow-sm">
@@ -95,11 +96,8 @@ export function ApplicantStatusToggle({ applicants: initial, projectId }: Props)
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${isGuest ? "bg-primary/10" : "bg-muted"}`}>
-                        {isGuest
-                          ? <UserPlus className="size-4 text-primary" />
-                          : <User className="size-4 text-muted-foreground" />
-                        }
+                      <div className={`relative flex size-8 shrink-0 items-center justify-center rounded-full ${isGuest ? "bg-primary/10" : "bg-muted"}`}>
+                        <span className="text-xs font-bold text-muted-foreground">{orderNum}</span>
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -122,7 +120,7 @@ export function ApplicantStatusToggle({ applicants: initial, projectId }: Props)
                       </div>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {isGuest ? "추가일" : "지원일"}: {new Date(app.created_at).toLocaleDateString("ko-KR")}
+                      {isGuest ? "추가일" : "지원일"}: {new Date(app.created_at).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                   <Badge variant={config.variant}>{config.label}</Badge>
