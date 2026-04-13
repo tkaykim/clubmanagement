@@ -18,10 +18,15 @@ type UserProfile = {
   phone: string | null;
 };
 
+type CrewInfo = {
+  role: string;
+} | null;
+
 export default function MyPage() {
   const router = useRouter();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [crewInfo, setCrewInfo] = useState<CrewInfo>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +42,14 @@ export default function MyPage() {
           .eq("id", user.id)
           .single();
         setProfile(data as UserProfile | null);
+
+        const { data: crew } = await supabase
+          .from("crew_members")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle();
+        setCrewInfo(crew as CrewInfo);
       }
       setLoading(false);
     })();
@@ -109,7 +122,11 @@ export default function MyPage() {
                   {displayName}
                 </h2>
                 <Badge variant="secondary" className="mt-1 text-xs">
-                  원샷 멤버
+                  {crewInfo?.role === "owner"
+                    ? "대표"
+                    : crewInfo?.role === "admin"
+                      ? "운영진"
+                      : "원샷 멤버"}
                 </Badge>
               </div>
             </div>

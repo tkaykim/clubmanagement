@@ -12,6 +12,7 @@ import {
   Users,
   Banknote,
   CalendarDays,
+  UserCog,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -63,11 +64,29 @@ export default async function ManagePage() {
 
   return (
     <div>
-      <MobileHeader title="프로젝트 관리" />
+      <MobileHeader title="관리" />
       <div className="px-4 py-4">
+      {/* 멤버 관리 바로가기 */}
+      <Link href="/manage/members">
+        <Card className="mb-4 border-0 shadow-sm transition-shadow active:shadow-md">
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <UserCog className="size-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-foreground">멤버 관리</p>
+              <p className="text-xs text-muted-foreground">
+                팀원 추가·삭제, 운영진 지정·해제
+              </p>
+            </div>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
+
       <div className="mb-4 flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          프로젝트를 생성하고 관리하세요.
+        <p className="text-sm font-medium text-foreground">
+          프로젝트
         </p>
         <Link href="/manage/projects/new">
           <Button size="sm" className="gap-1.5 rounded-lg">

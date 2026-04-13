@@ -277,6 +277,22 @@ export type ProjectScheduleDateWithVotes = ProjectScheduleDate & {
   votes: ProjectAvailabilityVoteWithUser[];
 };
 
+// ===== 크루 멤버 =====
+
+export type CrewMemberRole = "owner" | "admin" | "member";
+
+export type CrewMember = {
+  id: string;
+  user_id: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: CrewMemberRole;
+  is_active: boolean;
+  joined_at: string;
+  created_at: string;
+};
+
 // ===== API Response Types =====
 
 export type ApiResponse<T> = { data: T } | { error: string };
