@@ -25,23 +25,26 @@ export function NewProjectForm() {
   const [recruitmentEndAt, setRecruitmentEndAt] = useState("");
   const [hasMaxParticipants, setHasMaxParticipants] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState<number>(20);
+  const [syncRecruitment, setSyncRecruitment] = useState(true);
   const [scheduleDates, setScheduleDates] = useState<string[]>([]);
-  const [addMode, setAddMode] = useState<"single" | "range">("single");
-  const [newDate, setNewDate] = useState("");
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function addScheduleDate() {
-    if (!newDate) return;
-    if (scheduleDates.includes(newDate)) {
-      setError("이미 추가된 날짜입니다.");
-      return;
+  function handleStartDateChange(value: string) {
+    setStartDate(value);
+    if (value && endDate && value > endDate) setEndDate(value);
+    if (syncRecruitment) {
+      setRecruitmentStartAt(value ? value + "T00:00" : "");
+      if (hasDeadline) setRecruitmentEndAt(endDate || value);
     }
-    setScheduleDates((prev) => [...prev, newDate].sort());
-    setNewDate("");
-    setError(null);
+  }
+
+  function handleEndDateChange(value: string) {
+    if (value && startDate && value < startDate) return;
+    setEndDate(value);
+    if (syncRecruitment && hasDeadline) setRecruitmentEndAt(value);
   }
 
   function addScheduleRange() {
@@ -86,11 +89,15 @@ export function NewProjectForm() {
       setError("프로젝트 이름을 입력하세요.");
       return;
     }
+    if (!scheduleUndecided && startDate && endDate && startDate > endDate) {
+      setError("프로젝트 종료일이 시작일보다 앞설 수 없습니다.");
+      return;
+    }
     if (
       hasDeadline &&
       recruitmentStartAt &&
       recruitmentEndAt &&
-      new Date(recruitmentStartAt) > new Date(recruitmentEndAt)
+      recruitmentStartAt.slice(0, 10) > recruitmentEndAt
     ) {
       setError("모집 시작일이 마감일보다 늦을 수 없습니다.");
       return;
@@ -295,7 +302,12 @@ export function NewProjectForm() {
                   id="recruitment_end"
                   type="date"
                   value={recruitmentEndAt}
-                  onChange={(e) => setRecruitmentEndAt(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (recruitmentStartAt && v && v < recruitmentStartAt.slice(0, 10)) return;
+                    setRecruitmentEndAt(v);
+                  }}
+                  min={recruitmentStartAt ? recruitmentStartAt.slice(0, 10) : undefined}
                   className="rounded-lg"
                 />
               )}
@@ -360,37 +372,54 @@ export function NewProjectForm() {
               </label>
             </div>
             {!scheduleUndecided && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="start_date"
-                    className="text-xs text-muted-foreground"
-                  >
-                    시작일
-                  </Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="rounded-lg"
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="start_date"
+                      className="text-xs text-muted-foreground"
+                    >
+                      시작일
+                    </Label>
+                    <Input
+                      id="start_date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
+                      className="rounded-lg"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="end_date"
+                      className="text-xs text-muted-foreground"
+                    >
+                      종료일
+                    </Label>
+                    <Input
+                      id="end_date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                      min={startDate || undefined}
+                      className="rounded-lg"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="end_date"
-                    className="text-xs text-muted-foreground"
-                  >
-                    종료일
-                  </Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="rounded-lg"
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={syncRecruitment}
+                    onChange={(e) => {
+                      setSyncRecruitment(e.target.checked);
+                      if (e.target.checked && startDate) {
+                        setRecruitmentStartAt(startDate + "T00:00");
+                        if (hasDeadline) setRecruitmentEndAt(endDate || startDate);
+                      }
+                    }}
                   />
-                </div>
+                  모집 기간을 프로젝트 기간과 동일하게 설정
+                </label>
               </div>
             )}
             {scheduleUndecided && (
@@ -411,89 +440,47 @@ export function NewProjectForm() {
               참여자들이 각 날짜별로 가능한 시간대를 투표합니다.
             </p>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setAddMode("single")}
-                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                  addMode === "single"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                개별 추가
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddMode("range")}
-                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                  addMode === "range"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                구간 추가
-              </button>
-            </div>
-
-            {addMode === "single" ? (
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="flex-1 rounded-lg"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addScheduleDate}
-                  className="shrink-0 rounded-lg gap-1"
-                >
-                  <Plus className="size-4" />
-                  추가
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      시작일
-                    </Label>
-                    <Input
-                      type="date"
-                      value={rangeStart}
-                      onChange={(e) => setRangeStart(e.target.value)}
-                      className="rounded-lg"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      종료일
-                    </Label>
-                    <Input
-                      type="date"
-                      value={rangeEnd}
-                      onChange={(e) => setRangeEnd(e.target.value)}
-                      className="rounded-lg"
-                    />
-                  </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    시작일
+                  </Label>
+                  <Input
+                    type="date"
+                    value={rangeStart}
+                    onChange={(e) => setRangeStart(e.target.value)}
+                    className="rounded-lg"
+                  />
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addScheduleRange}
-                  disabled={!rangeStart || !rangeEnd}
-                  className="w-full rounded-lg gap-1"
-                >
-                  <Plus className="size-4" />
-                  구간 날짜 일괄 추가
-                </Button>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    종료일
+                  </Label>
+                  <Input
+                    type="date"
+                    value={rangeEnd}
+                    onChange={(e) => {
+                      if (rangeStart && e.target.value && e.target.value < rangeStart) return;
+                      setRangeEnd(e.target.value);
+                    }}
+                    min={rangeStart || undefined}
+                    className="rounded-lg"
+                  />
+                </div>
               </div>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addScheduleRange}
+                disabled={!rangeStart || !rangeEnd}
+                className="w-full rounded-lg gap-1"
+              >
+                <Plus className="size-4" />
+                구간 날짜 일괄 추가
+              </Button>
+            </div>
 
             {scheduleDates.length > 0 && (
               <div className="space-y-1.5">

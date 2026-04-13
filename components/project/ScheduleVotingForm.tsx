@@ -488,55 +488,54 @@ export function ScheduleVotingForm({ projectId }: { projectId: string }) {
                   })}
                 </div>
 
-                {vote.status !== "unavailable" && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="size-3" />
-                        가능 시간대{" "}
-                        {vote.timeSlots.length === 0 && "(종일 가능)"}
-                      </Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="size-3" />
+                      {vote.status === "unavailable"
+                        ? `불가능 시간대${vote.timeSlots.length === 0 ? " (종일 불가)" : ""}`
+                        : `가능 시간대${vote.timeSlots.length === 0 ? " (종일 가능)" : ""}`}
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => addTimeSlot(d.id)}
+                      className="flex items-center gap-0.5 text-xs text-primary hover:underline"
+                    >
+                      <Plus className="size-3" />
+                      시간 추가
+                    </button>
+                  </div>
+                  {vote.timeSlots.map((slot, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        type="time"
+                        value={slot.start}
+                        onChange={(e) =>
+                          updateTimeSlot(d.id, i, "start", e.target.value)
+                        }
+                        className="flex-1 rounded-lg text-xs h-8"
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        ~
+                      </span>
+                      <Input
+                        type="time"
+                        value={slot.end}
+                        onChange={(e) =>
+                          updateTimeSlot(d.id, i, "end", e.target.value)
+                        }
+                        className="flex-1 rounded-lg text-xs h-8"
+                      />
                       <button
                         type="button"
-                        onClick={() => addTimeSlot(d.id)}
-                        className="flex items-center gap-0.5 text-xs text-primary hover:underline"
+                        onClick={() => removeTimeSlot(d.id, i)}
+                        className="text-muted-foreground hover:text-destructive"
                       >
-                        <Plus className="size-3" />
-                        시간 추가
+                        <X className="size-3.5" />
                       </button>
                     </div>
-                    {vote.timeSlots.map((slot, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          value={slot.start}
-                          onChange={(e) =>
-                            updateTimeSlot(d.id, i, "start", e.target.value)
-                          }
-                          className="flex-1 rounded-lg text-xs h-8"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          ~
-                        </span>
-                        <Input
-                          type="time"
-                          value={slot.end}
-                          onChange={(e) =>
-                            updateTimeSlot(d.id, i, "end", e.target.value)
-                          }
-                          className="flex-1 rounded-lg text-xs h-8"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeTimeSlot(d.id, i)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             );
           })}
