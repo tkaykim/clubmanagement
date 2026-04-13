@@ -34,17 +34,21 @@ export function NewProjectForm() {
 
   function handleStartDateChange(value: string) {
     setStartDate(value);
+    const effectiveEnd = value && endDate && value > endDate ? value : endDate;
     if (value && endDate && value > endDate) setEndDate(value);
     if (syncRecruitment) {
       setRecruitmentStartAt(value ? value + "T00:00" : "");
-      if (hasDeadline) setRecruitmentEndAt(endDate || value);
+      if (hasDeadline) setRecruitmentEndAt(effectiveEnd || value);
     }
+    setRangeStart(value);
+    setRangeEnd(effectiveEnd || value);
   }
 
   function handleEndDateChange(value: string) {
     if (value && startDate && value < startDate) return;
     setEndDate(value);
     if (syncRecruitment && hasDeadline) setRecruitmentEndAt(value);
+    setRangeEnd(value);
   }
 
   function addScheduleRange() {
@@ -115,23 +119,23 @@ export function NewProjectForm() {
     }
     setSubmitting(true);
     try {
+      const rpcParams: Record<string, unknown> = {
+        p_owner_id: user.id,
+        p_title: trimmedTitle,
+      };
+      if (description.trim()) rpcParams.p_description = description.trim();
+      if (posterUrl.trim()) rpcParams.p_poster_url = posterUrl.trim();
+      if (!scheduleUndecided && startDate) rpcParams.p_start_date = startDate;
+      if (!scheduleUndecided && endDate) rpcParams.p_end_date = endDate;
+      if (scheduleUndecided) rpcParams.p_schedule_undecided = true;
+      if (hasFee && fee > 0) rpcParams.p_fee = fee;
+      if (recruitmentStartAt) rpcParams.p_recruitment_start_at = new Date(recruitmentStartAt).toISOString();
+      if (hasDeadline && recruitmentEndAt) rpcParams.p_recruitment_end_at = recruitmentEndAt;
+      if (hasMaxParticipants && maxParticipants > 0) rpcParams.p_max_participants = maxParticipants;
+
       const { data: newProjectId, error: insertErr } = await supabase.rpc(
         "create_project",
-        {
-          p_owner_id: user.id,
-          p_title: trimmedTitle,
-          p_description: description.trim() || null,
-          p_poster_url: posterUrl.trim() || null,
-          p_start_date: scheduleUndecided ? null : startDate || null,
-          p_end_date: scheduleUndecided ? null : endDate || null,
-          p_schedule_undecided: scheduleUndecided,
-          p_fee: hasFee ? fee : 0,
-          p_recruitment_start_at: recruitmentStartAt || null,
-          p_recruitment_end_at:
-            hasDeadline && recruitmentEndAt ? recruitmentEndAt : null,
-          p_max_participants: hasMaxParticipants ? maxParticipants : null,
-          p_status: "recruiting",
-        },
+        rpcParams,
       );
       if (insertErr || !newProjectId) {
         setError(insertErr?.message || "생성에 실패했습니다.");
