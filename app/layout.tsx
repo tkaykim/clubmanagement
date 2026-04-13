@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "원샷 관리툴",
-  description: "원샷 프로젝트 관리 플랫폼",
+  title: "원샷크루",
+  description: "원샷크루",
 };
 
 export const viewport = {

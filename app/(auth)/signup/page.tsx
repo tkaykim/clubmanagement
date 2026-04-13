@@ -60,7 +60,7 @@ export default function SignupPage() {
     }
 
     setLoading(false);
-    router.push("/onboarding");
+    router.push("/");
     router.refresh();
   }
 
@@ -68,7 +68,7 @@ export default function SignupPage() {
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center">
         <h1 className="text-xl font-bold text-foreground">회원가입</h1>
-        <p className="text-sm text-muted-foreground">우리들의 동아리, 우동에 오신 걸 환영해요</p>
+        <p className="text-sm text-muted-foreground">원샷 관리툴에 오신 걸 환영해요</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -126,7 +126,7 @@ export default function SignupPage() {
             <p className="text-sm text-destructive">{error}</p>
           )}
           <Button type="submit" className="w-full rounded-xl" disabled={loading}>
-            {loading ? "가입 중…" : "가입하고 관심사 선택하기"}
+            {loading ? "가입 중…" : "가입하기"}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">

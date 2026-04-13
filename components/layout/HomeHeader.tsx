@@ -37,8 +37,7 @@ export function HomeHeader() {
       style={{ paddingTop: "max(env(safe-area-inset-top), 0px)" }}
     >
       <Link href="/" className="flex items-center gap-2">
-        <span className="text-lg font-bold tracking-tight text-foreground">원샷</span>
-        <span className="text-xs text-muted-foreground">관리툴</span>
+        <span className="text-lg font-bold tracking-tight text-foreground">원샷크루</span>
       </Link>
       <div className="flex items-center gap-2">
         {loading ? null : user ? (
