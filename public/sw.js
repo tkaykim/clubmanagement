@@ -1,5 +1,5 @@
-const CACHE_NAME = 'oneshot-v2';
-const PRECACHE = ['/', '/manifest.json'];
+const CACHE_NAME = 'oneshot-v3';
+const PRECACHE = ['/manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(PRECACHE)));
@@ -17,6 +17,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  if (e.request.mode === 'navigate') return;
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );

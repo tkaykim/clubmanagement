@@ -20,22 +20,27 @@ export function ActiveGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (!user) {
+        if (!user) {
+          setStatus("anonymous");
+          return;
+        }
+
+        const { data: member } = await supabase
+          .from("crew_members")
+          .select("is_active")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        setStatus(member?.is_active ? "active" : "inactive");
+      } catch (err) {
+        console.error("[ActiveGuard] auth check failed:", err);
         setStatus("anonymous");
-        return;
       }
-
-      const { data: member } = await supabase
-        .from("crew_members")
-        .select("is_active")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      setStatus(member?.is_active ? "active" : "inactive");
     }
     check();
 
