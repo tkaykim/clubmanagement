@@ -49,14 +49,34 @@ export default async function ApplicantsPage({ params }: Props) {
 
   const rows = (appData ?? []) as ApplicationRow[];
 
-  const applicants: Applicant[] = rows.map(a => ({
-    id: a.id,
-    name: a.guest_name ?? (a.user_id ? "멤버" : "이름 없음"),
-    email: a.guest_email,
-    phone: a.guest_phone,
-    status: a.status,
-    created_at: a.created_at,
-  }));
+  // 멤버 지원자의 실제 이름/연락처는 crew_members 에서 resolve
+  const userIds = Array.from(new Set(rows.map(r => r.user_id).filter((v): v is string => !!v)));
+  const memberMap = new Map<string, { name: string; email: string | null; phone: string | null }>();
+  if (userIds.length > 0) {
+    const { data: members } = await supabase
+      .from("crew_members")
+      .select("user_id, name, stage_name, email, phone")
+      .in("user_id", userIds);
+    for (const m of (members ?? []) as Array<{ user_id: string; name: string; stage_name: string | null; email: string | null; phone: string | null }>) {
+      memberMap.set(m.user_id, {
+        name: m.stage_name ?? m.name,
+        email: m.email,
+        phone: m.phone,
+      });
+    }
+  }
+
+  const applicants: Applicant[] = rows.map(a => {
+    const m = a.user_id ? memberMap.get(a.user_id) : null;
+    return {
+      id: a.id,
+      name: a.guest_name ?? m?.name ?? (a.user_id ? "멤버" : "이름 없음"),
+      email: a.guest_email ?? m?.email ?? null,
+      phone: a.guest_phone ?? m?.phone ?? null,
+      status: a.status,
+      created_at: a.created_at,
+    };
+  });
 
   const confirmed = applicants.filter(a => a.status === "approved").length;
   const pending = applicants.filter(a => a.status === "pending").length;
@@ -103,7 +123,7 @@ export default async function ApplicantsPage({ params }: Props) {
         </div>
       </div>
 
-      <ApplicantList applicants={applicants} />
+      <ApplicantList applicants={applicants} projectId={projectId} />
     </div>
   );
 }

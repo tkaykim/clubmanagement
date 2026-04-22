@@ -120,23 +120,19 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* 관리자 알림: 승인 대기 멤버 */}
+      {/* 관리자 알림: 승인 대기 멤버 — 기본 banner(다크)를 그대로 사용해 가시성 확보 */}
       {isAdmin && pendingMemberCount > 0 && (
         <Link
           href="/manage/members?tab=pending"
           className="banner mb-16"
-          style={{
-            textDecoration: "none",
-            borderColor: "var(--warn, #b8860b)",
-            background: "color-mix(in srgb, var(--warn, #b8860b) 8%, transparent)",
-          }}
+          style={{ textDecoration: "none" }}
         >
           <UserPlus size={16} strokeWidth={2} />
           <div className="flex-1">
             <div style={{ fontWeight: 600, fontSize: 14 }}>
               신규 회원 승인 대기 {pendingMemberCount}명
             </div>
-            <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 2 }}>
               멤버 관리 페이지에서 승인 여부를 결정하세요
             </div>
           </div>
