@@ -233,17 +233,27 @@ export function NewProjectForm() {
         }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok || json.error) {
-        toast.error(json.error ?? "생성에 실패했습니다");
+        // Zod 검증 실패: 첫 번째 필드 오류 노출
+        if (Array.isArray(json.details) && json.details.length > 0) {
+          const first = json.details[0];
+          const path = Array.isArray(first.path) && first.path.length > 0 ? `[${first.path.join(".")}] ` : "";
+          toast.error(`${path}${first.message ?? "입력값 오류"}`);
+        } else {
+          toast.error(json.error ?? `생성 실패 (HTTP ${res.status})`);
+        }
+        // 디버깅을 위해 전체 응답을 콘솔에 출력
+        console.error("[NewProjectForm] create failed:", res.status, json);
         return;
       }
 
       toast.success("프로젝트가 생성되었습니다");
       router.push(`/manage/projects/${json.data?.id ?? ""}?tab=applications`);
-    } catch {
-      toast.error("네트워크 오류가 발생했습니다");
+    } catch (err) {
+      console.error("[NewProjectForm] network error:", err);
+      toast.error(err instanceof Error ? `네트워크 오류: ${err.message}` : "네트워크 오류가 발생했습니다");
     } finally {
       setSubmitting(false);
     }

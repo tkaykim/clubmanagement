@@ -24,12 +24,21 @@ export async function POST(request: Request) {
     const { dates, practiceDates, ...projectData } = parsed.data;
     const supabase = createRouteSupabaseClient();
 
+    // projects.owner_id 는 users(id) FK 이므로 crew_members.user_id 를 사용한다.
+    // admin.id (crew_members PK) 를 넣으면 FK 위반 → 500 발생.
+    if (!admin.user_id) {
+      return NextResponse.json(
+        { error: "연결된 사용자 계정이 없어 프로젝트를 생성할 수 없습니다" },
+        { status: 400 }
+      );
+    }
+
     // 프로젝트 생성
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .insert({
         ...projectData,
-        owner_id: admin.id,
+        owner_id: admin.user_id,
       })
       .select()
       .single();
@@ -37,7 +46,12 @@ export async function POST(request: Request) {
     if (projectError || !project) {
       console.error("[POST /api/projects] project insert error:", projectError);
       return NextResponse.json(
-        { error: "프로젝트 생성에 실패했습니다" },
+        {
+          error: `프로젝트 생성 실패: ${projectError?.message ?? "알 수 없는 오류"}`,
+          code: projectError?.code ?? null,
+          details: projectError?.details ?? null,
+          hint: projectError?.hint ?? null,
+        },
         { status: 500 }
       );
     }
@@ -66,14 +80,23 @@ export async function POST(request: Request) {
         .insert(allDates);
       if (datesError) {
         console.error("[POST /api/projects] schedule_dates insert error:", datesError);
+        return NextResponse.json(
+          {
+            error: `일정 저장 실패: ${datesError.message}`,
+            code: datesError.code ?? null,
+            project_id: project.id,
+          },
+          { status: 500 }
+        );
       }
     }
 
     return NextResponse.json({ data: project }, { status: 201 });
   } catch (err) {
     console.error("[POST /api/projects] error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: "서버 오류가 발생했습니다" },
+      { error: `서버 오류: ${msg}` },
       { status: 500 }
     );
   }
