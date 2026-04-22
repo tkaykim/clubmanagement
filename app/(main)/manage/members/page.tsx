@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
@@ -26,10 +27,12 @@ type MemberRow = {
 const ROLE_ORDER: Record<UserRole, number> = { owner: 0, admin: 1, member: 2 };
 
 export default function ManageMembersPage() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "pending" ? "pending" : "active";
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
-  const [tab, setTab] = useState<"active" | "pending">("active");
+  const [tab, setTab] = useState<"active" | "pending">(initialTab);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", position: "", contract_type: "contract" });
   const [submitting, setSubmitting] = useState(false);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, fmtDateKo } from "@/lib/utils";
-import { Folder, Calendar, Megaphone, Pin, Sparkles, Clock } from "lucide-react";
+import { Folder, Calendar, Megaphone, Pin, Sparkles, Clock, UserPlus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +11,13 @@ export default async function DashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // 현재 유저의 크루 멤버 레코드에서 이름 가져오기
+  // 현재 유저의 크루 멤버 레코드에서 이름 / 권한 가져오기
   let displayName = "";
+  let currentRole: string | null = null;
   if (user) {
     const { data: me } = await supabase
       .from("crew_members")
-      .select("name, stage_name")
+      .select("name, stage_name, role")
       .eq("user_id", user.id)
       .maybeSingle();
     displayName =
@@ -25,6 +26,18 @@ export default async function DashboardPage() {
       (user.user_metadata?.name as string | undefined) ||
       user.email?.split("@")[0] ||
       "";
+    currentRole = (me?.role as string | undefined) ?? null;
+  }
+  const isAdmin = currentRole === "owner" || currentRole === "admin";
+
+  // 관리자에게만: 승인 대기 멤버 수
+  let pendingMemberCount = 0;
+  if (isAdmin) {
+    const { count } = await supabase
+      .from("crew_members")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", false);
+    pendingMemberCount = count ?? 0;
   }
 
   let projects: Array<{
@@ -106,6 +119,29 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* 관리자 알림: 승인 대기 멤버 */}
+      {isAdmin && pendingMemberCount > 0 && (
+        <Link
+          href="/manage/members?tab=pending"
+          className="banner mb-16"
+          style={{
+            textDecoration: "none",
+            borderColor: "var(--warn, #b8860b)",
+            background: "color-mix(in srgb, var(--warn, #b8860b) 8%, transparent)",
+          }}
+        >
+          <UserPlus size={16} strokeWidth={2} />
+          <div className="flex-1">
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              신규 회원 승인 대기 {pendingMemberCount}명
+            </div>
+            <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>
+              멤버 관리 페이지에서 승인 여부를 결정하세요
+            </div>
+          </div>
+        </Link>
+      )}
 
       {/* 통계 카드 */}
       <div className="os-grid grid-4 mb-24">
