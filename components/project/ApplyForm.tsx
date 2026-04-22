@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const DOW_SHORT = ["일", "월", "화", "수", "목", "금", "토"];
+import {
+  VoteScheduleEditor,
+  initialVotesFromSchedule,
+  type VotesMap,
+} from "./VoteScheduleEditor";
 
 interface ScheduleDate {
   id: string;
@@ -25,12 +28,6 @@ interface ApplyFormProps {
   defaultPhone: string;
 }
 
-interface VoteState {
-  status: "available" | "maybe" | "unavailable";
-  time_slots: Array<{ start: string; end: string }>;
-  note: string;
-}
-
 export function ApplyForm({
   projectId,
   fee,
@@ -45,35 +42,21 @@ export function ApplyForm({
   const [answersNote, setAnswersNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 가용성 votes state
-  const [votes, setVotes] = useState<Record<string, VoteState>>(() => {
-    const initial: Record<string, VoteState> = {};
-    scheduleDates.forEach(d => {
-      initial[d.id] = { status: "available", time_slots: [], note: "" };
-    });
-    return initial;
-  });
-
-  const updateVote = (dateId: string, partial: Partial<VoteState>) => {
-    setVotes(prev => ({
-      ...prev,
-      [dateId]: { ...prev[dateId], ...partial },
-    }));
-  };
-
-  const formatDow = (dateStr: string) => {
-    const d = new Date(dateStr + "T00:00:00");
-    return DOW_SHORT[d.getDay()];
-  };
-
-  const getDayNum = (dateStr: string) => {
-    return new Date(dateStr + "T00:00:00").getDate();
-  };
+  const [votes, setVotes] = useState<VotesMap>(() => initialVotesFromSchedule(scheduleDates));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
+    // 클라이언트 사전 검증: 부분가능인데 시간대 비어있는 경우
+    for (const d of scheduleDates) {
+      const v = votes[d.id];
+      if (v?.status === "partial" && v.time_slots.length === 0) {
+        toast.error("부분가능으로 표시한 날짜는 시간대를 1개 이상 지정해주세요");
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/apply`, {
         method: "POST",
@@ -104,7 +87,6 @@ export function ApplyForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* 이름 (readonly) */}
       <div className="field">
         <label>이름</label>
         <input
@@ -115,7 +97,6 @@ export function ApplyForm({
         />
       </div>
 
-      {/* 연락처 (readonly) */}
       <div className="field">
         <label>연락처</label>
         <input
@@ -126,7 +107,6 @@ export function ApplyForm({
         />
       </div>
 
-      {/* 지원 동기 */}
       <div className="field">
         <label htmlFor="motivation">지원 동기</label>
         <textarea
@@ -139,7 +119,6 @@ export function ApplyForm({
         />
       </div>
 
-      {/* 출연료 동의 (유료행사만) */}
       {fee > 0 && (
         <div className="field">
           <label>출연료 동의 <span className="req">*</span></label>
@@ -161,7 +140,6 @@ export function ApplyForm({
         </div>
       )}
 
-      {/* 메모 */}
       <div className="field">
         <label htmlFor="answersNote">
           메모 / 특이사항
@@ -177,81 +155,17 @@ export function ApplyForm({
         />
       </div>
 
-      {/* 가능 일정 */}
       {scheduleDates.length > 0 && (
         <div className="field">
           <label>가능 일정 <span className="req">*</span></label>
-          <div className="sched">
-            {scheduleDates.map(d => {
-              const v = votes[d.id];
-              return (
-                <div key={d.id} className="sched-row">
-                  <div className="date-col">
-                    <div className="d">{getDayNum(d.date)}</div>
-                    <div className="dow">{formatDow(d.date)}</div>
-                    {d.label && (
-                      <div style={{ fontSize: 10, color: "var(--mf)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
-                        {d.label}
-                      </div>
-                    )}
-                  </div>
-                  <div className="body">
-                    <div className="seg full">
-                      {[
-                        { value: "available", label: "가능" },
-                        { value: "maybe", label: "조정가능" },
-                        { value: "unavailable", label: "불가" },
-                      ].map(o => (
-                        <button
-                          key={o.value}
-                          type="button"
-                          className={cn(v?.status === o.value && "on")}
-                          onClick={() => updateVote(d.id, { status: o.value as VoteState["status"] })}
-                        >
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
-                    {/* 시간 슬롯 */}
-                    {v?.status !== "unavailable" && (
-                      <div className="timeslots">
-                        {(v?.time_slots ?? []).map((slot, i) => (
-                          <span key={i} className="slot">
-                            {slot.start}~{slot.end}
-                            <X
-                              size={10}
-                              className="x"
-                              onClick={() => {
-                                const newSlots = [...(v?.time_slots ?? [])];
-                                newSlots.splice(i, 1);
-                                updateVote(d.id, { time_slots: newSlots });
-                              }}
-                            />
-                          </span>
-                        ))}
-                        <button
-                          type="button"
-                          className="slot add"
-                          onClick={() => {
-                            updateVote(d.id, {
-                              time_slots: [...(v?.time_slots ?? []), { start: "10:00", end: "18:00" }],
-                            });
-                          }}
-                        >
-                          <Plus size={10} />
-                          시간 추가
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <VoteScheduleEditor
+            scheduleDates={scheduleDates}
+            value={votes}
+            onChange={setVotes}
+          />
         </div>
       )}
 
-      {/* 제출 버튼 */}
       <div className="row" style={{ justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
         <button
           type="button"

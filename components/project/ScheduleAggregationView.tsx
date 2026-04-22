@@ -42,19 +42,22 @@ type VoteRow = {
 
 const STATUS_LABEL: Record<VoteStatus, string> = {
   available: "가능",
-  maybe: "미정",
+  partial: "부분가능",
+  adjustable: "조정가능",
   unavailable: "불가",
 };
 
 const STATUS_ICON: Record<VoteStatus, React.ReactNode> = {
   available: <Check className="size-3.5 text-emerald-600" />,
-  maybe: <HelpCircle className="size-3.5 text-amber-600" />,
+  partial: <Minus className="size-3.5 text-lime-600" />,
+  adjustable: <HelpCircle className="size-3.5 text-amber-600" />,
   unavailable: <XCircle className="size-3.5 text-red-500" />,
 };
 
 const STATUS_BG: Record<VoteStatus, string> = {
   available: "bg-emerald-50",
-  maybe: "bg-amber-50",
+  partial: "bg-lime-50",
+  adjustable: "bg-amber-50",
   unavailable: "bg-red-50",
 };
 
@@ -133,11 +136,18 @@ export function ScheduleAggregationView({
   function getDateSummary(dateId: string) {
     const votes = votesByDate[dateId] ?? [];
     const available = votes.filter((v) => v.status === "available").length;
-    const maybe = votes.filter((v) => v.status === "maybe").length;
+    const partial = votes.filter((v) => v.status === "partial").length;
+    const adjustable = votes.filter((v) => v.status === "adjustable").length;
     const unavailable = votes.filter(
       (v) => v.status === "unavailable"
     ).length;
-    return { total: votes.length, available, maybe, unavailable };
+    return {
+      total: votes.length,
+      available,
+      partial,
+      adjustable,
+      unavailable,
+    };
   }
 
   async function addScheduleDate() {
@@ -238,9 +248,13 @@ export function ScheduleAggregationView({
                           <Check className="size-3" />
                           {summary.available}
                         </span>
-                        <span className="flex items-center gap-0.5 text-xs text-amber-600">
+                        <span className="flex items-center gap-0.5 text-xs text-lime-600">
                           <Minus className="size-3" />
-                          {summary.maybe}
+                          {summary.partial}
+                        </span>
+                        <span className="flex items-center gap-0.5 text-xs text-amber-600">
+                          <HelpCircle className="size-3" />
+                          {summary.adjustable}
                         </span>
                         <span className="flex items-center gap-0.5 text-xs text-red-500">
                           <XCircle className="size-3" />

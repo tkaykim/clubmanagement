@@ -1,44 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Clock, Loader2 } from "lucide-react";
 
 type Status = "loading" | "active" | "inactive" | "anonymous";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+interface ActiveGuardProps {
+  children: React.ReactNode;
+  // 서버 레이아웃에서 이미 확인한 초기 상태. 탭 전환마다 재조회 금지.
+  initialStatus?: "active" | "inactive" | "anonymous";
+}
 
-export function ActiveGuard({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+export function ActiveGuard({ children, initialStatus }: ActiveGuardProps) {
   const router = useRouter();
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<Status>(initialStatus ?? "loading");
 
   useEffect(() => {
+    // 서버에서 이미 상태를 받았다면 클라이언트 재조회 스킵.
+    // auth 상태 변화(로그인/로그아웃) 만 감지하면 충분하다.
     let cancelled = false;
 
-    async function check() {
-      if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-        if (!cancelled) setStatus("active");
-        return;
-      }
-
+    async function recheck() {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-
         if (!user) {
           if (!cancelled) setStatus("anonymous");
           return;
         }
-
         const { data: member } = await supabase
           .from("crew_members")
           .select("is_active")
           .eq("user_id", user.id)
           .maybeSingle();
-
         if (!cancelled) {
           setStatus(member?.is_active ? "active" : "inactive");
         }
@@ -48,19 +45,22 @@ export function ActiveGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    check();
+    // 서버 초기값이 없을 때만 최초 1회 실행.
+    if (!initialStatus) {
+      recheck();
+    }
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      if (!cancelled) check();
+      if (!cancelled) recheck();
     });
 
     return () => {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [pathname]);
+  }, [initialStatus]);
 
   // 익명 사용자 리다이렉트는 render 사이클이 아닌 effect 에서 처리.
   // render 중 router.replace 호출은 진행 중이던 내비게이션을 abort 시켜

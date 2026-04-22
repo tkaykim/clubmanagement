@@ -107,7 +107,11 @@ export function fmtDateKo(dateStr: string): string {
 // Availability matrix builder
 // ============================================================
 
-export type VoteStatusRaw = "available" | "maybe" | "unavailable";
+export type VoteStatusRaw =
+  | "available"
+  | "partial"
+  | "adjustable"
+  | "unavailable";
 
 export interface VoteRow {
   schedule_date_id: string;

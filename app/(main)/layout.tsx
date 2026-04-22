@@ -24,38 +24,33 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const me = member as CrewMember | null;
   const isAdmin = me?.role === "admin" || me?.role === "owner";
 
-  // 사이드바 counts 계산
-  let projectCount = 0;
-  let unreadAnn = 0;
-  let myPending = 0;
-
-  try {
-    const { count: pCount } = await supabase
+  // 사이드바 counts — 병렬 조회 (모바일 탭 전환 레이턴시 최소화)
+  const [projResult, annResult, pendingResult] = await Promise.all([
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
-      .in("status", ["recruiting", "in_progress"]);
-    projectCount = pCount ?? 0;
-
-    const { count: annCount } = await supabase
+      .in("status", ["recruiting", "in_progress"]),
+    supabase
       .from("announcements")
       .select("*", { count: "exact", head: true })
-      .eq("pinned", true);
-    unreadAnn = annCount ?? 0;
+      .eq("pinned", true),
+    me?.user_id
+      ? supabase
+          .from("project_applications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", me.user_id)
+          .eq("status", "pending")
+      : Promise.resolve({ count: 0 as number | null }),
+  ]);
 
-    if (me?.user_id) {
-      const { count: pendingCount } = await supabase
-        .from("project_applications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", me.user_id)
-        .eq("status", "pending");
-      myPending = pendingCount ?? 0;
-    }
-  } catch {
-    // counts 실패는 무시
-  }
+  const projectCount = projResult.count ?? 0;
+  const unreadAnn = annResult.count ?? 0;
+  const myPending = pendingResult.count ?? 0;
+
+  const initialStatus: "active" | "inactive" = me?.is_active ? "active" : "inactive";
 
   return (
-    <ActiveGuard>
+    <ActiveGuard initialStatus={initialStatus}>
       <AppShell
         me={me}
         isAdmin={isAdmin}

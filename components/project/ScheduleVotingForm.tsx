@@ -18,6 +18,7 @@ import {
   Copy,
   ChevronDown,
   FolderOpen,
+  Minus,
 } from "lucide-react";
 import type { VoteStatus, TimeSlot } from "@/lib/types";
 
@@ -51,8 +52,13 @@ const STATUS_CONFIG: Record<
     icon: <Check className="size-3.5" />,
     className: "bg-emerald-100 text-emerald-800 border-emerald-300",
   },
-  maybe: {
-    label: "미정",
+  partial: {
+    label: "부분가능",
+    icon: <Minus className="size-3.5" />,
+    className: "bg-lime-100 text-lime-800 border-lime-300",
+  },
+  adjustable: {
+    label: "조정가능",
     icon: <HelpCircle className="size-3.5" />,
     className: "bg-amber-100 text-amber-800 border-amber-300",
   },

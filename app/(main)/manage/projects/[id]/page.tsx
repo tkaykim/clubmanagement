@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ManageProjectClient } from "@/components/manage/ManageProjectClient";
@@ -17,6 +17,22 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
   const { tab = "applications" } = await searchParams;
   const supabase = createServerSupabaseClient();
 
+  // ─────────────────────────────────────────────────────────
+  // 접근 가드: 로그인 + owner/admin + 활성 멤버만 진입 허용
+  // ─────────────────────────────────────────────────────────
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: me } = await supabase
+    .from("crew_members")
+    .select("role, is_active")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isActiveAdmin =
+    me?.is_active === true && (me.role === "admin" || me.role === "owner");
+  if (!isActiveAdmin) notFound();
+
   const { data: project, error } = await supabase
     .from("projects")
     .select("*")
@@ -25,27 +41,39 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
 
   if (error || !project) notFound();
 
-  // 지원자 목록
   const { data: applications } = await supabase
     .from("project_applications")
     .select("*, crew_members:user_id(id, name, stage_name, role, position)")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  // 일정 날짜
   const { data: scheduleDates } = await supabase
     .from("schedule_dates")
     .select("*")
     .eq("project_id", projectId)
     .order("sort_order");
 
-  // 정산
+  // 열지도용 schedule_votes (admin 은 votes_admin_select 정책으로 전체 조회 가능)
+  const scheduleDateIds = (scheduleDates ?? []).map((d: { id: string }) => d.id);
+  const { data: votes } =
+    scheduleDateIds.length > 0
+      ? await supabase
+          .from("schedule_votes")
+          .select("schedule_date_id, user_id, status, time_slots, note")
+          .in("schedule_date_id", scheduleDateIds)
+      : { data: [] as Array<{
+          schedule_date_id: string;
+          user_id: string;
+          status: string;
+          time_slots: Array<{ start: string; end: string }>;
+          note: string | null;
+        }> };
+
   const { data: payouts } = await supabase
     .from("payouts")
     .select("*, crew_members:user_id(id, name, stage_name)")
     .eq("project_id", projectId);
 
-  // 공지
   const { data: announcements } = await supabase
     .from("announcements")
     .select("*")
@@ -81,6 +109,13 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           crew_members: { id: string; name: string; stage_name: string | null; role: string; position: string | null } | null;
         }>}
         scheduleDates={(scheduleDates ?? []) as Array<{ id: string; date: string; label: string | null; kind: string; sort_order: number }>}
+        votes={(votes ?? []) as Array<{
+          schedule_date_id: string;
+          user_id: string;
+          status: string;
+          time_slots: Array<{ start: string; end: string }>;
+          note: string | null;
+        }>}
         payouts={(payouts ?? []) as Array<{ id: string; amount: number; status: string; scheduled_at: string | null; paid_at: string | null; note: string | null; crew_members: { id: string; name: string; stage_name: string | null } | null }>}
         announcements={(announcements ?? []) as Array<{ id: string; title: string; body: string; pinned: boolean; created_at: string }>}
         initialTab={tab}

@@ -9,21 +9,60 @@ export const dynamic = "force-dynamic";
 export default async function ProjectsPage() {
   const supabase = createServerSupabaseClient();
 
-  let projects: Array<{
+  type ProjectRow = {
     id: string; title: string; status: string; type: string;
     poster_url: string | null; start_date: string | null;
     fee: number; venue: string | null; max_participants: number | null;
-  }> = [];
+  };
 
-  try {
-    const { data } = await supabase
-      .from("projects_with_range")
-      .select("id, title, status, type, poster_url, start_date, fee, venue, max_participants")
-      .order("created_at", { ascending: false });
-    projects = (data ?? []) as typeof projects;
-  } catch {
-    // empty state
+  // 1차: projects_with_range 뷰. 뷰 스키마 변동(pay_type 등) 으로 실패하면
+  // 기본 projects 테이블 + schedule_dates 병렬 조회로 폴백한다.
+  type Raw = Omit<ProjectRow, "start_date"> & { start_date?: string | null };
+  let rows: Raw[] = [];
+
+  const viewQuery = await supabase
+    .from("projects_with_range")
+    .select("id, title, status, type, poster_url, start_date, fee, venue, max_participants")
+    .order("created_at", { ascending: false });
+
+  if (viewQuery.error) {
+    console.error("[projects] view query failed, falling back:", viewQuery.error);
+    const [projRes, datesRes] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("id, title, status, type, poster_url, fee, venue, max_participants, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("schedule_dates")
+        .select("project_id, date"),
+    ]);
+    if (projRes.error) {
+      console.error("[projects] projects fallback also failed:", projRes.error);
+    }
+    const minDateByProject = new Map<string, string>();
+    for (const d of (datesRes.data ?? []) as { project_id: string; date: string }[]) {
+      const prev = minDateByProject.get(d.project_id);
+      if (!prev || d.date < prev) minDateByProject.set(d.project_id, d.date);
+    }
+    rows = ((projRes.data ?? []) as Array<Omit<ProjectRow, "start_date"> & { created_at?: string }>).map((p) => ({
+      ...p,
+      start_date: minDateByProject.get(p.id) ?? null,
+    }));
+  } else {
+    rows = (viewQuery.data ?? []) as Raw[];
   }
+
+  const projects: ProjectRow[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    type: r.type,
+    poster_url: r.poster_url,
+    start_date: r.start_date ?? null,
+    fee: r.fee,
+    venue: r.venue,
+    max_participants: r.max_participants,
+  }));
 
   return (
     <div className="page">

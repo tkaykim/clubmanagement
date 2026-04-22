@@ -22,9 +22,7 @@ export async function getProjects(
   const supabase = createServerSupabaseClient();
   let query = supabase
     .from("projects")
-    .select(
-      `*, schedule_dates(*), project_applications(id, status)`
-    )
+    .select(`*, schedule_dates(*)`)
     .order("created_at", { ascending: false });
 
   if (filter.status && filter.status !== "all") {
@@ -40,15 +38,71 @@ export async function getProjects(
   const { data, error } = await query;
   if (error || !data) return [];
 
+  const projectIds = data.map((p) => p.id);
+  const countMap = await getApplicationCountsMap(projectIds);
+
   return data.map((p) => {
-    const apps = (p.project_applications ?? []) as { id: string; status: string }[];
+    const c = countMap.get(p.id) ?? { total: 0, approved: 0, pending: 0, rejected: 0 };
     return {
       ...p,
       schedule_dates: (p.schedule_dates ?? []) as ScheduleDate[],
-      _application_count: apps.length,
-      _confirmed_count: apps.filter((a: { id: string; status: string }) => a.status === "approved").length,
+      _application_count: c.total,
+      _confirmed_count: c.approved,
     } as ProjectWithDates;
   });
+}
+
+/**
+ * 지원자 카운트 맵 조회 (RLS 우회 SECURITY DEFINER 함수)
+ * — 일반 사용자도 카드 숫자는 볼 수 있다. 지원 "내용" 은 여전히 RLS 로 보호됨.
+ */
+export async function getApplicationCountsMap(
+  projectIds: string[]
+): Promise<Map<string, { total: number; approved: number; pending: number; rejected: number }>> {
+  const map = new Map<string, { total: number; approved: number; pending: number; rejected: number }>();
+  if (projectIds.length === 0) return map;
+
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.rpc("get_project_application_counts", {
+    p_project_ids: projectIds,
+  });
+
+  if (error || !data) return map;
+
+  for (const row of data as Array<{
+    project_id: string;
+    total: number;
+    approved: number;
+    pending: number;
+    rejected: number;
+  }>) {
+    map.set(row.project_id, {
+      total: Number(row.total) || 0,
+      approved: Number(row.approved) || 0,
+      pending: Number(row.pending) || 0,
+      rejected: Number(row.rejected) || 0,
+    });
+  }
+  return map;
+}
+
+/**
+ * 단일 프로젝트 지원자 카운트
+ */
+export async function getApplicationCount(projectId: string) {
+  const supabase = createServerSupabaseClient();
+  const { data } = await supabase.rpc("get_project_application_count", {
+    p_project_id: projectId,
+  });
+  const row = (data?.[0] ?? { total: 0, approved: 0, pending: 0, rejected: 0 }) as {
+    total: number; approved: number; pending: number; rejected: number;
+  };
+  return {
+    total: Number(row.total) || 0,
+    approved: Number(row.approved) || 0,
+    pending: Number(row.pending) || 0,
+    rejected: Number(row.rejected) || 0,
+  };
 }
 
 /**
@@ -82,12 +136,13 @@ export async function getProjectDetail(id: string): Promise<
   if (error || !data) return null;
 
   const apps = (data.project_applications ?? []) as ApplicationWithMember[];
+  const counts = await getApplicationCount(id);
   return {
     ...data,
     schedule_dates: (data.schedule_dates ?? []) as ScheduleDate[],
     applications: apps,
-    _application_count: apps.length,
-    _confirmed_count: apps.filter((a) => a.status === "approved").length,
+    _application_count: counts.total,
+    _confirmed_count: counts.approved,
   };
 }
 

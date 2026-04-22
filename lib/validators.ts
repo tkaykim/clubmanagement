@@ -11,7 +11,12 @@ const timeSlotSchema = z.object({
   end: z.string().regex(/^\d{2}:\d{2}$/, "HH:MM 형식이어야 합니다"),
 });
 
-const voteStatusSchema = z.enum(["available", "maybe", "unavailable"]);
+const voteStatusSchema = z.enum([
+  "available",
+  "partial",
+  "adjustable",
+  "unavailable",
+]);
 
 // ============================================================
 // Project schemas
@@ -77,7 +82,10 @@ export const applySchema = z.object({
       status: voteStatusSchema,
       time_slots: z.array(timeSlotSchema).optional().default([]),
       note: z.string().max(500).nullable().optional(),
-    })
+    }).refine(
+      (v) => v.status !== "partial" || (v.time_slots?.length ?? 0) > 0,
+      { message: "부분가능은 가능한 시간대를 최소 1개 지정해주세요" }
+    )
   ).optional().default({}),
 });
 

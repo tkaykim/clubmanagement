@@ -59,6 +59,14 @@ interface ScheduleDate {
   sort_order: number;
 }
 
+interface ScheduleVoteRow {
+  schedule_date_id: string;
+  user_id: string;
+  status: string;
+  time_slots: Array<{ start: string; end: string }>;
+  note: string | null;
+}
+
 interface Payout {
   id: string;
   amount: number;
@@ -81,6 +89,7 @@ interface ManageProjectClientProps {
   project: Project;
   applications: Application[];
   scheduleDates: ScheduleDate[];
+  votes: ScheduleVoteRow[];
   payouts: Payout[];
   announcements: Announcement[];
   initialTab: string;
@@ -90,6 +99,7 @@ export function ManageProjectClient({
   project,
   applications,
   scheduleDates,
+  votes,
   payouts,
   announcements,
   initialTab,
@@ -130,6 +140,30 @@ export function ManageProjectClient({
 
   const pendingApps = applications.filter(a => a.status === "pending");
   const approvedApps = applications.filter(a => a.status === "approved");
+
+  // 열지도 매트릭스: user_id → schedule_date_id → vote
+  const votesByUser = (() => {
+    const m = new Map<string, Map<string, ScheduleVoteRow>>();
+    for (const v of votes) {
+      if (!m.has(v.user_id)) m.set(v.user_id, new Map());
+      m.get(v.user_id)!.set(v.schedule_date_id, v);
+    }
+    return m;
+  })();
+
+  const availabilitySummary = scheduleDates.map(d => {
+    const cnt = { available: 0, partial: 0, adjustable: 0, unavailable: 0, none: 0 };
+    for (const a of approvedApps) {
+      if (!a.user_id) { cnt.none++; continue; }
+      const v = votesByUser.get(a.user_id)?.get(d.id);
+      if (!v) cnt.none++;
+      else if (v.status === "available") cnt.available++;
+      else if (v.status === "partial") cnt.partial++;
+      else if (v.status === "adjustable") cnt.adjustable++;
+      else if (v.status === "unavailable") cnt.unavailable++;
+    }
+    return { ...d, cnt };
+  });
 
   const handleStatus = async (appId: string, status: "approved" | "rejected") => {
     setLoading(appId);
@@ -366,29 +400,90 @@ export function ManageProjectClient({
                 일정 날짜가 등록되지 않았어요
               </div>
             </div>
+          ) : approvedApps.length === 0 ? (
+            <div className="card">
+              <div className="empty">
+                확정된 지원자가 없어요. 지원자 탭에서 승인한 뒤 확인할 수 있습니다.
+              </div>
+            </div>
           ) : (
             <div className="card flush" style={{ overflowX: "auto" }}>
+              {/* 범례 */}
+              <div className="row gap-8" style={{ padding: "10px 16px 0", flexWrap: "wrap", fontSize: 11, color: "var(--mf)" }}>
+                <LegendChip color="#22c55e" glyph="●" label="가능" />
+                <LegendChip color="#84cc16" glyph="◐" label="부분가능" />
+                <LegendChip color="#eab308" glyph="◇" label="조정가능" />
+                <LegendChip color="#94a3b8" glyph="✕" label="불가" />
+                <LegendChip color="#cbd5e1" glyph="·" label="미투표" />
+              </div>
               <div
                 className="heatmap"
-                style={{ gridTemplateColumns: `160px repeat(${scheduleDates.length}, 1fr)`, minWidth: 400, padding: 16 }}
+                style={{ gridTemplateColumns: `160px repeat(${scheduleDates.length}, minmax(48px, 1fr))`, minWidth: 400, padding: 16 }}
               >
                 <div className="heat-head" />
-                {scheduleDates.map(d => (
-                  <div key={d.id} className="heat-head" style={{ padding: "6px 4px", textAlign: "center", fontSize: 11, fontFamily: "var(--font-mono)" }}>
-                    {d.date.slice(5)}
+                {availabilitySummary.map(d => (
+                  <div
+                    key={d.id}
+                    className="heat-head"
+                    style={{ padding: "6px 4px", textAlign: "center", fontSize: 11, fontFamily: "var(--font-mono)" }}
+                    title={d.label ?? ""}
+                  >
+                    <div>{d.date.slice(5)}</div>
+                    <div style={{ fontSize: 9, color: d.kind === "practice" ? "var(--mf)" : "var(--accent, #3b82f6)", fontWeight: 600 }}>
+                      {d.kind === "practice" ? "연습" : "본행사"}
+                    </div>
+                    {d.label && (
+                      <div style={{ fontSize: 9, color: "var(--mf)", marginTop: 2, fontFamily: "var(--font-mono)" }}>
+                        {d.label}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {approvedApps.map(a => {
                   const name = a.crew_members?.name ?? a.guest_name ?? "—";
+                  const userVotes = a.user_id ? votesByUser.get(a.user_id) : undefined;
                   return (
-                    <>
-                      <div key={`name-${a.id}`} className="heat-name" style={{ padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}>
+                    <div key={`row-${a.id}`} style={{ display: "contents" }}>
+                      <div
+                        className="heat-name"
+                        style={{ padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}
+                      >
                         {name}
                       </div>
-                      {scheduleDates.map(d => (
-                        <div key={`${a.id}-${d.id}`} className="heat-cell" data-lvl="0">·</div>
-                      ))}
-                    </>
+                      {scheduleDates.map(d => {
+                        const v = userVotes?.get(d.id);
+                        const s = v?.status as
+                          | "available" | "partial" | "adjustable" | "unavailable"
+                          | undefined;
+                        const glyph =
+                          s === "available" ? "●" :
+                          s === "partial" ? "◐" :
+                          s === "adjustable" ? "◇" :
+                          s === "unavailable" ? "✕" :
+                          "·";
+                        const color =
+                          s === "available" ? "#22c55e" :
+                          s === "partial" ? "#84cc16" :
+                          s === "adjustable" ? "#eab308" :
+                          s === "unavailable" ? "#94a3b8" :
+                          "#cbd5e1";
+                        const slots = (v?.time_slots ?? []).map(t => `${t.start}~${t.end}`).join(", ");
+                        const tt = v
+                          ? `${d.date}${d.label ? ` · ${d.label}` : ""}\n상태: ${glyph} ${labelOf(s)}${slots ? `\n시간: ${slots}` : ""}${v.note ? `\n메모: ${v.note}` : ""}`
+                          : `${d.date}${d.label ? ` · ${d.label}` : ""}\n미투표`;
+                        return (
+                          <div
+                            key={`${a.id}-${d.id}`}
+                            className="heat-cell"
+                            data-lvl={s ?? "none"}
+                            title={tt}
+                            style={{ color, textAlign: "center", fontWeight: 600 }}
+                          >
+                            {glyph}
+                          </div>
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>
@@ -426,9 +521,14 @@ export function ManageProjectClient({
           </div>
 
           <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
-            <button className="btn sm">
+            <button
+              className="btn sm"
+              disabled
+              title="준비 중 — 다음 업데이트에 제공됩니다"
+              aria-disabled="true"
+            >
               <Download size={12} strokeWidth={2} />
-              CSV 내보내기
+              CSV 내보내기 (준비 중)
             </button>
           </div>
 
@@ -498,9 +598,14 @@ export function ManageProjectClient({
       {tab === "announcements" && (
         <div>
           <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
-            <button className="btn primary sm">
+            <button
+              className="btn sm"
+              disabled
+              title="준비 중 — 다음 업데이트에 제공됩니다"
+              aria-disabled="true"
+            >
               <Megaphone size={12} strokeWidth={2} />
-              공지 작성
+              공지 작성 (준비 중)
             </button>
           </div>
           {announcements.length === 0 ? (
@@ -581,4 +686,23 @@ export function ManageProjectClient({
       )}
     </div>
   );
+}
+
+function LegendChip({ color, glyph, label }: { color: string; glyph: string; label: string }) {
+  return (
+    <span className="row gap-4" style={{ alignItems: "center" }}>
+      <span style={{ color, fontWeight: 700 }}>{glyph}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function labelOf(s: "available" | "partial" | "adjustable" | "unavailable" | undefined): string {
+  switch (s) {
+    case "available": return "가능";
+    case "partial": return "부분가능";
+    case "adjustable": return "조정가능";
+    case "unavailable": return "불가";
+    default: return "미투표";
+  }
 }

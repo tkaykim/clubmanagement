@@ -19,7 +19,8 @@ export type ProjectVisibility = "public" | "admin" | "private";
 
 export type ScheduleDateKind = "event" | "practice";
 
-export type VoteStatus = "available" | "unavailable" | "maybe";
+// 가능 / 부분가능(일부 시간만) / 조정가능(전체되지만 협의) / 불가
+export type VoteStatus = "available" | "partial" | "adjustable" | "unavailable";
 
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
@@ -249,9 +250,17 @@ export type AvailabilitySummary = {
   date: string; // YYYY-MM-DD
   schedule_date_id: string;
   available: number;
-  maybe: number;
+  partial: number;
+  adjustable: number;
   unavailable: number;
   total: number;
+};
+
+export type ProjectApplicationCount = {
+  total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
 };
 
 export type SettlementMember = {
