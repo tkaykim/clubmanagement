@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,21 +13,36 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError(null);
     setLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message);
+      if (authError) {
+        setError(
+          authError.message.includes("Invalid")
+            ? "이메일 또는 비밀번호가 올바르지 않습니다."
+            : authError.message
+        );
+        setLoading(false);
+        return;
+      }
+
+      // createClientComponentClient 는 세션을 쿠키에 저장한다.
+      // router.push 는 클라이언트 측 전환이라 middleware 의 쿠키 검사 타이밍이
+      // 꼬이면 무한 리다이렉트로 보일 수 있으므로, full reload 로 홈으로 간다.
+      const redirect = new URLSearchParams(window.location.search).get("redirect");
+      window.location.href = redirect && redirect.startsWith("/") ? redirect : "/";
+    } catch (err) {
+      console.error("[login] unexpected error:", err);
+      setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setLoading(false);
-      return;
     }
-
-    router.push("/");
   }
 
   return (
