@@ -14,7 +14,7 @@ export default async function MyPage() {
   } | null = null;
   let applications: Array<{
     id: string; project_id: string; status: string; created_at: string;
-    projects: { title: string; type: string; start_date: string | null };
+    projects: { title: string; type: string };
   }> = [];
   let payouts: Array<{
     id: string; amount: number; status: string; scheduled_at: string | null;
@@ -34,7 +34,7 @@ export default async function MyPage() {
           .maybeSingle(),
         supabase
           .from("project_applications")
-          .select("id, project_id, status, created_at, projects:project_id(title, type, start_date)")
+          .select("id, project_id, status, created_at, projects:project_id(title, type)")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
         supabase

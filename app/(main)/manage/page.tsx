@@ -16,7 +16,7 @@ export default async function ManagePage() {
 
   try {
     const { data } = await supabase
-      .from("projects")
+      .from("projects_with_range")
       .select("id, title, status, type, start_date, fee")
       .order("created_at", { ascending: false });
     projects = (data ?? []) as typeof projects;

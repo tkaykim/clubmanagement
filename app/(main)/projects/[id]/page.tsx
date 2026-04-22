@@ -16,7 +16,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   const supabase = createServerSupabaseClient();
 
   const { data: project, error } = await supabase
-    .from("projects")
+    .from("projects_with_range")
     .select("*")
     .eq("id", projectId)
     .single();
@@ -107,11 +107,9 @@ export default async function ProjectDetailPage({ params }: Props) {
               <dl className="kv">
                 <dt>일시</dt>
                 <dd>
-                  {project.schedule_undecided
-                    ? "미정"
-                    : project.start_date
-                      ? project.start_date + (project.end_date && project.end_date !== project.start_date ? ` ~ ${project.end_date}` : "")
-                      : "미정"}
+                  {project.start_date
+                    ? project.start_date + (project.end_date && project.end_date !== project.start_date ? ` ~ ${project.end_date}` : "")
+                    : "미정"}
                 </dd>
                 {project.venue && (
                   <>

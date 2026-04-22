@@ -76,15 +76,19 @@ export type Project = {
   type: ProjectType;
   venue: string | null;
   address: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  schedule_undecided: boolean;
   fee: number; // negative = participation cost
   recruitment_start_at: string | null;
   recruitment_end_at: string | null;
   max_participants: number | null;
   created_at: string;
   updated_at: string;
+};
+
+// projects_with_range VIEW: schedule_dates 의 MIN/MAX 로 파생된 기간 포함
+export type ProjectWithRange = Project & {
+  start_date: string | null;
+  end_date: string | null;
+  schedule_undecided: boolean;
 };
 
 export type ScheduleDate = {

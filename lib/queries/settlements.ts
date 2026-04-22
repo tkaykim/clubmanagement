@@ -16,8 +16,8 @@ export async function getSettlementsMonthly(
     .select(
       `
       id, amount, status, scheduled_at, paid_at,
-      user_id,
-      project:projects(id, title, start_date),
+      user_id, project_id,
+      project:projects(id, title),
       application:project_applications(id),
       crew_member:crew_members!crew_members_user_id_fkey(id, name, stage_name)
     `
@@ -33,15 +33,37 @@ export async function getSettlementsMonthly(
     scheduled_at: string | null;
     paid_at: string | null;
     user_id: string | null;
-    project: { id: string; title: string; start_date: string | null } | null;
+    project_id: string;
+    project: { id: string; title: string } | null;
     application: { id: string } | null;
     crew_member: { id: string; name: string; stage_name: string | null } | null;
   };
   const typedData = data as unknown as PayoutRaw[];
 
-  // 클라이언트에서 month 필터링 (scheduled_at 우선, null이면 project.start_date)
+  // scheduled_at 이 없는 행은 schedule_dates MIN(date) 로 보완
+  const missingProjectIds = Array.from(
+    new Set(
+      typedData
+        .filter((p) => !p.scheduled_at && p.project_id)
+        .map((p) => p.project_id)
+    )
+  );
+  const projectStartMap = new Map<string, string>();
+  if (missingProjectIds.length > 0) {
+    const { data: sdRows } = await supabase
+      .from("schedule_dates")
+      .select("project_id, date")
+      .in("project_id", missingProjectIds);
+    for (const row of sdRows ?? []) {
+      const cur = projectStartMap.get(row.project_id as string);
+      const next = row.date as string;
+      if (!cur || next < cur) projectStartMap.set(row.project_id as string, next);
+    }
+  }
+
+  // 클라이언트에서 month 필터링 (scheduled_at 우선, null이면 schedule_dates MIN)
   const filtered = typedData.filter((p) => {
-    const dateStr = p.scheduled_at ?? p.project?.start_date;
+    const dateStr = p.scheduled_at ?? projectStartMap.get(p.project_id) ?? null;
     if (!dateStr) return false;
     return dateStr.startsWith(month);
   });

@@ -17,7 +17,7 @@ export default async function ApplyPage({ params }: Props) {
 
   const { data: project, error } = await supabase
     .from("projects")
-    .select("id, title, status, type, fee, schedule_undecided, recruitment_end_at, description")
+    .select("id, title, status, type, fee, recruitment_end_at, description")
     .eq("id", projectId)
     .single();
 

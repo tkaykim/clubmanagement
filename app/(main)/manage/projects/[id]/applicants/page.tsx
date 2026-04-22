@@ -27,7 +27,7 @@ export default async function ApplicantsPage({ params }: Props) {
   const supabase = createServerSupabaseClient();
 
   const { data: projectData } = await supabase
-    .from("projects")
+    .from("projects_with_range")
     .select("id, title, start_date, end_date, fee, status")
     .eq("id", projectId)
     .single();

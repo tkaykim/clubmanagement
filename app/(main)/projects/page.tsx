@@ -17,7 +17,7 @@ export default async function ProjectsPage() {
 
   try {
     const { data } = await supabase
-      .from("projects")
+      .from("projects_with_range")
       .select("id, title, status, type, poster_url, start_date, fee, venue, max_participants")
       .order("created_at", { ascending: false });
     projects = (data ?? []) as typeof projects;

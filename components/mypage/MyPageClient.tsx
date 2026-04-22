@@ -28,7 +28,7 @@ interface Application {
   project_id: string;
   status: string;
   created_at: string;
-  projects: { title: string; type: string; start_date: string | null };
+  projects: { title: string; type: string };
 }
 
 interface Payout {

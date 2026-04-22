@@ -25,10 +25,7 @@ interface Project {
   fee: number;
   description: string | null;
   venue: string | null;
-  start_date: string | null;
-  end_date: string | null;
   max_participants: number | null;
-  schedule_undecided: boolean;
   recruitment_end_at: string | null;
 }
 

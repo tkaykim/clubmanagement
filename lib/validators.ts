@@ -34,9 +34,6 @@ export const createProjectSchema = z.object({
   max_participants: z.number().int().positive().nullable().optional(),
   recruitment_start_at: z.string().nullable().optional(),
   recruitment_end_at: z.string().nullable().optional(),
-  schedule_undecided: z.boolean().default(false),
-  start_date: z.string().nullable().optional(),
-  end_date: z.string().nullable().optional(),
   dates: z.array(scheduleDateInputSchema).optional().default([]),
   practiceDates: z.array(
     z.object({

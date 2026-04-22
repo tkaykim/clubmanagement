@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   try {
     const [projRes, annRes] = await Promise.all([
       supabase
-        .from("projects")
+        .from("projects_with_range")
         .select("id, title, status, type, poster_url, start_date, fee, venue")
         .in("status", ["recruiting", "in_progress", "completed"])
         .order("created_at", { ascending: false })
