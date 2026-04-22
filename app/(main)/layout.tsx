@@ -14,34 +14,30 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     redirect("/login");
   }
 
-  // crew_member 조회
-  const { data: member } = await supabase
-    .from("crew_members")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const me = member as CrewMember | null;
-  const isAdmin = me?.role === "admin" || me?.role === "owner";
-
-  // 사이드바 counts — 병렬 조회 (모바일 탭 전환 레이턴시 최소화)
-  const [projResult, annResult, pendingResult] = await Promise.all([
+  // crew_member + counts 5개 쿼리 전부 병렬 실행 — 모바일 탭 전환 레이턴시 최소화
+  const [memberRes, projResult, annResult, pendingResult] = await Promise.all([
+    supabase
+      .from("crew_members")
+      .select("id, user_id, name, avatar_url, role, is_active")
+      .eq("user_id", user.id)
+      .maybeSingle(),
     supabase
       .from("projects")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .in("status", ["recruiting", "in_progress"]),
     supabase
       .from("announcements")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("pinned", true),
-    me?.user_id
-      ? supabase
-          .from("project_applications")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", me.user_id)
-          .eq("status", "pending")
-      : Promise.resolve({ count: 0 as number | null }),
+    supabase
+      .from("project_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending"),
   ]);
+
+  const me = memberRes.data as CrewMember | null;
+  const isAdmin = me?.role === "admin" || me?.role === "owner";
 
   const projectCount = projResult.count ?? 0;
   const unreadAnn = annResult.count ?? 0;
