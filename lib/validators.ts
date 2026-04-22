@@ -219,3 +219,34 @@ export const signupSchema = z.object({
   password: z.string().min(6, "비밀번호는 6자 이상이어야 합니다"),
   name: z.string().min(1, "이름을 입력해주세요").max(100),
 });
+
+// ============================================================
+// Bug report schemas
+// ============================================================
+
+export const createBugReportSchema = z.object({
+  title: z
+    .string()
+    .min(1, "무엇이 문제인지 한 줄로 적어주세요")
+    .max(200, "제목은 200자 이하로 적어주세요"),
+  description: z
+    .string()
+    .min(1, "어떤 상황이었는지 알려주세요")
+    .max(5000, "설명은 5000자 이하로 적어주세요"),
+  severity: z.enum(["low", "medium", "high", "blocker"]).default("medium"),
+  // 클라이언트가 자동 캡처해 전송
+  page_url: z.string().max(2000).nullable().optional(),
+  user_agent: z.string().max(1000).nullable().optional(),
+  viewport: z.string().max(50).nullable().optional(),
+});
+
+export type CreateBugReportInput = z.infer<typeof createBugReportSchema>;
+
+export const updateBugReportSchema = z.object({
+  status: z
+    .enum(["open", "in_progress", "resolved", "wontfix", "duplicate"])
+    .optional(),
+  admin_note: z.string().max(5000).nullable().optional(),
+});
+
+export type UpdateBugReportInput = z.infer<typeof updateBugReportSchema>;

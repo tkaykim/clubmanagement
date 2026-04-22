@@ -38,6 +38,33 @@ export type FormFieldType =
   | "checkbox"
   | "select";
 
+export type BugSeverity = "low" | "medium" | "high" | "blocker";
+
+export type BugStatus =
+  | "open"
+  | "in_progress"
+  | "resolved"
+  | "wontfix"
+  | "duplicate";
+
+export type BugReport = {
+  id: string;
+  reporter_id: string | null;
+  reporter_name: string | null;
+  title: string;
+  description: string;
+  severity: BugSeverity;
+  page_url: string | null;
+  user_agent: string | null;
+  viewport: string | null;
+  status: BugStatus;
+  admin_note: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 // ============================================================
 // DB Row types (1:1 with table columns)
 // ============================================================

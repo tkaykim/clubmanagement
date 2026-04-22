@@ -8,6 +8,7 @@ import {
   Sparkles,
   FileText,
   DollarSign,
+  Bug,
 } from "lucide-react";
 import { NavItem } from "./NavItem";
 import { initials } from "@/lib/utils";
@@ -49,6 +50,7 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
       <div className="nav-group-title">PERSONAL</div>
       <NavItem href="/mypage" icon={User} count={counts.myPending} onClick={onNavClick}>마이페이지</NavItem>
       <NavItem href="/apply" icon={Sparkles} onClick={onNavClick}>빠른 지원</NavItem>
+      <NavItem href="/bugs/new" icon={Bug} onClick={onNavClick}>버그 제보</NavItem>
 
       {/* ADMIN 그룹 */}
       {isAdmin && (
@@ -58,12 +60,13 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
             href="/manage"
             icon={FileText}
             onClick={onNavClick}
-            exclude={["/manage/settlements", "/manage/members"]}
+            exclude={["/manage/settlements", "/manage/members", "/manage/bugs"]}
           >
             프로젝트 관리
           </NavItem>
           <NavItem href="/manage/settlements" icon={DollarSign} onClick={onNavClick}>정산 리포트</NavItem>
           <NavItem href="/manage/members" icon={Users} onClick={onNavClick}>멤버 관리</NavItem>
+          <NavItem href="/manage/bugs" icon={Bug} onClick={onNavClick}>버그 리포트</NavItem>
         </>
       )}
 
