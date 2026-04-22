@@ -43,7 +43,7 @@ export default async function AnnouncementsPage() {
           <div className="sub">팀 · 프로젝트 공지</div>
         </div>
         {isAdmin && (
-          <Link href="/manage" className="btn primary">
+          <Link href="/announcements/new" className="btn primary">
             <Megaphone size={14} strokeWidth={2} />
             공지 작성
           </Link>

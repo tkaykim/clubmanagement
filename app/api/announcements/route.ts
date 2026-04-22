@@ -21,17 +21,38 @@ export async function POST(request: Request) {
       );
     }
 
+    // scope / project_id 정합성
+    const payload = {
+      ...parsed.data,
+      project_id: parsed.data.scope === "project" ? parsed.data.project_id ?? null : null,
+    };
+    if (payload.scope === "project" && !payload.project_id) {
+      return NextResponse.json(
+        { error: "프로젝트를 선택해주세요" },
+        { status: 400 }
+      );
+    }
+
+    if (!admin.user_id) {
+      // crew_members.user_id 가 비어 있는 레거시 레코드 방어
+      return NextResponse.json(
+        { error: "작성자 계정 정보를 찾을 수 없습니다" },
+        { status: 400 }
+      );
+    }
+
     const supabase = createRouteSupabaseClient();
     const { data, error } = await supabase
       .from("announcements")
       .insert({
-        ...parsed.data,
-        author_id: admin.id,
+        ...payload,
+        author_id: admin.user_id,
       })
       .select()
       .single();
 
     if (error) {
+      console.error("[POST /api/announcements]", error);
       return NextResponse.json(
         { error: "공지 작성에 실패했습니다" },
         { status: 500 }
