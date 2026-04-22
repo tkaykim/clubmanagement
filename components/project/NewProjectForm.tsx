@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Plus, X, Loader2, Trash2, CalendarRange, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
 
 const PROJECT_TYPES = [
   { value: "paid_gig", label: "유료행사" },
@@ -31,6 +31,12 @@ type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
 type Visibility = "public" | "admin" | "private";
 type Kind = "event" | "practice";
 type AddMode = "range" | "single";
+
+function defaultPayType(pt: ProjectType): PayType {
+  if (pt === "paid_gig") return "pay";
+  if (pt === "workshop" || pt === "audition") return "fee";
+  return "free"; // practice
+}
 
 type ScheduleDateItem = { date: string; kind: Kind; label: string };
 
@@ -83,6 +89,7 @@ export function NewProjectForm() {
   const [status, setStatus] = useState("recruiting");
   const [visibility, setVisibility] = useState<Visibility>("public");
   const [description, setDescription] = useState("");
+  const [payType, setPayType] = useState<PayType>("pay");
   const [fee, setFee] = useState(0);
   const [venue, setVenue] = useState("");
   const [address, setAddress] = useState("");
@@ -210,7 +217,8 @@ export function NewProjectForm() {
           status,
           visibility,
           description: description.trim() || null,
-          fee: fee || 0,
+          pay_type: payType,
+          fee: payType === "pay" || payType === "fee" ? (fee || 0) : 0,
           venue: venue.trim() || null,
           address: address.trim() || null,
           recruitment_start_at: startISO,
@@ -258,7 +266,15 @@ export function NewProjectForm() {
                 <label>종류 <span className="req">*</span></label>
                 <div className="seg full">
                   {PROJECT_TYPES.map((t) => (
-                    <button key={t.value} type="button" className={cn(type === t.value && "on")} onClick={() => setType(t.value)}>
+                    <button
+                      key={t.value}
+                      type="button"
+                      className={cn(type === t.value && "on")}
+                      onClick={() => {
+                        setType(t.value);
+                        setPayType(defaultPayType(t.value));
+                      }}
+                    >
                       {t.label}
                     </button>
                   ))}
@@ -299,10 +315,45 @@ export function NewProjectForm() {
                 <textarea id="description" className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="프로젝트 소개" rows={3} />
               </div>
 
-              {type === "paid_gig" && (
+              <div className="field">
+                <label>비용 <span className="req">*</span></label>
+                <div className="seg full">
+                  {PAY_TYPE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={cn(payType === opt.value && "on")}
+                      onClick={() => {
+                        setPayType(opt.value);
+                        if (!opt.needsAmount) setFee(0);
+                      }}
+                      title={opt.hint}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="hint" style={{ fontSize: 11.5, color: "var(--mf)", marginTop: 6 }}>
+                  {PAY_TYPE_OPTIONS.find((o) => o.value === payType)?.hint}
+                </div>
+              </div>
+
+              {(payType === "pay" || payType === "fee") && (
                 <div className="field">
-                  <label htmlFor="fee">출연료 (원)</label>
-                  <input id="fee" className="input" type="number" min={0} step={10000} value={fee} onChange={(e) => setFee(Number(e.target.value))} placeholder="0" />
+                  <label htmlFor="fee">
+                    {payType === "pay" ? "출연료 (원)" : "참가비 (원)"}{" "}
+                    <span className="hint">금액 미정이면 비워두세요</span>
+                  </label>
+                  <input
+                    id="fee"
+                    className="input"
+                    type="number"
+                    min={0}
+                    step={10000}
+                    value={fee || ""}
+                    onChange={(e) => setFee(Number(e.target.value) || 0)}
+                    placeholder="0"
+                  />
                 </div>
               )}
 

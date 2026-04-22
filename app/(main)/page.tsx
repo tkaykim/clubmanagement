@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { fmtKRW, fmtDateKo } from "@/lib/utils";
+import { fmtKRW, fmtDateKo, fmtPay, payTypeChipTone } from "@/lib/utils";
 import { Folder, Calendar, Megaphone, Pin, Sparkles, Clock, UserPlus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
   let projects: Array<{
     id: string; title: string; status: string; type: string;
     poster_url: string | null; start_date: string | null;
-    fee: number; venue: string | null;
+    pay_type: string | null; fee: number; venue: string | null;
   }> = [];
   let announcements: Array<{
     id: string; title: string; body: string; pinned: boolean;
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
     const [projRes, annRes] = await Promise.all([
       supabase
         .from("projects_with_range")
-        .select("id, title, status, type, poster_url, start_date, fee, venue")
+        .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue")
         .in("status", ["recruiting", "in_progress", "completed"])
         .order("created_at", { ascending: false })
         .limit(10),
@@ -245,6 +245,9 @@ export default async function DashboardPage() {
                   <div className="row gap-6 mb-8">
                     <StatusBadge status={p.status} />
                     <StatusBadge status={p.type} />
+                    <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
+                      {fmtPay(p.pay_type, p.fee)}
+                    </span>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", marginBottom: 8 }}>
                     {p.title}

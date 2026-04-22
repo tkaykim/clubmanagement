@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { Calendar, Banknote, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ApplicantList, type Applicant } from "./ApplicantList";
+import { fmtPay } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default async function ApplicantsPage({ params }: Props) {
 
   const { data: projectData } = await supabase
     .from("projects_with_range")
-    .select("id, title, start_date, end_date, fee, status")
+    .select("id, title, start_date, end_date, pay_type, fee, status")
     .eq("id", projectId)
     .single();
 
@@ -74,9 +75,10 @@ export default async function ApplicantsPage({ params }: Props) {
             {projectData.start_date && (
               <span><Calendar size={12} strokeWidth={2} style={{ display: "inline", marginRight: 4 }} />{formatDate(projectData.start_date)}</span>
             )}
-            {(projectData.fee ?? 0) > 0 && (
-              <span style={{ marginLeft: 12 }}><Banknote size={12} strokeWidth={2} style={{ display: "inline", marginRight: 4 }} />{(projectData.fee as number).toLocaleString("ko-KR")}원</span>
-            )}
+            <span style={{ marginLeft: 12 }}>
+              <Banknote size={12} strokeWidth={2} style={{ display: "inline", marginRight: 4 }} />
+              {fmtPay((projectData as { pay_type?: string | null }).pay_type, projectData.fee as number)}
+            </span>
           </div>
         </div>
       </div>

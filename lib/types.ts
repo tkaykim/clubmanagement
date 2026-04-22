@@ -17,6 +17,8 @@ export type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
 
 export type ProjectVisibility = "public" | "admin" | "private";
 
+export type ProjectPayType = "pay" | "fee" | "free" | "tbd";
+
 export type ScheduleDateKind = "event" | "practice";
 
 // 가능 / 부분가능(일부 시간만) / 조정가능(전체되지만 협의) / 불가
@@ -107,7 +109,8 @@ export type Project = {
   visibility: ProjectVisibility;
   venue: string | null;
   address: string | null;
-  fee: number; // negative = participation cost
+  pay_type: ProjectPayType;
+  fee: number; // pay_type 가 부호/의미를 담당, fee 는 항상 ≥0
   recruitment_start_at: string | null;
   recruitment_end_at: string | null;
   max_participants: number | null;

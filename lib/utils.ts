@@ -44,6 +44,55 @@ export function pad2(n: number): string {
 }
 
 // ============================================================
+// Project pay_type helpers
+// ============================================================
+
+export type PayType = "pay" | "fee" | "free" | "tbd";
+
+export const PAY_TYPE_OPTIONS: Array<{
+  value: PayType;
+  label: string;
+  hint: string;
+  needsAmount: boolean;
+}> = [
+  { value: "pay", label: "페이 있음", hint: "참가자에게 출연료를 지급", needsAmount: true },
+  { value: "fee", label: "참가비 있음", hint: "참가자가 참가비 지불", needsAmount: true },
+  { value: "free", label: "무료 행사", hint: "금액 없음", needsAmount: false },
+  { value: "tbd", label: "미정", hint: "아직 결정되지 않음", needsAmount: false },
+];
+
+/**
+ * pay_type + fee 조합을 사람이 읽는 한 줄 문구로.
+ * 리스트 카드의 칩/배지 내부 텍스트용.
+ */
+export function fmtPay(payType: PayType | string | null | undefined, fee: number | null | undefined): string {
+  const pt = (payType ?? "free") as PayType;
+  const amount = Math.abs(fee ?? 0);
+  switch (pt) {
+    case "pay":
+      return amount > 0 ? `페이 ₩${fmtKRW(amount)}` : "페이 있음";
+    case "fee":
+      return amount > 0 ? `참가비 ₩${fmtKRW(amount)}` : "참가비 있음";
+    case "free":
+      return "무료 행사";
+    case "tbd":
+      return "비용 미정";
+    default:
+      return "";
+  }
+}
+
+/**
+ * 칩 색 힌트 (optional 사용)
+ */
+export function payTypeChipTone(payType: PayType | string | null | undefined): "ok" | "warn" | "muted" {
+  const pt = (payType ?? "free") as PayType;
+  if (pt === "pay") return "ok";
+  if (pt === "fee") return "warn";
+  return "muted";
+}
+
+// ============================================================
 // Date helpers
 // ============================================================
 

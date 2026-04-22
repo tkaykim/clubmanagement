@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Folder, Calendar, MapPin } from "lucide-react";
 import { AvatarStack } from "@/components/ui/OsAvatar";
+import { fmtPay, payTypeChipTone } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -12,17 +13,18 @@ export default async function ProjectsPage() {
   type ProjectRow = {
     id: string; title: string; status: string; type: string;
     poster_url: string | null; start_date: string | null;
-    fee: number; venue: string | null; max_participants: number | null;
+    pay_type: string | null; fee: number;
+    venue: string | null; max_participants: number | null;
   };
 
-  // 1차: projects_with_range 뷰. 뷰 스키마 변동(pay_type 등) 으로 실패하면
-  // 기본 projects 테이블 + schedule_dates 병렬 조회로 폴백한다.
+  // 1차: projects_with_range 뷰. 뷰가 존재하지 않거나 스키마가 어긋나면
+  // projects + schedule_dates 병렬 조회로 폴백한다.
   type Raw = Omit<ProjectRow, "start_date"> & { start_date?: string | null };
   let rows: Raw[] = [];
 
   const viewQuery = await supabase
     .from("projects_with_range")
-    .select("id, title, status, type, poster_url, start_date, fee, venue, max_participants")
+    .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue, max_participants")
     .order("created_at", { ascending: false });
 
   if (viewQuery.error) {
@@ -30,7 +32,7 @@ export default async function ProjectsPage() {
     const [projRes, datesRes] = await Promise.all([
       supabase
         .from("projects")
-        .select("id, title, status, type, poster_url, fee, venue, max_participants, created_at")
+        .select("id, title, status, type, poster_url, pay_type, fee, venue, max_participants, created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("schedule_dates")
@@ -59,6 +61,7 @@ export default async function ProjectsPage() {
     type: r.type,
     poster_url: r.poster_url,
     start_date: r.start_date ?? null,
+    pay_type: r.pay_type ?? null,
     fee: r.fee,
     venue: r.venue,
     max_participants: r.max_participants,
@@ -107,9 +110,9 @@ export default async function ProjectsPage() {
                 <div className="row gap-6 mb-8">
                   <StatusBadge status={p.type} />
                   <StatusBadge status={p.status} />
-                  {p.fee > 0 && (
-                    <span className="badge outline">₩ {p.fee.toLocaleString("ko-KR")}</span>
-                  )}
+                  <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
+                    {fmtPay(p.pay_type, p.fee)}
+                  </span>
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3, marginBottom: 10 }}>
                   {p.title}
