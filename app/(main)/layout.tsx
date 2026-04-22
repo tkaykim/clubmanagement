@@ -4,6 +4,11 @@ import { ActiveGuard } from "@/components/auth/ActiveGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import type { CrewMember } from "@/lib/types";
 
+// 레이아웃에서 cookies 기반 세션을 읽고 crew_members.role 로 관리자 여부를 결정한다.
+// 로그인/권한 변경 직후에도 즉시 반영되어야 하므로 정적/ISR 캐시를 금지.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = createServerSupabaseClient();
 
@@ -18,7 +23,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const [memberRes, projResult, annResult, pendingResult] = await Promise.all([
     supabase
       .from("crew_members")
-      .select("id, user_id, name, avatar_url, role, is_active")
+      .select("id, user_id, name, stage_name, role, is_active")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
