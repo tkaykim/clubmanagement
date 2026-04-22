@@ -13,19 +13,69 @@ export default async function SettlementsPage({ searchParams }: Props) {
   const currentMonth = month ?? new Date().toISOString().slice(0, 7);
   const supabase = createServerSupabaseClient();
 
-  let payouts: Array<{
+  type Payout = {
     id: string; amount: number; status: string; scheduled_at: string | null;
     paid_at: string | null; note: string | null;
     crew_members: { id: string; name: string; stage_name: string | null } | null;
     projects: { id: string; title: string } | null;
-  }> = [];
+  };
+  let payouts: Payout[] = [];
 
   try {
-    const { data } = await supabase
+    // NOTE: payouts.user_id 는 users(id) FK — crew_members 로의 FK 가 없으므로
+    // PostgREST nested embed (`crew_members:user_id(...)`)는 자동 관계 감지에 실패한다.
+    // → 따로 조회해서 user_id 로 매칭한다. (동일 이슈: /manage/projects/[id]/page.tsx)
+    const { data: rawPayouts } = await supabase
       .from("payouts")
-      .select("id, amount, status, scheduled_at, paid_at, note, crew_members:user_id(id, name, stage_name), projects:project_id(id, title)")
+      .select("id, amount, status, scheduled_at, paid_at, note, user_id, project_id")
       .order("created_at", { ascending: false });
-    payouts = (data ?? []) as unknown as typeof payouts;
+
+    type RawPayout = {
+      id: string; amount: number; status: string; scheduled_at: string | null;
+      paid_at: string | null; note: string | null;
+      user_id: string | null; project_id: string | null;
+    };
+    const rows = (rawPayouts ?? []) as RawPayout[];
+
+    const userIds = Array.from(
+      new Set(rows.map((r) => r.user_id).filter((v): v is string => !!v))
+    );
+    const projectIds = Array.from(
+      new Set(rows.map((r) => r.project_id).filter((v): v is string => !!v))
+    );
+
+    const crewMap = new Map<string, { id: string; name: string; stage_name: string | null }>();
+    if (userIds.length > 0) {
+      const { data: crews } = await supabase
+        .from("crew_members")
+        .select("id, user_id, name, stage_name")
+        .in("user_id", userIds);
+      for (const c of (crews ?? []) as Array<{ id: string; user_id: string; name: string; stage_name: string | null }>) {
+        crewMap.set(c.user_id, { id: c.id, name: c.name, stage_name: c.stage_name });
+      }
+    }
+
+    const projectMap = new Map<string, { id: string; title: string }>();
+    if (projectIds.length > 0) {
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, title")
+        .in("id", projectIds);
+      for (const p of (projects ?? []) as Array<{ id: string; title: string }>) {
+        projectMap.set(p.id, p);
+      }
+    }
+
+    payouts = rows.map((r) => ({
+      id: r.id,
+      amount: r.amount,
+      status: r.status,
+      scheduled_at: r.scheduled_at,
+      paid_at: r.paid_at,
+      note: r.note,
+      crew_members: r.user_id ? crewMap.get(r.user_id) ?? null : null,
+      projects: r.project_id ? projectMap.get(r.project_id) ?? null : null,
+    }));
   } catch {
     // 빈 상태
   }
@@ -42,13 +92,16 @@ export default async function SettlementsPage({ searchParams }: Props) {
           <div className="sub">{currentMonth} 팀 정산 현황</div>
         </div>
         <div className="row gap-8">
-          <Link
+          {/* NOTE: next/link 는 RSC prefetch 로 `_rsc=...` 가 붙어 `month` 파라미터가
+              누락된 요청이 날아가 400 이 발생한다. Route Handler 다운로드 링크는
+              일반 <a> 태그로 사용한다. */}
+          <a
             href={`/api/settlements/csv?month=${currentMonth}`}
             className="btn"
           >
             <Download size={14} strokeWidth={2} />
             CSV 다운로드
-          </Link>
+          </a>
         </div>
       </div>
 

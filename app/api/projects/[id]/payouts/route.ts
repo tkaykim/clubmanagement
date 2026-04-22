@@ -77,7 +77,8 @@ export async function POST(_request: Request, { params }: Params) {
       user_id: app.user_id,
       amount: Math.abs((project as { fee: number }).fee),
       status: "pending",
-      created_by: admin.id,
+      // payouts.created_by 는 users(id) FK → admin.user_id 사용
+      created_by: admin.user_id,
     }));
 
     const { data: created, error } = await supabase

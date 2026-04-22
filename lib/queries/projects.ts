@@ -107,6 +107,10 @@ export async function getApplicationCount(projectId: string) {
 
 /**
  * 프로젝트 상세 조회 (일정 날짜 + 지원자 + 공지 포함)
+ *
+ * NOTE: project_applications.user_id 는 users(id) FK 이므로
+ * PostgREST nested embed `crew_members(*)` 는 자동 관계 감지에 실패한다.
+ * 별도 쿼리로 crew_members 를 가져와 user_id 기준으로 매칭한다.
  */
 export async function getProjectDetail(id: string): Promise<
   | (Project & {
@@ -120,27 +124,40 @@ export async function getProjectDetail(id: string): Promise<
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("projects")
-    .select(
-      `
-      *,
-      schedule_dates(*),
-      project_applications(
-        *,
-        crew_member:crew_members(*)
-      )
-    `
-    )
+    .select(`*, schedule_dates(*), project_applications(*)`)
     .eq("id", id)
     .single();
 
   if (error || !data) return null;
 
-  const apps = (data.project_applications ?? []) as ApplicationWithMember[];
+  type RawApp = ApplicationWithMember & { user_id: string | null };
+  const rawApps = ((data as { project_applications?: RawApp[] }).project_applications ?? []) as RawApp[];
+
+  const userIds = Array.from(
+    new Set(rawApps.map((a) => a.user_id).filter((v): v is string => !!v))
+  );
+
+  const crewMap = new Map<string, Record<string, unknown>>();
+  if (userIds.length > 0) {
+    const { data: crews } = await supabase
+      .from("crew_members")
+      .select("*")
+      .in("user_id", userIds);
+    for (const c of (crews ?? []) as Array<Record<string, unknown> & { user_id: string }>) {
+      crewMap.set(c.user_id, c);
+    }
+  }
+
+  const applications = rawApps.map((a) => ({
+    ...a,
+    crew_member: a.user_id ? crewMap.get(a.user_id) ?? null : null,
+  })) as ApplicationWithMember[];
+
   const counts = await getApplicationCount(id);
   return {
     ...data,
     schedule_dates: (data.schedule_dates ?? []) as ScheduleDate[],
-    applications: apps,
+    applications,
     _application_count: counts.total,
     _confirmed_count: counts.approved,
   };

@@ -44,7 +44,8 @@ export async function POST(request: Request) {
       .update({
         status,
         reviewed_at: new Date().toISOString(),
-        reviewed_by: admin.id,
+        // NOTE: reviewed_by 는 users(id) FK → admin.user_id 사용
+        reviewed_by: admin.user_id,
       })
       .in("id", application_ids);
 
@@ -81,7 +82,8 @@ export async function POST(request: Request) {
           user_id: app.user_id,
           amount: feeMap[app.project_id] ?? 0,
           status: "pending" as const,
-          created_by: admin.id,
+          // payouts.created_by 는 users(id) FK
+          created_by: admin.user_id,
         }));
 
         await supabase

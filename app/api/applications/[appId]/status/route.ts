@@ -42,10 +42,11 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     // 상태 업데이트
+    // NOTE: reviewed_by / created_by 모두 users(id) FK 이므로 admin.user_id 사용
     const updatePayload: Record<string, unknown> = {
       status: parsed.data.status,
       reviewed_at: new Date().toISOString(),
-      reviewed_by: admin.id,
+      reviewed_by: admin.user_id,
     };
     if (parsed.data.memo !== undefined) updatePayload.memo = parsed.data.memo;
     if (parsed.data.score !== undefined) updatePayload.score = parsed.data.score;
@@ -84,7 +85,7 @@ export async function PATCH(request: Request, { params }: Params) {
             user_id: existing.user_id,
             amount: Math.abs(project.fee),
             status: "pending",
-            created_by: admin.id,
+            created_by: admin.user_id,
           },
           { onConflict: "application_id" }
         );

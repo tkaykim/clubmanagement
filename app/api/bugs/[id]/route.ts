@@ -28,10 +28,11 @@ export async function PATCH(request: Request, { params }: Params) {
     const patch: Record<string, unknown> = { ...parsed.data };
 
     // resolved 상태로 전환 시 자동으로 resolved_at / resolved_by 기록
+    // NOTE: resolved_by 는 users(id) FK → admin.user_id 사용
     if (parsed.data.status !== undefined) {
       if (parsed.data.status === "resolved") {
         patch.resolved_at = new Date().toISOString();
-        patch.resolved_by = admin.id;
+        patch.resolved_by = admin.user_id;
       } else {
         patch.resolved_at = null;
         patch.resolved_by = null;
