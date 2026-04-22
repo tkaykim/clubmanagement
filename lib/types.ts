@@ -72,12 +72,12 @@ export type BugReport = {
 // DB Row types (1:1 with table columns)
 // ============================================================
 
+// 권한은 crew_members.role 에서 관리한다. User 는 계정 정보(연락처)만 보유.
 export type User = {
   id: string;
   email: string;
   name: string;
   phone: string | null;
-  role: UserRole;
   created_at: string;
   updated_at: string;
 };

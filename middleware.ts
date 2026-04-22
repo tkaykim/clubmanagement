@@ -73,15 +73,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // /manage/* 경로: admin/owner 확인
+  // /manage/* 경로: admin/owner 확인 (권한 SSOT = crew_members.role)
   if (pathname.startsWith("/manage")) {
-    const { data: user } = await supabase
-      .from("users")
+    const { data: member } = await supabase
+      .from("crew_members")
       .select("role")
-      .eq("id", authUser.id)
-      .single();
+      .eq("user_id", authUser.id)
+      .maybeSingle();
 
-    if (!user || (user.role !== "admin" && user.role !== "owner")) {
+    if (!member || (member.role !== "admin" && member.role !== "owner")) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
           { error: "관리자 권한이 필요합니다" },

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import type { User, CrewMember, UserRole } from "@/lib/types";
 
+// 권한 판정 SSOT: crew_members.role
+// 과거 users.role 과 crew_members.role 이 어긋난 이슈가 있었으므로
+// 관리자/오너 판정은 crew_members 쪽을 신뢰한다.
+
 // ============================================================
 // Session helpers
 // ============================================================
@@ -70,39 +74,55 @@ export async function getCurrentUser(): Promise<User | NextResponse> {
 }
 
 /**
- * 인증 + role이 admin 또는 owner인지 확인.
+ * 인증 + crew_members.role 이 admin 또는 owner 인지 확인.
  * 미인증이면 401, 권한 없으면 403 반환.
- * 정상이면 User 반환.
+ * 정상이면 CrewMember 반환.
  */
-export async function requireAdmin(): Promise<User | NextResponse> {
-  const userOrResponse = await getCurrentUser();
-  if (userOrResponse instanceof NextResponse) return userOrResponse;
-  const user = userOrResponse;
-  if (user.role !== "admin" && user.role !== "owner") {
+export async function requireAdmin(): Promise<CrewMember | NextResponse> {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+  const supabase = createRouteSupabaseClient();
+  const { data } = await supabase
+    .from("crew_members")
+    .select("*")
+    .eq("user_id", session.userId)
+    .maybeSingle();
+  const member = data as CrewMember | null;
+  if (!member || (member.role !== "admin" && member.role !== "owner")) {
     return NextResponse.json(
       { error: "관리자 권한이 필요합니다" },
       { status: 403 }
     );
   }
-  return user;
+  return member;
 }
 
 /**
- * 인증 + role이 owner인지 확인.
+ * 인증 + crew_members.role 이 owner 인지 확인.
  * 미인증이면 401, 권한 없으면 403 반환.
- * 정상이면 User 반환.
+ * 정상이면 CrewMember 반환.
  */
-export async function requireOwner(): Promise<User | NextResponse> {
-  const userOrResponse = await getCurrentUser();
-  if (userOrResponse instanceof NextResponse) return userOrResponse;
-  const user = userOrResponse;
-  if (user.role !== "owner") {
+export async function requireOwner(): Promise<CrewMember | NextResponse> {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+  }
+  const supabase = createRouteSupabaseClient();
+  const { data } = await supabase
+    .from("crew_members")
+    .select("*")
+    .eq("user_id", session.userId)
+    .maybeSingle();
+  const member = data as CrewMember | null;
+  if (!member || member.role !== "owner") {
     return NextResponse.json(
       { error: "오너 권한이 필요합니다" },
       { status: 403 }
     );
   }
-  return user;
+  return member;
 }
 
 // ============================================================
