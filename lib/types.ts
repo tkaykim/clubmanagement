@@ -135,7 +135,9 @@ export type ScheduleDate = {
   created_at: string;
 };
 
-export type TimeSlot = { start: string; end: string };
+export type TimeSlotKind = "available" | "unavailable";
+// kind 는 선택 — 과거 데이터는 undefined 일 수 있으며 "available" 로 해석한다.
+export type TimeSlot = { start: string; end: string; kind?: TimeSlotKind };
 
 export type ScheduleVote = {
   id: string;

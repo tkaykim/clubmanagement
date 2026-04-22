@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, initials } from "@/lib/utils";
 import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
-import { Check, X, Loader2, DollarSign, Download, Megaphone } from "lucide-react";
+import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users } from "lucide-react";
 
 const TABS = [
   { key: "applications", label: "지원자" },
@@ -64,7 +64,7 @@ interface ScheduleVoteRow {
   schedule_date_id: string;
   user_id: string;
   status: string;
-  time_slots: Array<{ start: string; end: string }>;
+  time_slots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
   note: string | null;
 }
 
@@ -114,6 +114,12 @@ export function ManageProjectClient({
   const [payType, setPayType] = useState<PayType>((project.pay_type ?? "free") as PayType);
   const [feeAmount, setFeeAmount] = useState<number>(project.fee ?? 0);
   const [savingPay, setSavingPay] = useState(false);
+  const [expandedApp, setExpandedApp] = useState<string | null>(null);
+  const [aggView, setAggView] = useState<"heatmap" | "by-date">("by-date");
+
+  const toggleExpanded = (appId: string) => {
+    setExpandedApp((prev) => (prev === appId ? null : appId));
+  };
 
   const handleVisibilityChange = async (next: string) => {
     if (next === visibility) return;
@@ -344,6 +350,7 @@ export function ManageProjectClient({
                       aria-checked={selected.length === applications.length && applications.length > 0}
                     />
                   </th>
+                  <th style={{ width: 24 }} />
                   <th>이름</th>
                   <th>지원일</th>
                   <th>동의</th>
@@ -355,73 +362,106 @@ export function ManageProjectClient({
               <tbody>
                 {applications.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
+                    <td colSpan={8} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
                       아직 지원자가 없어요
                     </td>
                   </tr>
                 ) : (
                   applications.map(a => {
                     const name = a.crew_members?.name ?? a.guest_name ?? "—";
+                    const isExpanded = expandedApp === a.id;
+                    const userVotes = a.user_id ? votesByUser.get(a.user_id) : undefined;
                     return (
-                      <tr key={a.id}>
-                        <td className="checkbox-col" data-label="">
-                          <button
-                            className={cn("cbx", selected.includes(a.id) && "on")}
-                            onClick={() => toggleSelect(a.id)}
-                            role="checkbox"
-                            aria-checked={selected.includes(a.id)}
-                          />
-                        </td>
-                        <td data-label="이름">
-                          <div className="row gap-10">
-                            <div className="av sm">{initials(name)}</div>
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: 13 }}>{name}</div>
-                              {a.crew_members?.stage_name && (
-                                <div className="mono text-xs muted">{a.crew_members.stage_name}</div>
+                      <Fragment key={a.id}>
+                        <tr
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => {
+                            // 체크박스 / 버튼 클릭 시에는 펼치지 않음
+                            const target = e.target as HTMLElement;
+                            if (target.closest("button")) return;
+                            toggleExpanded(a.id);
+                          }}
+                        >
+                          <td className="checkbox-col" data-label="">
+                            <button
+                              className={cn("cbx", selected.includes(a.id) && "on")}
+                              onClick={(e) => { e.stopPropagation(); toggleSelect(a.id); }}
+                              role="checkbox"
+                              aria-checked={selected.includes(a.id)}
+                            />
+                          </td>
+                          <td data-label="" style={{ width: 24 }}>
+                            <button
+                              className="btn ghost sm"
+                              onClick={(e) => { e.stopPropagation(); toggleExpanded(a.id); }}
+                              aria-label={isExpanded ? "접기" : "펼치기"}
+                              style={{ padding: 2 }}
+                            >
+                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
+                          </td>
+                          <td data-label="이름">
+                            <div className="row gap-10">
+                              <div className="av sm">{initials(name)}</div>
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: 13 }}>{name}</div>
+                                {a.crew_members?.stage_name && (
+                                  <div className="mono text-xs muted">{a.crew_members.stage_name}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td data-label="지원일" className="mono text-xs muted">
+                            {new Date(a.created_at).toLocaleDateString("ko-KR")}
+                          </td>
+                          <td data-label="동의">
+                            <span className={cn("badge", a.fee_agreement === "yes" ? "ok" : "warn")}>
+                              {a.fee_agreement === "yes" ? "동의" : "조율"}
+                            </span>
+                          </td>
+                          <td data-label="점수" className="tabnum">
+                            {a.score ?? "—"}
+                          </td>
+                          <td data-label="상태">
+                            <StatusBadge status={a.status} />
+                          </td>
+                          <td data-label="액션">
+                            <div className="row gap-6">
+                              {a.status !== "approved" && (
+                                <button
+                                  className="btn sm primary"
+                                  onClick={(e) => { e.stopPropagation(); handleStatus(a.id, "approved"); }}
+                                  disabled={loading === a.id}
+                                  title="확정"
+                                >
+                                  {loading === a.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2} />}
+                                </button>
+                              )}
+                              {a.status !== "rejected" && (
+                                <button
+                                  className="btn sm danger"
+                                  onClick={(e) => { e.stopPropagation(); handleStatus(a.id, "rejected"); }}
+                                  disabled={loading === a.id}
+                                  title="탈락"
+                                >
+                                  <X size={11} strokeWidth={2} />
+                                </button>
                               )}
                             </div>
-                          </div>
-                        </td>
-                        <td data-label="지원일" className="mono text-xs muted">
-                          {new Date(a.created_at).toLocaleDateString("ko-KR")}
-                        </td>
-                        <td data-label="동의">
-                          <span className={cn("badge", a.fee_agreement === "yes" ? "ok" : "warn")}>
-                            {a.fee_agreement === "yes" ? "동의" : "조율"}
-                          </span>
-                        </td>
-                        <td data-label="점수" className="tabnum">
-                          {a.score ?? "—"}
-                        </td>
-                        <td data-label="상태">
-                          <StatusBadge status={a.status} />
-                        </td>
-                        <td data-label="액션">
-                          <div className="row gap-6">
-                            {a.status !== "approved" && (
-                              <button
-                                className="btn sm primary"
-                                onClick={() => handleStatus(a.id, "approved")}
-                                disabled={loading === a.id}
-                                title="확정"
-                              >
-                                {loading === a.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2} />}
-                              </button>
-                            )}
-                            {a.status !== "rejected" && (
-                              <button
-                                className="btn sm danger"
-                                onClick={() => handleStatus(a.id, "rejected")}
-                                disabled={loading === a.id}
-                                title="탈락"
-                              >
-                                <X size={11} strokeWidth={2} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="applicant-detail-row">
+                            <td colSpan={8} style={{ background: "var(--muted)", padding: 16 }}>
+                              <ApplicantDetail
+                                application={a}
+                                scheduleDates={scheduleDates}
+                                userVotes={userVotes}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })
                 )}
@@ -447,6 +487,35 @@ export function ManageProjectClient({
               </div>
             </div>
           ) : (
+            <>
+              {/* 뷰 전환 */}
+              <div className="row mb-12 gap-8" style={{ justifyContent: "flex-end" }}>
+                <button
+                  className={cn("btn sm", aggView === "by-date" && "primary")}
+                  onClick={() => setAggView("by-date")}
+                  title="날짜별 누가 언제 되는지 확인"
+                >
+                  <Users size={12} strokeWidth={2} />
+                  날짜별 취합
+                </button>
+                <button
+                  className={cn("btn sm", aggView === "heatmap" && "primary")}
+                  onClick={() => setAggView("heatmap")}
+                  title="멤버 × 날짜 열지도"
+                >
+                  열지도
+                </button>
+              </div>
+
+              {aggView === "by-date" && (
+                <AvailabilityByDate
+                  scheduleDates={scheduleDates}
+                  approvedApps={approvedApps}
+                  votesByUser={votesByUser}
+                />
+              )}
+
+              {aggView === "heatmap" && (
             <div className="card flush" style={{ overflowX: "auto" }}>
               {/* 범례 */}
               <div className="row gap-8" style={{ padding: "10px 16px 0", flexWrap: "wrap", fontSize: 11, color: "var(--mf)" }}>
@@ -528,6 +597,8 @@ export function ManageProjectClient({
                 })}
               </div>
             </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -803,4 +874,444 @@ function labelOf(s: "available" | "partial" | "adjustable" | "unavailable" | und
     case "unavailable": return "불가";
     default: return "미투표";
   }
+}
+
+function statusColor(s: "available" | "partial" | "adjustable" | "unavailable" | undefined): string {
+  switch (s) {
+    case "available": return "#22c55e";
+    case "partial": return "#84cc16";
+    case "adjustable": return "#eab308";
+    case "unavailable": return "#94a3b8";
+    default: return "#cbd5e1";
+  }
+}
+
+interface AvailabilityByDateProps {
+  scheduleDates: ScheduleDate[];
+  approvedApps: Application[];
+  votesByUser: Map<string, Map<string, ScheduleVoteRow>>;
+}
+
+type MemberStat = {
+  name: string;
+  userId: string | null;
+  status: "available" | "partial" | "adjustable" | "unavailable" | "none";
+  timeSlots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
+  note: string | null;
+};
+
+function groupByStatus(members: MemberStat[]) {
+  const g: Record<MemberStat["status"], MemberStat[]> = {
+    available: [],
+    partial: [],
+    adjustable: [],
+    unavailable: [],
+    none: [],
+  };
+  for (const m of members) g[m.status].push(m);
+  return g;
+}
+
+// 부분가능 time_slots 기반 시간대 오버랩 분석 — 30분 단위 비트마스크
+function analyzePartialOverlap(members: MemberStat[]) {
+  // 06:00 ~ 24:00, 30분 단위 → 36 슬롯
+  const startMin = 6 * 60;
+  const slotSize = 30;
+  const totalSlots = 36;
+  const minutes = (hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const toBitmap = (slots: MemberStat["timeSlots"]) => {
+    // 기본은 전체 가능(1). kind="unavailable" 구간만 0 으로, kind="available" 슬롯이 있으면 해당 구간만 1 나머지는 0
+    const anyAvailable = slots.some((s) => (s.kind ?? "available") === "available");
+    const bits = new Array<number>(totalSlots).fill(anyAvailable ? 0 : 1);
+    for (const s of slots) {
+      const kind = s.kind ?? "available";
+      const from = Math.max(0, Math.floor((minutes(s.start) - startMin) / slotSize));
+      const to = Math.min(totalSlots, Math.ceil((minutes(s.end) - startMin) / slotSize));
+      for (let i = from; i < to; i++) {
+        bits[i] = kind === "available" ? 1 : 0;
+      }
+    }
+    return bits;
+  };
+  const ranges: Array<{ start: string; end: string; members: string[] }> = [];
+  const partialMembers = members.filter((m) => m.status === "partial");
+  if (partialMembers.length === 0) return ranges;
+
+  const bitmaps = partialMembers.map((m) => ({ m, b: toBitmap(m.timeSlots) }));
+  // 모든 partial 멤버가 동시에 가능한 구간만 추출
+  let current: { from: number; members: string[] } | null = null;
+  const idxToHHMM = (idx: number) => {
+    const total = startMin + idx * slotSize;
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  };
+  for (let i = 0; i < totalSlots; i++) {
+    const memsAtSlot = bitmaps.filter((x) => x.b[i] === 1).map((x) => x.m.name);
+    if (memsAtSlot.length === bitmaps.length && memsAtSlot.length > 0) {
+      if (!current) current = { from: i, members: memsAtSlot };
+    } else {
+      if (current) {
+        ranges.push({
+          start: idxToHHMM(current.from),
+          end: idxToHHMM(i),
+          members: current.members,
+        });
+        current = null;
+      }
+    }
+  }
+  if (current) {
+    ranges.push({
+      start: idxToHHMM(current.from),
+      end: idxToHHMM(totalSlots),
+      members: current.members,
+    });
+  }
+  return ranges;
+}
+
+function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser }: AvailabilityByDateProps) {
+  const perDate = useMemo(() => {
+    return scheduleDates.map((d) => {
+      const members: MemberStat[] = approvedApps.map((a) => {
+        const v = a.user_id ? votesByUser.get(a.user_id)?.get(d.id) : undefined;
+        const s = (v?.status ?? "none") as MemberStat["status"];
+        return {
+          name: a.crew_members?.name ?? a.guest_name ?? "—",
+          userId: a.user_id,
+          status: v ? s : "none",
+          timeSlots: v?.time_slots ?? [],
+          note: v?.note ?? null,
+        };
+      });
+      const grouped = groupByStatus(members);
+      const overlap = analyzePartialOverlap(members);
+      const score =
+        grouped.available.length * 2 +
+        grouped.partial.length +
+        grouped.adjustable.length * 0.5 -
+        grouped.unavailable.length;
+      return { date: d, members, grouped, overlap, score };
+    });
+  }, [scheduleDates, approvedApps, votesByUser]);
+
+  const maxScore = Math.max(0, ...perDate.map((x) => x.score));
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div className="hint" style={{ fontSize: 11 }}>
+        가능 {"×"}2 + 부분가능 {"×"}1 + 조정가능 {"×"}0.5 - 불가 로 점수를 계산해, 최적 일정 순으로 정렬됩니다.
+      </div>
+      {perDate
+        .slice()
+        .sort((a, b) => b.score - a.score)
+        .map(({ date: d, grouped, overlap, score, members }) => {
+          const total = members.length;
+          const yesCount = grouped.available.length + grouped.partial.length + grouped.adjustable.length;
+          const isBest = score === maxScore && total > 0;
+          return (
+            <div
+              key={d.id}
+              className="card"
+              style={{
+                padding: 16,
+                borderLeft: isBest ? "3px solid var(--accent, #3b82f6)" : undefined,
+              }}
+            >
+              <div className="row mb-12" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div className="row gap-8" style={{ alignItems: "center" }}>
+                    <strong style={{ fontSize: 15 }}>{d.date}</strong>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "1px 6px",
+                        borderRadius: 4,
+                        background: d.kind === "practice" ? "var(--muted)" : "var(--accent-soft, #f0f4ff)",
+                        color: d.kind === "practice" ? "var(--mf)" : "var(--accent, #3b82f6)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {d.kind === "practice" ? "연습" : "본행사"}
+                    </span>
+                    {d.label && (
+                      <span style={{ fontSize: 11, color: "var(--mf)", fontFamily: "var(--font-mono)" }}>
+                        {d.label}
+                      </span>
+                    )}
+                    {isBest && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          background: "var(--accent, #3b82f6)",
+                          color: "#fff",
+                          fontWeight: 600,
+                        }}
+                      >
+                        추천
+                      </span>
+                    )}
+                  </div>
+                  <div className="mono text-xs muted" style={{ marginTop: 4 }}>
+                    참여 가능 {yesCount}/{total}명 · 점수 {score}
+                  </div>
+                </div>
+              </div>
+
+              {/* 상태별 멤버 목록 */}
+              <div className="os-grid grid-2" style={{ gap: 8 }}>
+                <MemberGroupBlock
+                  title="가능"
+                  color="#22c55e"
+                  members={grouped.available}
+                  emptyText="없음"
+                />
+                <MemberGroupBlock
+                  title="부분가능"
+                  color="#84cc16"
+                  members={grouped.partial}
+                  emptyText="없음"
+                  showSlots
+                />
+                <MemberGroupBlock
+                  title="조정가능"
+                  color="#eab308"
+                  members={grouped.adjustable}
+                  emptyText="없음"
+                  showNote
+                />
+                <MemberGroupBlock
+                  title="불가"
+                  color="#94a3b8"
+                  members={grouped.unavailable}
+                  emptyText="없음"
+                />
+              </div>
+
+              {/* 미투표 */}
+              {grouped.none.length > 0 && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--mf)" }}>
+                  <strong>미투표:</strong> {grouped.none.map((m) => m.name).join(", ")}
+                </div>
+              )}
+
+              {/* 부분가능 시간대 오버랩 */}
+              {overlap.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    background: "var(--accent-soft, #f0f4ff)",
+                    fontSize: 12,
+                  }}
+                >
+                  <div className="row gap-6" style={{ alignItems: "center", marginBottom: 4, color: "var(--accent, #3b82f6)", fontWeight: 600 }}>
+                    <Users size={12} strokeWidth={2} />
+                    <span>부분가능 멤버 전원이 겹치는 시간대</span>
+                  </div>
+                  {overlap.map((r, i) => (
+                    <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                      {r.start} ~ {r.end}
+                      {" · "}
+                      <span style={{ color: "var(--mf)" }}>
+                        {r.members.join(", ")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+function MemberGroupBlock({
+  title,
+  color,
+  members,
+  emptyText,
+  showSlots,
+  showNote,
+}: {
+  title: string;
+  color: string;
+  members: MemberStat[];
+  emptyText: string;
+  showSlots?: boolean;
+  showNote?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 6,
+        padding: "8px 10px",
+        background: "var(--bg)",
+      }}
+    >
+      <div className="row mb-6" style={{ alignItems: "center", gap: 6 }}>
+        <span style={{ color, fontWeight: 700, fontSize: 14 }}>●</span>
+        <strong style={{ fontSize: 12 }}>{title}</strong>
+        <span className="mono text-xs muted">· {members.length}명</span>
+      </div>
+      {members.length === 0 ? (
+        <div style={{ fontSize: 11, color: "var(--mf)" }}>{emptyText}</div>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 4 }}>
+          {members.map((m, i) => (
+            <li key={`${m.userId ?? m.name}-${i}`} style={{ fontSize: 12 }}>
+              <div style={{ fontWeight: 500 }}>{m.name}</div>
+              {showSlots && m.timeSlots.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 2 }}>
+                  {m.timeSlots.map((t, j) => {
+                    const unavail = t.kind === "unavailable";
+                    return (
+                      <span
+                        key={j}
+                        style={{
+                          fontSize: 10,
+                          padding: "1px 5px",
+                          borderRadius: 3,
+                          fontFamily: "var(--font-mono)",
+                          background: unavail ? "var(--danger-soft, #fdecec)" : "transparent",
+                          color: unavail ? "var(--danger, #c33)" : "var(--mf)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        {unavail ? "✕ " : ""}
+                        {t.start}~{t.end}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              {showNote && m.note && (
+                <div className="mono text-xs muted" style={{ marginTop: 2 }}>
+                  · {m.note}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+interface ApplicantDetailProps {
+  application: Application;
+  scheduleDates: ScheduleDate[];
+  userVotes: Map<string, ScheduleVoteRow> | undefined;
+}
+
+function ApplicantDetail({ application: a, scheduleDates, userVotes }: ApplicantDetailProps) {
+  const hasMotivation = !!(a.motivation && a.motivation.trim());
+  const hasAnswers = !!(a.answers_note && a.answers_note.trim());
+  const hasMemo = !!(a.memo && a.memo.trim());
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {/* 지원 내용 */}
+      <div className="os-grid grid-2" style={{ gap: 12 }}>
+        <div className="card" style={{ padding: 12 }}>
+          <div className="lab" style={{ fontSize: 11, marginBottom: 6 }}>지원 동기</div>
+          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", color: hasMotivation ? "inherit" : "var(--mf)" }}>
+            {hasMotivation ? a.motivation : "— 작성 안 함 —"}
+          </div>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <div className="lab" style={{ fontSize: 11, marginBottom: 6 }}>자기소개 · 기타</div>
+          <div style={{ fontSize: 13, whiteSpace: "pre-wrap", color: hasAnswers ? "inherit" : "var(--mf)" }}>
+            {hasAnswers ? a.answers_note : "— 작성 안 함 —"}
+          </div>
+        </div>
+      </div>
+
+      {hasMemo && (
+        <div className="card" style={{ padding: 12 }}>
+          <div className="lab" style={{ fontSize: 11, marginBottom: 6 }}>관리자 메모</div>
+          <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{a.memo}</div>
+        </div>
+      )}
+
+      {/* 가용성 응답 */}
+      <div className="card" style={{ padding: 12 }}>
+        <div className="lab" style={{ fontSize: 11, marginBottom: 8 }}>
+          가능 일정 응답 · {scheduleDates.length}건
+        </div>
+        {scheduleDates.length === 0 ? (
+          <div className="empty" style={{ padding: 12 }}>등록된 일정이 없습니다</div>
+        ) : (
+          <div style={{ display: "grid", gap: 6 }}>
+            {scheduleDates.map((d) => {
+              const v = userVotes?.get(d.id);
+              const s = v?.status as
+                | "available" | "partial" | "adjustable" | "unavailable"
+                | undefined;
+              return (
+                <div
+                  key={d.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "110px 80px 1fr",
+                    gap: 8,
+                    alignItems: "start",
+                    padding: "6px 8px",
+                    borderRadius: 4,
+                    background: v ? "var(--bg)" : "transparent",
+                    fontSize: 12,
+                  }}
+                >
+                  <div className="mono" style={{ color: "var(--mf)" }}>
+                    {d.date.slice(5)}
+                    {d.label && <span> · {d.label}</span>}
+                  </div>
+                  <div style={{ color: statusColor(s), fontWeight: 600 }}>
+                    {labelOf(s)}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                    {(v?.time_slots ?? []).length === 0 ? (
+                      <span style={{ color: "var(--mf)" }}>—</span>
+                    ) : (
+                      (v?.time_slots ?? []).map((t, i) => {
+                        const unavail = t.kind === "unavailable";
+                        return (
+                          <span
+                            key={i}
+                            style={{
+                              padding: "1px 6px",
+                              borderRadius: 3,
+                              fontSize: 11,
+                              fontFamily: "var(--font-mono)",
+                              background: unavail ? "var(--danger-soft, #fdecec)" : "var(--accent-soft, #f0f4ff)",
+                              color: unavail ? "var(--danger, #c33)" : "var(--accent, #3b82f6)",
+                              border: `1px solid ${unavail ? "var(--danger, #c33)" : "var(--accent, #3b82f6)"}`,
+                            }}
+                            title={unavail ? "이 시간은 불가" : "이 시간 가능"}
+                          >
+                            {unavail ? "✕ " : ""}
+                            {t.start}~{t.end}
+                          </span>
+                        );
+                      })
+                    )}
+                    {v?.note && (
+                      <span style={{ color: "var(--mf)", fontSize: 11 }}>· {v.note}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

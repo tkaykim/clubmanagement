@@ -6,9 +6,12 @@ import { z } from "zod";
 
 const uuidSchema = z.string().uuid();
 
+// NOTE: kind 필드는 2026-04 추가 — 과거 저장 데이터는 kind 가 없어도
+// default("available") 로 안전하게 읽힌다. DB 스키마(JSONB) 변경 불필요.
 const timeSlotSchema = z.object({
   start: z.string().regex(/^\d{2}:\d{2}$/, "HH:MM 형식이어야 합니다"),
   end: z.string().regex(/^\d{2}:\d{2}$/, "HH:MM 형식이어야 합니다"),
+  kind: z.enum(["available", "unavailable"]).optional().default("available"),
 });
 
 const voteStatusSchema = z.enum([

@@ -106,7 +106,7 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           schedule_date_id: string;
           user_id: string;
           status: string;
-          time_slots: Array<{ start: string; end: string }>;
+          time_slots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
           note: string | null;
         }> };
 
@@ -162,7 +162,7 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           schedule_date_id: string;
           user_id: string;
           status: string;
-          time_slots: Array<{ start: string; end: string }>;
+          time_slots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
           note: string | null;
         }>}
         payouts={(payouts ?? []) as Array<{ id: string; amount: number; status: string; scheduled_at: string | null; paid_at: string | null; note: string | null; crew_members: { id: string; name: string; stage_name: string | null } | null }>}

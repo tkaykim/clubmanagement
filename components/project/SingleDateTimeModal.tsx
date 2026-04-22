@@ -1,29 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TimeSlotKind } from "@/lib/types";
+import type { ScheduleDateLite } from "./TimeRangeModal";
 
 const DOW_SHORT = ["일", "월", "화", "수", "목", "금", "토"];
 
-export interface ScheduleDateLite {
-  id: string;
-  date: string; // YYYY-MM-DD (KST 기준 저장값)
-  label: string | null;
-  kind: string; // "event" | "practice"
-}
-
-export interface TimeRangeModalProps {
+export interface SingleDateTimeModalProps {
   open: boolean;
-  scheduleDates: ScheduleDateLite[];
-  // 현재 각 일정의 status 를 전달 → unavailable 인 항목은 시각적으로 회색 처리
-  statusMap: Record<string, string>;
+  scheduleDate: ScheduleDateLite | null;
   onClose: () => void;
   onApply: (payload: {
-    scheduleDateIds: string[];
-    start: string; // "HH:MM"
-    end: string;   // "HH:MM"
+    scheduleDateId: string;
+    start: string;
+    end: string;
     kind: TimeSlotKind;
   }) => void;
 }
@@ -39,7 +31,6 @@ const PRESETS: Preset[] = [
 
 function kstFormat(dateStr: string): { d: number; dow: string } {
   const d = new Date(`${dateStr}T00:00:00+09:00`);
-  // day-of-month 를 KST 로 뽑기 위해 toLocaleString 사용
   const parts = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     day: "numeric",
@@ -50,41 +41,39 @@ function kstFormat(dateStr: string): { d: number; dow: string } {
   return { d: Number(dayPart), dow: weekPart || DOW_SHORT[d.getUTCDay()] };
 }
 
-export function TimeRangeModal({
+/**
+ * 단일 날짜에 대해 시작~종료 + 가능/불가 를 선택하는 모달.
+ * TimeRangeModal(일괄 적용)과 용도가 다르다 — "이 날짜만" 시간 구간 1개를 추가한다.
+ */
+export function SingleDateTimeModal({
   open,
-  scheduleDates,
-  statusMap,
+  scheduleDate,
   onClose,
   onApply,
-}: TimeRangeModalProps) {
+}: SingleDateTimeModalProps) {
   const [start, setStart] = useState<string>("13:00");
   const [end, setEnd] = useState<string>("18:00");
   const [kind, setKind] = useState<TimeSlotKind>("available");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
-  const selectableIds = useMemo(
-    () => scheduleDates.filter((d) => statusMap[d.id] !== "unavailable").map((d) => d.id),
-    [scheduleDates, statusMap]
-  );
+  // 모달 열릴 때마다 기본값 리셋
+  useEffect(() => {
+    if (open) {
+      setStart("13:00");
+      setEnd("18:00");
+      setKind("available");
+    }
+  }, [open]);
 
-  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+  const header = useMemo(() => {
+    if (!scheduleDate) return "";
+    const { d, dow } = kstFormat(scheduleDate.date);
+    const labelBit =
+      scheduleDate.label ??
+      (scheduleDate.kind === "practice" ? "연습" : "본행사");
+    return `${d}일 (${dow}) · ${labelBit}`;
+  }, [scheduleDate]);
 
-  if (!open) return null;
-
-  const toggleId = (id: string, isUnavailable: boolean) => {
-    if (isUnavailable) return; // unavailable 은 버튼 자체를 disabled
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(selectableIds));
-  };
+  if (!open || !scheduleDate) return null;
 
   const applyPreset = (p: Preset) => {
     setStart(p.start);
@@ -93,9 +82,7 @@ export function TimeRangeModal({
 
   const handleApply = () => {
     if (!start || !end || start >= end) return;
-    if (selectedIds.size === 0) return;
-    onApply({ scheduleDateIds: Array.from(selectedIds), start, end, kind });
-    setSelectedIds(new Set());
+    onApply({ scheduleDateId: scheduleDate.id, start, end, kind });
     onClose();
   };
 
@@ -114,16 +101,29 @@ export function TimeRangeModal({
       <div
         className="card"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 480, padding: 20, maxHeight: "90vh", overflow: "auto" }}
+        style={{ width: "100%", maxWidth: 440, padding: 20, maxHeight: "90vh", overflow: "auto" }}
       >
         <div className="row mb-12" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <div className="row gap-6" style={{ alignItems: "center" }}>
             <Clock size={16} strokeWidth={2} />
-            <strong>시간대 일괄 추가</strong>
+            <strong>시간 추가</strong>
           </div>
           <button type="button" className="btn ghost sm" onClick={onClose} aria-label="닫기">
             <X size={14} strokeWidth={2} />
           </button>
+        </div>
+
+        <div
+          className="mb-12"
+          style={{
+            padding: "8px 10px",
+            background: "var(--muted)",
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {header}
         </div>
 
         {/* 시간 프리셋 */}
@@ -175,7 +175,7 @@ export function TimeRangeModal({
           )}
         </div>
 
-        {/* 가능 / 불가 */}
+        {/* 가능 / 불가 선택 */}
         <div className="field">
           <label>이 시간대에</label>
           <div className="seg full">
@@ -194,62 +194,10 @@ export function TimeRangeModal({
               불가능
             </button>
           </div>
-        </div>
-
-        {/* 적용할 날짜 선택 */}
-        <div className="field">
-          <div className="row mb-6" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ margin: 0 }}>
-              적용할 날짜 <span className="hint">· 여러 개 선택 가능</span>
-            </label>
-            <button type="button" className="btn ghost sm" onClick={toggleAll}>
-              {allSelected ? "전체 해제" : "전체 선택"}
-            </button>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
-              gap: 6,
-            }}
-          >
-            {scheduleDates.map((d) => {
-              const isUnavailable = statusMap[d.id] === "unavailable";
-              const selected = selectedIds.has(d.id);
-              const { d: dayNum, dow } = kstFormat(d.date);
-              return (
-                <button
-                  key={d.id}
-                  type="button"
-                  disabled={isUnavailable}
-                  onClick={() => toggleId(d.id, isUnavailable)}
-                  className={cn(
-                    "btn sm",
-                    selected && "primary",
-                    isUnavailable && "ghost"
-                  )}
-                  style={{
-                    flexDirection: "column",
-                    gap: 2,
-                    padding: "6px 4px",
-                    opacity: isUnavailable ? 0.4 : 1,
-                    cursor: isUnavailable ? "not-allowed" : "pointer",
-                  }}
-                  title={isUnavailable ? "불가 표시된 날짜" : `${d.date} ${d.label ?? ""}`.trim()}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{dayNum}</span>
-                  <span style={{ fontSize: 10, opacity: 0.7 }}>
-                    {dow}
-                    {d.kind === "practice" ? " · 연습" : ""}
-                  </span>
-                  {d.label && (
-                    <span style={{ fontSize: 9, opacity: 0.6, fontFamily: "var(--font-mono)" }}>
-                      {d.label.length > 6 ? d.label.slice(0, 6) + "…" : d.label}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="hint" style={{ marginTop: 6, fontSize: 11 }}>
+            {kind === "available"
+              ? "이 시간대에는 참여 가능"
+              : "이 시간대에는 참여 불가 — 나머지 시간은 가능"}
           </div>
         </div>
 
@@ -258,10 +206,10 @@ export function TimeRangeModal({
           <button
             type="button"
             className="btn primary"
-            disabled={selectedIds.size === 0 || !start || !end || start >= end}
+            disabled={!start || !end || start >= end}
             onClick={handleApply}
           >
-            {selectedIds.size > 0 ? `${selectedIds.size}개 날짜에 적용` : "날짜를 선택하세요"}
+            추가
           </button>
         </div>
       </div>
