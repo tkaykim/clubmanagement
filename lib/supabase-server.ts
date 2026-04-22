@@ -17,9 +17,12 @@ function getSupabaseAnonKey(): string {
 /**
  * 서버 컴포넌트 / Route Handler용 Supabase 클라이언트.
  *
- * createBrowserClient 가 쓰는 청크 쿠키를 안전하게 다루려면 getAll/setAll API 가 필요.
- * Next.js 15+ 에서 cookies() 는 Promise 지만, 우리가 쓰는 경로는 read-only 가 대부분이므로
- * 동기 레퍼런스를 시도하고, 실패하면 anon 클라이언트로 폴백한다.
+ * Next.js 15+ 에서 cookies() 는 Promise 를 반환한다.
+ * @supabase/ssr 의 getAll/setAll 콜백은 이미 async 로 호출되므로
+ * 내부에서 await 로 cookies() 를 언래핑하면 된다.
+ *
+ * 기존 async createServerSupabaseClient 로 바꾸는 대신 동기 팩토리를 유지하고
+ * 콜백만 async 로 두어 44 개 호출자를 그대로 둘 수 있다.
  */
 export function createServerSupabaseClient(): SupabaseClient {
   const url = getSupabaseUrl();
@@ -33,32 +36,27 @@ export function createServerSupabaseClient(): SupabaseClient {
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { cookies } = require("next/headers") as {
-    cookies: () => {
+    cookies: () => Promise<{
       getAll: () => Array<{ name: string; value: string }>;
       set?: (opts: { name: string; value: string; [k: string]: unknown }) => void;
-    };
+    }>;
   };
-
-  let cookieStore: ReturnType<typeof cookies>;
-  try {
-    cookieStore = cookies();
-  } catch {
-    return createClient(url, anonKey, { auth: { persistSession: false } });
-  }
 
   return createServerClient(url, anonKey, {
     cookies: {
-      getAll() {
+      async getAll() {
         try {
-          return cookieStore.getAll();
+          const store = await cookies();
+          return store.getAll();
         } catch {
           return [];
         }
       },
-      setAll(cookiesToSet) {
+      async setAll(cookiesToSet) {
         try {
+          const store = await cookies();
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set?.({ name, value, ...options });
+            store.set?.({ name, value, ...options });
           });
         } catch {
           // Server Component 에서 set 은 금지된다 (읽기 전용).
