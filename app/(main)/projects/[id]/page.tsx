@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { fmtKRW } from "@/lib/utils";
+import { fmtPay, payTypeChipTone } from "@/lib/utils";
 import { ChevronLeft, Calendar, MapPin, Users, DollarSign } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -68,9 +68,9 @@ export default async function ProjectDetailPage({ params }: Props) {
           <div className="row gap-8 mb-8">
             <StatusBadge status={project.status} />
             <StatusBadge status={project.type} />
-            {project.fee > 0 && (
-              <span className="badge outline">₩ {fmtKRW(project.fee)}</span>
-            )}
+            <span className={`badge ${payTypeChipTone(project.pay_type)}`}>
+              {fmtPay(project.pay_type, project.fee)}
+            </span>
           </div>
           <h1 style={{ marginBottom: 6 }}>{project.title}</h1>
           {project.description && (
@@ -123,14 +123,10 @@ export default async function ProjectDetailPage({ params }: Props) {
                     <dd>{project.address}</dd>
                   </>
                 )}
-                {project.fee !== 0 && (
-                  <>
-                    <dt>출연료</dt>
-                    <dd className="tabnum" style={{ fontWeight: 600 }}>
-                      {project.fee > 0 ? `₩ ${fmtKRW(project.fee)}` : `참가비 ₩ ${fmtKRW(Math.abs(project.fee))}`}
-                    </dd>
-                  </>
-                )}
+                <dt>비용</dt>
+                <dd className="tabnum" style={{ fontWeight: 600 }}>
+                  {fmtPay(project.pay_type, project.fee)}
+                </dd>
                 {project.recruitment_end_at && (
                   <>
                     <dt>모집마감</dt>

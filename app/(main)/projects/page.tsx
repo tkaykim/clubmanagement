@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Folder, Calendar, MapPin } from "lucide-react";
 import { AvatarStack } from "@/components/ui/OsAvatar";
+import { fmtPay, payTypeChipTone } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +13,13 @@ export default async function ProjectsPage() {
   let projects: Array<{
     id: string; title: string; status: string; type: string;
     poster_url: string | null; start_date: string | null;
-    fee: number; venue: string | null; max_participants: number | null;
+    pay_type: string | null; fee: number; venue: string | null; max_participants: number | null;
   }> = [];
 
   try {
     const { data } = await supabase
       .from("projects_with_range")
-      .select("id, title, status, type, poster_url, start_date, fee, venue, max_participants")
+      .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue, max_participants")
       .order("created_at", { ascending: false });
     projects = (data ?? []) as typeof projects;
   } catch {
@@ -68,9 +69,9 @@ export default async function ProjectsPage() {
                 <div className="row gap-6 mb-8">
                   <StatusBadge status={p.type} />
                   <StatusBadge status={p.status} />
-                  {p.fee > 0 && (
-                    <span className="badge outline">₩ {p.fee.toLocaleString("ko-KR")}</span>
-                  )}
+                  <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
+                    {fmtPay(p.pay_type, p.fee)}
+                  </span>
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3, marginBottom: 10 }}>
                   {p.title}

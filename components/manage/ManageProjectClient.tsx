@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, initials } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
 import { Check, X, Loader2, DollarSign, Download, Megaphone } from "lucide-react";
 
 const TABS = [
@@ -23,6 +23,7 @@ interface Project {
   status: string;
   type: string;
   visibility: string;
+  pay_type: string;
   fee: number;
   description: string | null;
   venue: string | null;
@@ -100,6 +101,9 @@ export function ManageProjectClient({
   const [loading, setLoading] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<string>(project.visibility ?? "public");
   const [savingVisibility, setSavingVisibility] = useState(false);
+  const [payType, setPayType] = useState<PayType>((project.pay_type ?? "free") as PayType);
+  const [feeAmount, setFeeAmount] = useState<number>(project.fee ?? 0);
+  const [savingPay, setSavingPay] = useState(false);
 
   const handleVisibilityChange = async (next: string) => {
     if (next === visibility) return;
@@ -126,6 +130,42 @@ export function ManageProjectClient({
     } finally {
       setSavingVisibility(false);
     }
+  };
+
+  const savePay = async (nextType: PayType, nextFee: number) => {
+    setSavingPay(true);
+    try {
+      const body = {
+        pay_type: nextType,
+        fee: nextType === "pay" || nextType === "fee" ? nextFee || 0 : 0,
+      };
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        toast.error(json.error ?? "변경에 실패했습니다");
+        return false;
+      }
+      toast.success("비용 설정이 저장되었습니다");
+      router.refresh();
+      return true;
+    } catch {
+      toast.error("네트워크 오류");
+      return false;
+    } finally {
+      setSavingPay(false);
+    }
+  };
+
+  const handlePayTypeChange = async (next: PayType) => {
+    if (next === payType) return;
+    setPayType(next);
+    const nextFee = next === "pay" || next === "fee" ? feeAmount : 0;
+    if (next !== "pay" && next !== "fee") setFeeAmount(0);
+    await savePay(next, nextFee);
   };
 
   const pendingApps = applications.filter(a => a.status === "pending");
@@ -550,6 +590,64 @@ export function ManageProjectClient({
               <div className="hint" style={{ fontSize: 11.5, color: "var(--mf)", marginTop: 8 }}>
                 {VISIBILITY_OPTIONS.find((v) => v.value === visibility)?.hint}
               </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ padding: 24 }}>
+              <h3 style={{ marginBottom: 8 }}>비용</h3>
+              <div className="mono text-xs muted" style={{ marginBottom: 16, letterSpacing: "0.02em" }}>
+                페이 · 참가비 · 무료 · 미정 중 선택하세요.
+              </div>
+              <div
+                className="seg full"
+                style={{ opacity: savingPay ? 0.6 : 1, pointerEvents: savingPay ? "none" : "auto" }}
+              >
+                {PAY_TYPE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(payType === opt.value && "on")}
+                    onClick={() => handlePayTypeChange(opt.value)}
+                    title={opt.hint}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="hint" style={{ fontSize: 11.5, color: "var(--mf)", marginTop: 8 }}>
+                {PAY_TYPE_OPTIONS.find((o) => o.value === payType)?.hint}
+              </div>
+
+              {(payType === "pay" || payType === "fee") && (
+                <div className="field" style={{ marginTop: 14 }}>
+                  <label htmlFor="fee-amount">
+                    {payType === "pay" ? "출연료 (원)" : "참가비 (원)"}{" "}
+                    <span className="hint">미정이면 0 으로 두세요</span>
+                  </label>
+                  <div className="row gap-8">
+                    <input
+                      id="fee-amount"
+                      className="input"
+                      type="number"
+                      min={0}
+                      step={10000}
+                      value={feeAmount || ""}
+                      onChange={(e) => setFeeAmount(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn sm primary"
+                      disabled={savingPay}
+                      onClick={() => savePay(payType, feeAmount)}
+                    >
+                      {savingPay ? "저장 중…" : "금액 저장"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
