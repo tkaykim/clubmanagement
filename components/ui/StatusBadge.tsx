@@ -16,6 +16,11 @@ const STATUS_MAP: Record<string, { label: string; kind: string }> = {
   workshop:     { label: "워크숍",   kind: "outline" },
   paid:         { label: "지급완료", kind: "ok" },
   scheduled:    { label: "예정",     kind: "info" },
+  // 참여자 구분 칩
+  operator:         { label: "운영진",   kind: "solid" },
+  contract_member:  { label: "계약멤버", kind: "ok" },
+  regular_member:   { label: "일반멤버", kind: "outline" },
+  external_guest:   { label: "게스트",   kind: "warn" },
 };
 
 interface StatusBadgeProps {

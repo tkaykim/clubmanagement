@@ -7,6 +7,8 @@ import { Check, X, Mail, Phone, Loader2, Plus, Pencil, Trash2, Save } from "luci
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "sonner";
 
+export type ApplicantKind = "operator" | "contract_member" | "regular_member" | "external_guest";
+
 export type Applicant = {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export type Applicant = {
   phone: string | null;
   status: string;
   created_at: string;
+  kind: ApplicantKind;
 };
 
 type CrewOption = { id: string; name: string; stage_name: string | null; user_id: string | null };
@@ -375,7 +378,10 @@ export function ApplicantList({
                           style={{ maxWidth: 180 }}
                         />
                       ) : (
-                        a.name
+                        <div className="row gap-6" style={{ flexWrap: "wrap" }}>
+                          <span>{a.name}</span>
+                          <StatusBadge status={a.kind} />
+                        </div>
                       )}
                     </td>
                     <td data-label="연락처">

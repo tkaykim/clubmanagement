@@ -49,21 +49,43 @@ export default async function ApplicantsPage({ params }: Props) {
 
   const rows = (appData ?? []) as ApplicationRow[];
 
-  // 멤버 지원자의 실제 이름/연락처는 crew_members 에서 resolve
+  // 멤버 지원자의 실제 이름/연락처/역할은 crew_members 에서 resolve
   const userIds = Array.from(new Set(rows.map(r => r.user_id).filter((v): v is string => !!v)));
-  const memberMap = new Map<string, { name: string; email: string | null; phone: string | null }>();
+  type MemberInfo = {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    role: string;
+    contract_type: string;
+  };
+  const memberMap = new Map<string, MemberInfo>();
   if (userIds.length > 0) {
     const { data: members } = await supabase
       .from("crew_members")
-      .select("user_id, name, stage_name, email, phone")
+      .select("user_id, name, stage_name, email, phone, role, contract_type")
       .in("user_id", userIds);
-    for (const m of (members ?? []) as Array<{ user_id: string; name: string; stage_name: string | null; email: string | null; phone: string | null }>) {
+    for (const m of (members ?? []) as Array<{ user_id: string; name: string; stage_name: string | null; email: string | null; phone: string | null; role: string; contract_type: string }>) {
       memberMap.set(m.user_id, {
         name: m.stage_name ?? m.name,
         email: m.email,
         phone: m.phone,
+        role: m.role,
+        contract_type: m.contract_type,
       });
     }
+  }
+
+  // 참여자 구분 칩 계산
+  // - user_id 없음 → 외부 게스트
+  // - crew_members 매칭 실패 → 외부 게스트 (데이터 정합성 방어)
+  // - role 이 admin/owner → 운영진
+  // - contract_type === 'contract' → 계약멤버
+  // - 그 외(non_contract, guest) → 일반멤버
+  function classify(m: MemberInfo | null | undefined, hasUserId: boolean): Applicant["kind"] {
+    if (!hasUserId || !m) return "external_guest";
+    if (m.role === "admin" || m.role === "owner") return "operator";
+    if (m.contract_type === "contract") return "contract_member";
+    return "regular_member";
   }
 
   const applicants: Applicant[] = rows.map(a => {
@@ -75,6 +97,7 @@ export default async function ApplicantsPage({ params }: Props) {
       phone: a.guest_phone ?? m?.phone ?? null,
       status: a.status,
       created_at: a.created_at,
+      kind: classify(m, !!a.user_id),
     };
   });
 

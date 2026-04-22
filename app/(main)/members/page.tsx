@@ -55,8 +55,17 @@ export default async function MembersPage() {
                 </div>
               </div>
               <div className="row gap-6 wrap">
-                <StatusBadge status={m.role} />
-                <StatusBadge status={m.contract_type} />
+                <StatusBadge
+                  status={
+                    m.role === "admin" || m.role === "owner"
+                      ? "operator"
+                      : m.contract_type === "contract"
+                        ? "contract_member"
+                        : m.contract_type === "guest"
+                          ? "external_guest"
+                          : "regular_member"
+                  }
+                />
                 {m.position && (
                   <span className="badge">{m.position}</span>
                 )}
