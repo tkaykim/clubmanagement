@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__60bbf13e-287a-4999-bab2-fa16b7a8469f__list_projects",
+      "mcp__60bbf13e-287a-4999-bab2-fa16b7a8469f__list_migrations",
+      "mcp__60bbf13e-287a-4999-bab2-fa16b7a8469f__execute_sql",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(gh pr create --base main --head claude/amazing-sammet-d2205c --title '지원 UX 4단계 투표 + 시간 피커 + 모바일 성능 개선' --body ' *)",
+      "Bash(git checkout *)",
+      "Bash(git fetch *)"
+    ]
+  }
+}

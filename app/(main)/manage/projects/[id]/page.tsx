@@ -41,11 +41,52 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
 
   if (error || !project) notFound();
 
-  const { data: applications } = await supabase
+  // NOTE: project_applications.user_id / payouts.user_id 는 users(id) FK 이고
+  // crew_members 로의 FK 는 없으므로 PostgREST nested embed (`crew_members:user_id(...)`)
+  // 는 관계 자동감지에 실패해 실제로는 applications/payouts 배열이 비거나 null 이 된다.
+  // → 따로 조회해서 user_id 로 매칭한다.
+  const { data: rawApps } = await supabase
     .from("project_applications")
-    .select("*, crew_members:user_id(id, name, stage_name, role, position)")
+    .select("id, status, created_at, updated_at, motivation, fee_agreement, score, memo, answers_note, user_id, guest_name")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
+
+  const { data: rawPayouts } = await supabase
+    .from("payouts")
+    .select("id, amount, status, scheduled_at, paid_at, note, user_id")
+    .eq("project_id", projectId);
+
+  // applications + payouts 에 등장하는 user_id 를 모아 crew_members 한 번에 조회
+  const crewUserIds = Array.from(
+    new Set(
+      [
+        ...(rawApps ?? []).map((a: { user_id: string | null }) => a.user_id),
+        ...(rawPayouts ?? []).map((p: { user_id: string | null }) => p.user_id),
+      ].filter((v): v is string => !!v)
+    )
+  );
+  type CrewLite = { id: string; name: string; stage_name: string | null; role: string; position: string | null };
+  const crewMap = new Map<string, CrewLite>();
+  if (crewUserIds.length > 0) {
+    const { data: crews } = await supabase
+      .from("crew_members")
+      .select("id, user_id, name, stage_name, role, position")
+      .in("user_id", crewUserIds);
+    for (const c of (crews ?? []) as Array<CrewLite & { user_id: string }>) {
+      crewMap.set(c.user_id, { id: c.id, name: c.name, stage_name: c.stage_name, role: c.role, position: c.position });
+    }
+  }
+
+  type RawApp = {
+    id: string; status: string; created_at: string; updated_at: string;
+    motivation: string | null; fee_agreement: string; score: number | null;
+    memo: string | null; answers_note: string | null;
+    user_id: string | null; guest_name: string | null;
+  };
+  const applications = ((rawApps ?? []) as RawApp[]).map((a) => ({
+    ...a,
+    crew_members: a.user_id ? crewMap.get(a.user_id) ?? null : null,
+  }));
 
   const { data: scheduleDates } = await supabase
     .from("schedule_dates")
@@ -69,10 +110,18 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           note: string | null;
         }> };
 
-  const { data: payouts } = await supabase
-    .from("payouts")
-    .select("*, crew_members:user_id(id, name, stage_name)")
-    .eq("project_id", projectId);
+  type RawPayout = {
+    id: string; amount: number; status: string;
+    scheduled_at: string | null; paid_at: string | null;
+    note: string | null; user_id: string | null;
+  };
+  const payouts = ((rawPayouts ?? []) as RawPayout[]).map((p) => {
+    const cm = p.user_id ? crewMap.get(p.user_id) ?? null : null;
+    return {
+      ...p,
+      crew_members: cm ? { id: cm.id, name: cm.name, stage_name: cm.stage_name } : null,
+    };
+  });
 
   const { data: announcements } = await supabase
     .from("announcements")
