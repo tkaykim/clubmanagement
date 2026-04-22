@@ -96,11 +96,13 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * 다음 경로는 제외:
-     * - _next/static (정적 파일)
-     * - _next/image (이미지 최적화)
-     * - favicon.ico, 공개 파일
+     * 다음 경로는 미들웨어 제외 (정적/공개 자원):
+     * - _next/static, _next/image, favicon.ico
+     * - manifest.json, manifest.webmanifest, sw.js, robots.txt
+     * - 이미지/폰트/정적 파일 확장자
+     * 인증 리다이렉트가 이런 자원에 끼어들어 HTML 이 반환되면
+     * manifest JSON 파싱 에러 / SW precache AbortError 가 발생하므로 반드시 제외한다.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|manifest\\.webmanifest|sw\\.js|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|json|webmanifest|js|css|map|txt|xml)$).*)",
   ],
 };

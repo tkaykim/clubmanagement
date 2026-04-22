@@ -1,8 +1,8 @@
-const CACHE_NAME = 'oneshot-v3';
-const PRECACHE = ['/manifest.json'];
+const CACHE_NAME = 'oneshot-v4';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(PRECACHE)));
+  // precache 실패가 설치 전체를 깨뜨리지 않도록 install 단계에서는 아무것도 강제 캐시하지 않는다.
+  // 필요한 자산은 fetch 핸들러에서 런타임 캐시로 채운다.
   self.skipWaiting();
 });
 
