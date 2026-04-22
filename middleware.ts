@@ -27,16 +27,18 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
+  // createBrowserClient 가 쓰는 청크 쿠키(sb-<ref>-auth-token.0, .1, ...)를
+  // 안전하게 다루려면 getAll/setAll API 를 써야 한다.
+  // 기존 get/set/remove 조합은 deprecated 이고 청크 5 개까지만 시도한다.
   const supabase = createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return req.cookies.get(name)?.value;
+      getAll() {
+        return req.cookies.getAll();
       },
-      set(name: string, value: string, options: Record<string, unknown>) {
-        res.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options: Record<string, unknown>) {
-        res.cookies.set({ name, value: "", ...options });
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          res.cookies.set({ name, value, ...options });
+        });
       },
     },
   });

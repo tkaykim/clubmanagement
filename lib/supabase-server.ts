@@ -16,7 +16,10 @@ function getSupabaseAnonKey(): string {
 
 /**
  * 서버 컴포넌트 / Route Handler용 Supabase 클라이언트.
- * 쿠키 접근은 동적으로 처리 (Next.js 15 호환).
+ *
+ * createBrowserClient 가 쓰는 청크 쿠키를 안전하게 다루려면 getAll/setAll API 가 필요.
+ * Next.js 15+ 에서 cookies() 는 Promise 지만, 우리가 쓰는 경로는 read-only 가 대부분이므로
+ * 동기 레퍼런스를 시도하고, 실패하면 anon 클라이언트로 폴백한다.
  */
 export function createServerSupabaseClient(): SupabaseClient {
   const url = getSupabaseUrl();
@@ -28,27 +31,38 @@ export function createServerSupabaseClient(): SupabaseClient {
     });
   }
 
-  // Next.js 15에서 cookies()는 Promise<ReadonlyRequestCookies>를 반환
-  // createServerClient에 동기 getter 패턴으로 래핑
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { cookies } = require("next/headers") as {
-    cookies: () => { get: (name: string) => { value?: string } | undefined };
+    cookies: () => {
+      getAll: () => Array<{ name: string; value: string }>;
+      set?: (opts: { name: string; value: string; [k: string]: unknown }) => void;
+    };
   };
 
-  let cookieStore: { get: (name: string) => { value?: string } | undefined };
+  let cookieStore: ReturnType<typeof cookies>;
   try {
-    cookieStore = cookies() as { get: (name: string) => { value?: string } | undefined };
+    cookieStore = cookies();
   } catch {
     return createClient(url, anonKey, { auth: { persistSession: false } });
   }
 
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
+      getAll() {
         try {
-          return cookieStore.get(name)?.value;
+          return cookieStore.getAll();
         } catch {
-          return undefined;
+          return [];
+        }
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set?.({ name, value, ...options });
+          });
+        } catch {
+          // Server Component 에서 set 은 금지된다 (읽기 전용).
+          // Route Handler / Server Action 에서만 동작한다. 무시해도 안전.
         }
       },
     },
