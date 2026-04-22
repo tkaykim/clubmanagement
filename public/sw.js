@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oneshot-v5';
+const CACHE_NAME = 'oneshot-v6';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

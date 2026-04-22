@@ -11,6 +11,22 @@ export default async function DashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // 현재 유저의 크루 멤버 레코드에서 이름 가져오기
+  let displayName = "";
+  if (user) {
+    const { data: me } = await supabase
+      .from("crew_members")
+      .select("name, stage_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    displayName =
+      (me?.stage_name as string | undefined) ||
+      (me?.name as string | undefined) ||
+      (user.user_metadata?.name as string | undefined) ||
+      user.email?.split("@")[0] ||
+      "";
+  }
+
   let projects: Array<{
     id: string; title: string; status: string; type: string;
     poster_url: string | null; start_date: string | null;
@@ -75,7 +91,7 @@ export default async function DashboardPage() {
         <div>
           <h1>
             <span className="serif-tag">Welcome,</span>
-            홈
+            {displayName || "홈"}
           </h1>
           <div className="sub">오늘의 현황을 확인하세요</div>
         </div>
