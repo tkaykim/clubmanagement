@@ -7,7 +7,27 @@ import { fmtPay, payTypeChipTone } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectsPage() {
+type TabKey = "all" | "active" | "past" | "cancelled";
+const TABS: Array<{ key: TabKey; label: string }> = [
+  { key: "all", label: "전체" },
+  { key: "active", label: "진행중" },
+  { key: "past", label: "지난 프로젝트" },
+  { key: "cancelled", label: "취소된 프로젝트" },
+];
+const ACTIVE_STATUSES = new Set(["recruiting", "selecting", "in_progress"]);
+
+function resolveTab(v: unknown): TabKey {
+  const s = typeof v === "string" ? v : Array.isArray(v) ? v[0] : "";
+  return (TABS.find(t => t.key === s)?.key ?? "all") as TabKey;
+}
+
+type Props = {
+  searchParams: Promise<{ tab?: string }>;
+};
+
+export default async function ProjectsPage({ searchParams }: Props) {
+  const { tab: tabRaw } = await searchParams;
+  const tab = resolveTab(tabRaw);
   const supabase = createServerSupabaseClient();
 
   type ProjectRow = {
@@ -75,7 +95,7 @@ export default async function ProjectsPage() {
     }));
   }
 
-  const projects: ProjectRow[] = rows.map((r) => ({
+  const all: ProjectRow[] = rows.map((r) => ({
     id: r.id,
     title: r.title,
     status: r.status,
@@ -88,6 +108,24 @@ export default async function ProjectsPage() {
     max_participants: r.max_participants,
   }));
 
+  const counts = {
+    all: all.length,
+    active: all.filter(p => ACTIVE_STATUSES.has(p.status)).length,
+    past: all.filter(p => p.status === "completed").length,
+    cancelled: all.filter(p => p.status === "cancelled").length,
+  };
+
+  const projects =
+    tab === "active"
+      ? all.filter(p => ACTIVE_STATUSES.has(p.status))
+      : tab === "past"
+        ? all.filter(p => p.status === "completed")
+        : tab === "cancelled"
+          ? all.filter(p => p.status === "cancelled")
+          : all;
+
+  const activeLabel = TABS.find(t => t.key === tab)?.label ?? "전체";
+
   return (
     <div className="page">
       <div className="page-head">
@@ -96,15 +134,32 @@ export default async function ProjectsPage() {
             <span className="serif-tag">All</span>
             프로젝트
           </h1>
-          <div className="sub">진행중 · 모집중 · 완료 프로젝트</div>
+          <div className="sub">{activeLabel} · {projects.length}건</div>
         </div>
       </div>
+
+      <nav className="tabs" style={{ marginBottom: 20 }}>
+        {TABS.map(t => (
+          <Link
+            key={t.key}
+            href={t.key === "all" ? "/projects" : `/projects?tab=${t.key}`}
+            className={`tab ${tab === t.key ? "on" : ""}`}
+          >
+            {t.label} <span className="count">{counts[t.key]}</span>
+          </Link>
+        ))}
+      </nav>
 
       {projects.length === 0 ? (
         <div className="card">
           <div className="empty">
             <Folder className="ico" strokeWidth={1.5} />
-            <div>아직 프로젝트가 없어요</div>
+            <div>
+              {tab === "active" && "진행중인 프로젝트가 없어요"}
+              {tab === "past" && "지난 프로젝트가 없어요"}
+              {tab === "cancelled" && "취소된 프로젝트가 없어요"}
+              {tab === "all" && "아직 프로젝트가 없어요"}
+            </div>
           </div>
         </div>
       ) : (
