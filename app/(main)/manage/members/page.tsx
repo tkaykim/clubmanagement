@@ -2,388 +2,281 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { MobileHeader } from "@/components/layout/MobileHeader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  X,
-  ShieldCheck,
-  ShieldOff,
-  Trash2,
-  Mail,
-  Phone,
-  Loader2,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { OsAvatar } from "@/components/ui/OsAvatar";
+import { Plus, X, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types";
 
 type MemberRow = {
   id: string;
   user_id: string | null;
   name: string;
+  stage_name: string | null;
   email: string | null;
   phone: string | null;
   role: UserRole;
+  position: string | null;
+  contract_type: string;
   is_active: boolean;
-  joined_at: string;
-};
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  owner: "대표",
-  admin: "운영진",
-  member: "멤버",
-};
-
-const ROLE_VARIANT: Record<UserRole, "default" | "secondary" | "outline"> = {
-  owner: "default",
-  admin: "secondary",
-  member: "outline",
+  joined_month: string | null;
 };
 
 const ROLE_ORDER: Record<UserRole, number> = { owner: 0, admin: 1, member: 2 };
 
 export default function ManageMembersPage() {
-  const [activeMembers, setActiveMembers] = useState<MemberRow[]>([]);
-  const [pendingMembers, setPendingMembers] = useState<MemberRow[]>([]);
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formPhone, setFormPhone] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [tab, setTab] = useState<"active" | "pending">("active");
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", position: "", contract_type: "contract" });
+  const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isAdmin = currentRole === "owner" || currentRole === "admin";
 
   const fetchMembers = useCallback(async () => {
     const { data } = await supabase
       .from("crew_members")
-      .select("id, user_id, name, email, phone, role, is_active, joined_at")
-      .order("joined_at", { ascending: true });
-
-    const rows = (data ?? []) as MemberRow[];
-
-    const active = rows
-      .filter((m) => m.is_active)
-      .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
-    const pending = rows.filter((m) => !m.is_active);
-
-    setActiveMembers(active);
-    setPendingMembers(pending);
-    setLoading(false);
+      .select("id, user_id, name, stage_name, email, phone, role, position, contract_type, is_active, joined_month")
+      .order("joined_at");
+    setMembers((data ?? []) as MemberRow[]);
   }, []);
 
   useEffect(() => {
     async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: me } = await supabase
-          .from("crew_members")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .maybeSingle();
+        const { data: me } = await supabase.from("crew_members").select("role").eq("user_id", user.id).maybeSingle();
         if (me) setCurrentRole(me.role as UserRole);
       }
-
-      fetchMembers();
+      await fetchMembers();
+      setLoading(false);
     }
     init();
   }, [fetchMembers]);
 
-  async function handleAdd(e: React.FormEvent) {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim()) return;
+    if (!formData.name.trim()) return;
     setSubmitting(true);
+    try {
+      const res = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formData.name.trim(), email: formData.email || null, phone: formData.phone || null, position: formData.position || null, contract_type: formData.contract_type, role: "member" }),
+      });
+      const json = await res.json();
+      if (json.error) { toast.error(json.error); } else {
+        toast.success("멤버가 추가되었습니다");
+        setShowForm(false);
+        setFormData({ name: "", email: "", phone: "", position: "", contract_type: "contract" });
+        fetchMembers();
+      }
+    } catch { toast.error("오류가 발생했습니다"); } finally { setSubmitting(false); }
+  };
 
-    await supabase.from("crew_members").insert({
-      name: formName.trim(),
-      email: formEmail.trim() || null,
-      phone: formPhone.trim() || null,
-      role: "member",
-      is_active: true,
+  const handleApprove = async (id: string) => {
+    setActionLoading(id);
+    const res = await fetch(`/api/members/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "approve" }),
     });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success("승인되었습니다");
+    await fetchMembers();
+    setActionLoading(null);
+  };
 
-    setFormName("");
-    setFormEmail("");
-    setFormPhone("");
-    setShowForm(false);
-    setSubmitting(false);
-    fetchMembers();
-  }
+  const handleDeactivate = async (id: string) => {
+    setActionLoading(id);
+    const res = await fetch(`/api/members/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "deactivate" }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success("비활성화되었습니다");
+    await fetchMembers();
+    setActionLoading(null);
+  };
 
-  async function approveMember(id: string) {
-    await supabase
-      .from("crew_members")
-      .update({ is_active: true })
-      .eq("id", id);
-    fetchMembers();
-  }
+  const handleToggleAdmin = async (m: MemberRow) => {
+    setActionLoading(m.id);
+    const newRole: UserRole = m.role === "admin" ? "member" : "admin";
+    const res = await fetch(`/api/members/${m.id}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success("역할이 변경되었습니다"); fetchMembers(); }
+    setActionLoading(null);
+  };
 
-  async function deactivateMember(id: string) {
-    await supabase
-      .from("crew_members")
-      .update({ is_active: false })
-      .eq("id", id);
-    fetchMembers();
-  }
+  const handleDelete = async (id: string) => {
+    if (!confirm("정말 삭제하시겠어요?")) return;
+    setActionLoading(id);
+    const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success("삭제되었습니다");
+    await fetchMembers();
+    setActionLoading(null);
+  };
 
-  async function toggleAdmin(member: MemberRow) {
-    const newRole: UserRole = member.role === "admin" ? "member" : "admin";
-    await supabase
-      .from("crew_members")
-      .update({ role: newRole })
-      .eq("id", member.id);
-    fetchMembers();
-  }
-
-  async function deleteMember(id: string) {
-    await supabase.from("crew_members").delete().eq("id", id);
-    fetchMembers();
-  }
-
+  const activeMembers = members.filter(m => m.is_active).sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
+  const pendingMembers = members.filter(m => !m.is_active);
   const displayMembers = tab === "active" ? activeMembers : pendingMembers;
 
   return (
-    <div className="flex flex-col">
-      <MobileHeader title="멤버 관리" backHref="/manage" />
-
-      <div className="px-4 py-5 space-y-4">
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab("active")}
-            className={`flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
-              tab === "active"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground"
-            }`}
-          >
-            활성 멤버
-            <Badge variant="secondary" className="ml-1.5 text-[10px]">
-              {activeMembers.length}
-            </Badge>
-          </button>
-          <button
-            onClick={() => setTab("pending")}
-            className={`flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
-              tab === "pending"
-                ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-                : "border-border text-muted-foreground"
-            }`}
-          >
-            승인 대기
-            {pendingMembers.length > 0 && (
-              <Badge variant="destructive" className="ml-1.5 text-[10px]">
-                {pendingMembers.length}
-              </Badge>
-            )}
-          </button>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>멤버 관리</h1>
+          <div className="sub">활성 {activeMembers.length}명 · 대기 {pendingMembers.length}명</div>
         </div>
-
-        {/* Add button (active tab only) */}
-        {tab === "active" && isAdmin && (
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              variant={showForm ? "outline" : "default"}
-              onClick={() => setShowForm(!showForm)}
-            >
-              {showForm ? (
-                <>
-                  <X className="size-4" />
-                  취소
-                </>
-              ) : (
-                <>
-                  <Plus className="size-4" />
-                  멤버 추가
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {/* Add form */}
-        {showForm && tab === "active" && (
-          <Card className="border-0 bg-muted/30">
-            <CardContent className="p-4">
-              <form onSubmit={handleAdd} className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-name">이름 *</Label>
-                  <Input
-                    id="add-name"
-                    placeholder="이름"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-email">이메일</Label>
-                  <Input
-                    id="add-email"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="add-phone">연락처</Label>
-                  <Input
-                    id="add-phone"
-                    type="tel"
-                    placeholder="010-0000-0000"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="w-full"
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    "추가"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
-
-        {/* Member list */}
-        {!loading && (
-          <div className="space-y-2">
-            {displayMembers.map((m, idx) => (
-              <Card key={m.id} className="border-0 shadow-sm">
-                <CardContent className="flex items-start gap-3 p-3">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                    {idx + 1}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{m.name}</span>
-                      {m.is_active ? (
-                        <Badge
-                          variant={ROLE_VARIANT[m.role]}
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          {ROLE_LABEL[m.role]}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 border-amber-400 text-amber-600"
-                        >
-                          대기
-                        </Badge>
-                      )}
-                    </div>
-
-                    {m.email && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="size-3" />
-                        {m.email}
-                      </div>
-                    )}
-                    {m.phone && (
-                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                        <Phone className="size-3" />
-                        {m.phone}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  {isAdmin && m.role !== "owner" && (
-                    <div className="flex shrink-0 gap-1">
-                      {!m.is_active ? (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="h-8 gap-1 text-xs"
-                          onClick={() => approveMember(m.id)}
-                        >
-                          <UserCheck className="size-3.5" />
-                          승인
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-8"
-                            onClick={() => toggleAdmin(m)}
-                            title={
-                              m.role === "admin"
-                                ? "멤버로 변경"
-                                : "운영진으로 변경"
-                            }
-                          >
-                            {m.role === "admin" ? (
-                              <ShieldOff className="size-4 text-muted-foreground" />
-                            ) : (
-                              <ShieldCheck className="size-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-8"
-                            onClick={() => deactivateMember(m.id)}
-                            title="비활성화"
-                          >
-                            <UserX className="size-4 text-amber-500" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-8"
-                            onClick={() => deleteMember(m.id)}
-                            title="삭제"
-                          >
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {!loading && displayMembers.length === 0 && (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            {tab === "active"
-              ? "활성 멤버가 없습니다"
-              : "승인 대기 중인 멤버가 없습니다"}
-          </div>
+        {isAdmin && (
+          <button className="btn primary" onClick={() => setShowForm(v => !v)}>
+            {showForm ? <X size={14} strokeWidth={2} /> : <Plus size={14} strokeWidth={2} />}
+            {showForm ? "취소" : "멤버 추가"}
+          </button>
         )}
       </div>
+
+      {/* 탭 */}
+      <nav className="tabs" style={{ marginBottom: 20 }}>
+        <button className={cn("tab", tab === "active" && "on")} onClick={() => setTab("active")}>
+          활성 멤버 <span className="count">{activeMembers.length}</span>
+        </button>
+        <button className={cn("tab", tab === "pending" && "on")} onClick={() => setTab("pending")}>
+          승인 대기 {pendingMembers.length > 0 && <span className="count" style={{ background: "var(--warn)", color: "#fff" }}>{pendingMembers.length}</span>}
+        </button>
+      </nav>
+
+      {/* 추가 폼 */}
+      {showForm && tab === "active" && (
+        <div className="card mb-16">
+          <div className="card-head"><h3>새 멤버</h3></div>
+          <form onSubmit={handleAdd} style={{ padding: 18 }}>
+            <div className="os-grid grid-2">
+              <div className="field">
+                <label>이름 <span className="req">*</span></label>
+                <input className="input" value={formData.name} onChange={e => setFormData(d => ({ ...d, name: e.target.value }))} required />
+              </div>
+              <div className="field">
+                <label>이메일</label>
+                <input className="input" type="email" value={formData.email} onChange={e => setFormData(d => ({ ...d, email: e.target.value }))} />
+              </div>
+              <div className="field">
+                <label>연락처</label>
+                <input className="input" type="tel" value={formData.phone} onChange={e => setFormData(d => ({ ...d, phone: e.target.value }))} />
+              </div>
+              <div className="field">
+                <label>포지션</label>
+                <input className="input" placeholder="리더, 퍼포머 등" value={formData.position} onChange={e => setFormData(d => ({ ...d, position: e.target.value }))} />
+              </div>
+              <div className="field">
+                <label>계약 유형</label>
+                <select className="select" value={formData.contract_type} onChange={e => setFormData(d => ({ ...d, contract_type: e.target.value }))}>
+                  <option value="contract">계약</option>
+                  <option value="non_contract">비계약</option>
+                  <option value="guest">게스트</option>
+                </select>
+              </div>
+            </div>
+            <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
+              <button type="submit" className="btn primary" disabled={submitting}>
+                {submitting && <Loader2 size={14} className="animate-spin" />}
+                추가
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+          <Loader2 size={24} className="animate-spin" style={{ color: "var(--mf)" }} />
+        </div>
+      ) : displayMembers.length === 0 ? (
+        <div className="card">
+          <div className="empty">
+            {tab === "active" ? "활성 멤버가 없어요" : "승인 대기 멤버가 없어요"}
+          </div>
+        </div>
+      ) : (
+        <div className="card flush">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>멤버</th>
+                <th>역할</th>
+                <th>계약</th>
+                <th>포지션</th>
+                <th>합류</th>
+                {isAdmin && <th>액션</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {displayMembers.map(m => (
+                <tr key={m.id}>
+                  <td data-label="멤버">
+                    <div className="row gap-10">
+                      <OsAvatar name={m.name} size="default" />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{m.name}</div>
+                        {m.stage_name && <div className="mono text-xs muted">{m.stage_name}</div>}
+                        {m.email && <div style={{ fontSize: 11.5, color: "var(--mf)" }}>{m.email}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td data-label="역할"><StatusBadge status={m.role} /></td>
+                  <td data-label="계약"><StatusBadge status={m.contract_type} /></td>
+                  <td data-label="포지션"><span style={{ fontSize: 13 }}>{m.position ?? "—"}</span></td>
+                  <td data-label="합류" className="mono text-xs muted">{m.joined_month ?? "—"}</td>
+                  {isAdmin && m.role !== "owner" && (
+                    <td data-label="액션">
+                      <div className="row gap-6">
+                        {!m.is_active ? (
+                          <button className="btn sm primary" onClick={() => handleApprove(m.id)} disabled={actionLoading === m.id}>
+                            <UserCheck size={12} strokeWidth={2} />
+                            승인
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              className="btn sm icon-only ghost"
+                              onClick={() => handleToggleAdmin(m)}
+                              disabled={actionLoading === m.id}
+                              title={m.role === "admin" ? "멤버로 변경" : "운영진으로 변경"}
+                            >
+                              {m.role === "admin" ? <ShieldOff size={13} strokeWidth={2} /> : <ShieldCheck size={13} strokeWidth={2} />}
+                            </button>
+                            <button className="btn sm icon-only ghost" onClick={() => handleDeactivate(m.id)} disabled={actionLoading === m.id} title="비활성화">
+                              <UserX size={13} strokeWidth={2} />
+                            </button>
+                            <button className="btn sm icon-only ghost danger" onClick={() => handleDelete(m.id)} disabled={actionLoading === m.id} title="삭제">
+                              <Trash2 size={13} strokeWidth={2} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                  {isAdmin && m.role === "owner" && <td data-label="액션" />}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

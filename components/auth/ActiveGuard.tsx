@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Clock } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 
 type Status = "loading" | "active" | "inactive" | "anonymous";
 
@@ -11,12 +11,15 @@ const PUBLIC_PATHS = ["/login", "/signup"];
 
 export function ActiveGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [status, setStatus] = useState<Status>("loading");
 
   useEffect(() => {
+    let cancelled = false;
+
     async function check() {
       if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-        setStatus("active");
+        if (!cancelled) setStatus("active");
         return;
       }
 
@@ -26,7 +29,7 @@ export function ActiveGuard({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          setStatus("anonymous");
+          if (!cancelled) setStatus("anonymous");
           return;
         }
 
@@ -36,46 +39,71 @@ export function ActiveGuard({ children }: { children: React.ReactNode }) {
           .eq("user_id", user.id)
           .maybeSingle();
 
-        setStatus(member?.is_active ? "active" : "inactive");
+        if (!cancelled) {
+          setStatus(member?.is_active ? "active" : "inactive");
+        }
       } catch (err) {
         console.error("[ActiveGuard] auth check failed:", err);
-        setStatus("anonymous");
+        if (!cancelled) setStatus("anonymous");
       }
     }
+
     check();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => check());
-    return () => subscription.unsubscribe();
+    } = supabase.auth.onAuthStateChange(() => {
+      if (!cancelled) check();
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [pathname]);
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+      <div style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 size={24} className="animate-spin" style={{ color: "var(--mf)" }} />
       </div>
     );
   }
 
+  if (status === "anonymous") {
+    // 서버 미들웨어가 이미 리다이렉트하지만 클라이언트에서도 처리
+    if (typeof window !== "undefined") {
+      router.replace("/login");
+    }
+    return null;
+  }
+
   if (status === "inactive") {
     return (
-      <div className="flex min-h-dvh items-center justify-center p-6">
-        <div className="w-full max-w-sm space-y-4 text-center">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/40">
-            <Clock className="size-8 text-amber-600 dark:text-amber-400" />
+      <div style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ textAlign: "center", maxWidth: 360 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%",
+            background: "var(--warn-bg)", margin: "0 auto 16px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Clock size={28} style={{ color: "var(--warn)" }} />
           </div>
-          <h1 className="text-lg font-bold">승인 대기 중</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            회원가입이 완료되었습니다.<br />
-            리더의 승인 후 이용할 수 있습니다.
+          <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>승인 대기 중</h1>
+          <p style={{ fontSize: 13, color: "var(--mf)", lineHeight: 1.6, marginBottom: 20 }}>
+            가입 신청이 접수되었습니다.<br />
+            관리자 확인 후 이용할 수 있습니다.
           </p>
+          <div className="banner soft" style={{ marginBottom: 16, justifyContent: "center" }}>
+            <Clock size={16} style={{ color: "var(--warn)", flexShrink: 0 }} />
+            <span style={{ fontSize: 13 }}>가입 승인을 기다리고 있어요. 관리자 확인 후 이용 가능합니다.</span>
+          </div>
           <button
+            className="btn ghost sm"
             onClick={async () => {
               await supabase.auth.signOut();
               window.location.href = "/login";
             }}
-            className="text-sm text-primary hover:underline"
           >
             로그아웃
           </button>

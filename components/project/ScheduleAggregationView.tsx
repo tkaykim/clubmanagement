@@ -84,7 +84,7 @@ export function ScheduleAggregationView({
 
   const loadData = useCallback(async () => {
     const { data: scheduleDates } = await supabase
-      .from("project_schedule_dates")
+      .from("schedule_dates")
       .select("id, date, label, sort_order")
       .eq("project_id", projectId)
       .order("date");
@@ -143,7 +143,7 @@ export function ScheduleAggregationView({
   async function addScheduleDate() {
     if (!newDate) return;
     setAddingDate(true);
-    const { error } = await supabase.from("project_schedule_dates").insert({
+    const { error } = await supabase.from("schedule_dates").insert({
       project_id: projectId,
       date: newDate,
       sort_order: dates.length,
@@ -162,7 +162,7 @@ export function ScheduleAggregationView({
       .from("schedule_votes")
       .delete()
       .eq("schedule_date_id", dateId);
-    await supabase.from("project_schedule_dates").delete().eq("id", dateId);
+    await supabase.from("schedule_dates").delete().eq("id", dateId);
     loadData();
   }
 

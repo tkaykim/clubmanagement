@@ -1,9 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = (
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  ""
-).trim();
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
 const supabaseAnonKey = (
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
@@ -17,10 +14,10 @@ const isInvalid =
   !supabaseAnonKey;
 
 if (isInvalid && typeof window !== "undefined") {
-  const msg =
-    "[Supabase] .env.local에 NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY(또는 PUBLISHABLE_DEFAULT_KEY)를 설정하세요. URL은 실제 프로젝트 주소(https://xxxx.supabase.co)여야 합니다. 수정 후 .next 삭제 후 개발 서버 재시작.";
-  console.error(msg);
-  throw new Error(msg);
+  // 브라우저에서만 경고. throw 는 하지 않는다 (앱 전체 크래시 방지).
+  console.error(
+    "[Supabase] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY 환경변수가 비어 있습니다. Vercel 의 Environment Variables 를 확인하고 재배포하세요."
+  );
 }
 
 export const supabase = createClient(

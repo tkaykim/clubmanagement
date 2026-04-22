@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>OneShot Crew · Management Tool</title>
+<meta name="theme-color" content="#0A0A0B"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="원샷크루"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<link rel="apple-touch-icon" href="assets/oneshot_logo.png"/>
+<link rel="icon" href="assets/oneshot_logo.png"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="stylesheet" href="styles.css?v=2"/>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="pages-main.jsx"></script>
+<script type="text/babel" src="pages-apply.jsx"></script>
+<script type="text/babel" src="pages-admin.jsx"></script>
+
+<script type="text/babel">
+/* ============================================================
+   OneShot Crew — Root App (routing + state)
+============================================================ */
+
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "density": "comfortable",
+  "accent": "none",
+  "role": "admin"
+}/*EDITMODE-END*/;
+
+const initialState = {
+  projects: PROJECTS.map(p => ({ ...p, applicants: p.applicants.map(a=>({...a})) })),
+  announcements: [...ANNOUNCEMENTS],
+  votes: { ...VOTES_SEED },
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_APPLICANT_STATUS':
+      return {
+        ...state,
+        projects: state.projects.map(p =>
+          p.id !== action.projectId ? p : {
+            ...p,
+            applicants: p.applicants.map(a =>
+              a.memberId === action.memberId ? { ...a, status: action.status } : a)
+          })
+      };
+    case 'SUBMIT_APPLY': {
+      const nv = { ...state.votes };
+      Object.entries(action.votes).forEach(([date, v]) => {
+        nv[`${action.projectId}:${date}:${ME_ID}`] = { status: v.status, slots: v.slots };
+      });
+      let projects = state.projects;
+      const p = state.projects.find(pp => pp.id===action.projectId);
+      if (p && !p.applicants.some(a => a.memberId===ME_ID)) {
+        projects = projects.map(pp => pp.id!==action.projectId ? pp : {
+          ...pp,
+          applicants: [...pp.applicants, {
+            memberId: ME_ID, status:'pending', at: dateKey(TODAY), score: null, memo:''
+          }]
+        });
+      }
+      return { ...state, votes: nv, projects };
+    }
+    case 'CREATE_PROJECT':
+      return {
+        ...state,
+        projects: [
+          {
+            id: 'p'+Date.now(),
+            status: 'recruiting',
+            poster: null,
+            applicants: [],
+            ...action.project,
+          },
+          ...state.projects,
+        ]
+      };
+    default: return state;
+  }
+}
+
+function NavList({ route, go, tweaks, onItem }) {
+  const me = MEMBERS.find(m=>m.id===ME_ID);
+  const myApps = PROJECTS.flatMap(p=>p.applicants.filter(a=>a.memberId===ME_ID && a.status==='pending'));
+  const click = (a)=>{ onItem&&onItem(); a(); };
+  const Item = ({ id, ico, label, count, onClick }) => (
+    <div className={cn('nav-item', route===id && 'active')}
+         onClick={() => click(onClick || (()=>go(id)))}>
+      {ico}<span style={{flex:1}}>{label}</span>
+      {count != null && count > 0 && <span className="count">{count}</span>}
+    </div>
+  );
+  return (
+    <>
+      <div className="nav-group-title">Main</div>
+      <Item id="home"          ico={<I.home size={15}/>}     label="홈"/>
+      <Item id="projects"      ico={<I.folder size={15}/>}   label="프로젝트" count={2}/>
+      <Item id="calendar"      ico={<I.calendar size={15}/>} label="내 캘린더"/>
+      <Item id="members"       ico={<I.users size={15}/>}    label="멤버"/>
+      <Item id="announcements" ico={<I.bell size={15}/>}     label="공지" count={2}/>
+      <div className="nav-group-title">Personal</div>
+      <Item id="mypage"        ico={<I.user size={15}/>}     label="마이페이지" count={myApps.length}/>
+      <Item id="apply-shortcut" ico={<I.sparkles size={15}/>} label="빠른 지원" onClick={()=>go('apply','p1')}/>
+      {tweaks.role !== 'member' && (
+        <>
+          <div className="nav-group-title">Admin</div>
+          <Item id="manage-shortcut" ico={<I.settings size={15}/>} label="프로젝트 관리" onClick={()=>go('manage','p1')}/>
+          <Item id="settlements" ico={<I.money size={15}/>} label="정산 리포트"/>
+          <Item id="members-admin" ico={<I.users size={15}/>} label="멤버 관리"/>
+        </>
+      )}
+      <div className="me" style={{marginTop:'auto'}}>
+        <div className="avatar">{initials(me.name)}</div>
+        <div style={{flex:1, minWidth:0}}>
+          <b>{me.name}</b>
+          <small>{tweaks.role==='owner'?'OWNER':tweaks.role==='admin'?'ADMIN':'MEMBER'} · {me.stage}</small>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Sidebar(props) {
+  return (
+    <aside className="sidebar">
+      <div className="brand">
+        <img src="assets/oneshot_logo.png" alt="OneShot Crew"/>
+        <div className="wordmark">
+          <b>원샷크루</b><span>ONESHOT CREW</span>
+        </div>
+      </div>
+      <NavList {...props}/>
+    </aside>
+  );
+}
+
+function MobileDrawer({ open, onClose, ...props }) {
+  return (
+    <>
+      <div className={cn('m-drawer-bg', open && 'open')} onClick={onClose}/>
+      <aside className={cn('m-drawer', open && 'open')}>
+        <div className="brand">
+          <img src="assets/oneshot_logo.png" alt=""/>
+          <div className="wordmark"><b>원샷크루</b><span>ONESHOT CREW</span></div>
+          <button className="btn ghost icon-only sm" style={{marginLeft:'auto'}} onClick={onClose}><I.close size={14}/></button>
+        </div>
+        <NavList {...props} onItem={onClose}/>
+      </aside>
+    </>
+  );
+}
+
+function MobileHeader({ onMenu, onBell, crumb }) {
+  return (
+    <header className="m-header">
+      <button className="icon-btn" onClick={onMenu} aria-label="menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <img src="assets/oneshot_logo.png" alt=""/>
+      <div className="title">{crumb}</div>
+      <button className="icon-btn" onClick={onBell} aria-label="alerts">
+        <I.bell size={16}/><span className="dot"/>
+      </button>
+    </header>
+  );
+}
+
+function MobileBottomNav({ route, go }) {
+  const tabs = [
+    { id:'home',      ico:<I.home size={19}/>,     label:'홈' },
+    { id:'projects',  ico:<I.folder size={19}/>,   label:'프로젝트', cnt:2 },
+    { id:'apply',     ico:<I.sparkles size={19}/>, label:'지원', action:()=>go('apply','p1') },
+    { id:'calendar',  ico:<I.calendar size={19}/>, label:'캘린더' },
+    { id:'mypage',    ico:<I.user size={19}/>,     label:'마이' },
+  ];
+  return (
+    <nav className="m-bottom">
+      {tabs.map(t => (
+        <div key={t.id} className={cn('tab', route===t.id && 'on')}
+             onClick={() => t.action ? t.action() : go(t.id)}>
+          {t.ico}
+          <span>{t.label}</span>
+          {t.cnt && <span className="cnt">{t.cnt}</span>}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function PWABanner({ onDismiss }) {
+  return (
+    <div className="pwa-banner">
+      <img src="assets/oneshot_logo.png" alt=""/>
+      <div className="body">
+        <div className="t">홈 화면에 추가</div>
+        <div className="s">앱처럼 사용 · 오프라인 지원 · 푸시 알림</div>
+      </div>
+      <button className="btn primary sm" onClick={onDismiss}>설치</button>
+      <button className="close" onClick={onDismiss}><I.close size={14}/></button>
+    </div>
+  );
+}
+
+function Tweaks({ tweaks, setTweak, visible }) {
+  if (!visible) return null;
+  return (
+    <div className="tweaks">
+      <h4>Tweaks</h4>
+      <label>역할
+        <select value={tweaks.role} onChange={e=>setTweak('role', e.target.value)}>
+          <option value="owner">Owner</option>
+          <option value="admin">Admin</option>
+          <option value="member">Member</option>
+        </select>
+      </label>
+      <label>밀도
+        <select value={tweaks.density} onChange={e=>setTweak('density', e.target.value)}>
+          <option value="comfortable">편안</option>
+          <option value="compact">조밀</option>
+        </select>
+      </label>
+      <label>포인트
+        <select value={tweaks.accent} onChange={e=>setTweak('accent', e.target.value)}>
+          <option value="none">없음 (순 블랙)</option>
+          <option value="gold">다크 골드</option>
+          <option value="indigo">딥 인디고</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+
+function App() {
+  const [route, setRoute] = React.useState(['home']);
+  const [state, dispatch] = React.useReducer(reducer, initialState);
+  const [toasts, setToasts] = React.useState([]);
+  const [tweaks, setTweaks] = React.useState(TWEAKS);
+  const [tweaksVisible, setTweaksVisible] = React.useState(false);
+
+  // persist route
+  React.useEffect(() => {
+    const s = localStorage.getItem('oc.route');
+    if (s) try { setRoute(JSON.parse(s)); } catch {}
+  }, []);
+  React.useEffect(() => {
+    localStorage.setItem('oc.route', JSON.stringify(route));
+  }, [route]);
+
+  const go = (...args) => setRoute(args);
+  const toast = (msg) => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(t => [...t, { id, msg }]);
+    setTimeout(()=>setToasts(t => t.filter(x=>x.id!==id)), 2600);
+  };
+  const setTweak = (k,v) => setTweaks(t => ({...t, [k]:v}));
+
+  // edit-mode bridge
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent?.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  // apply accent via CSS var
+  React.useEffect(() => {
+    const root = document.documentElement.style;
+    if (tweaks.accent === 'gold')   root.setProperty('--fg', '#3b2e0b');
+    else if (tweaks.accent === 'indigo') root.setProperty('--fg', '#1E3A8A');
+    else root.setProperty('--fg', '#0A0A0B');
+  }, [tweaks.accent]);
+
+  const [r, ...args] = route;
+  let page;
+  let crumb = '';
+  switch (r) {
+    case 'home':          page = <Dashboard go={go} state={state}/>; crumb='OVERVIEW / HOME'; break;
+    case 'projects':      page = <ProjectList go={go} state={state}/>; crumb='MAIN / PROJECTS'; break;
+    case 'project':       page = <ProjectDetail id={args[0]} go={go} state={state} dispatch={dispatch}/>; crumb='PROJECTS / DETAIL'; break;
+    case 'apply':         page = <ApplyPage id={args[0]} go={go} state={state} dispatch={dispatch} toast={toast}/>; crumb='PROJECTS / APPLY'; break;
+    case 'projectNew':    page = <ProjectNew go={go} dispatch={dispatch} toast={toast}/>; crumb='ADMIN / NEW PROJECT'; break;
+    case 'manage':        page = <ManagePage id={args[0]} go={go} state={state} dispatch={dispatch} toast={toast}/>; crumb='ADMIN / MANAGE'; break;
+    case 'calendar':      page = <CalendarPage go={go} state={state}/>; crumb='MAIN / CALENDAR'; break;
+    case 'members':
+    case 'members-admin': page = <MembersPage go={go}/>; crumb='TEAM / MEMBERS'; break;
+    case 'mypage':        page = <MyPage go={go} state={state}/>; crumb='PERSONAL / MYPAGE'; break;
+    case 'announcements': page = <AnnouncementsPage go={go} state={state}/>; crumb='MAIN / ANNOUNCEMENTS'; break;
+    case 'settlements':   page = (
+      <div className="page">
+        <div className="page-head">
+          <div>
+            <h1><span className="serif-tag">Team</span>Settlements</h1>
+            <div className="sub">월별 정산 리포트 · CSV 내보내기</div>
+          </div>
+          <div className="row gap-8">
+            <select className="select" style={{width:140, height:34}}>
+              <option>2026년 4월</option><option>2026년 3월</option>
+            </select>
+            <button className="btn"><I.download size={14}/>CSV</button>
+          </div>
+        </div>
+        <div className="grid grid-4 mb-24">
+          <div className="card"><div className="stat"><div className="lab">총 지출</div><div className="num tabnum">₩ 2,400,000</div><div className="delta">4월 예정</div></div></div>
+          <div className="card"><div className="stat"><div className="lab">지급 완료</div><div className="num tabnum" style={{color:'var(--ok)'}}>₩ 500,000</div><div className="delta">1건</div></div></div>
+          <div className="card"><div className="stat"><div className="lab">예정</div><div className="num tabnum">₩ 1,500,000</div><div className="delta">3건</div></div></div>
+          <div className="card"><div className="stat"><div className="lab">대기</div><div className="num tabnum" style={{color:'var(--warn)'}}>₩ 400,000</div><div className="delta">2건</div></div></div>
+        </div>
+        <div className="card flush">
+          <div className="card-head"><h3>멤버별 요약</h3></div>
+          <table className="tbl">
+            <thead><tr><th>멤버</th><th className="num">프로젝트</th><th className="num">총액</th><th className="num">지급완료</th><th className="num">대기</th></tr></thead>
+            <tbody>
+              {MEMBERS.filter(m=>m.contract!=='guest').slice(0,6).map(m => (
+                <tr key={m.id}>
+                  <td><div className="row gap-8"><Avatar name={m.name} size="sm"/><b>{m.name}</b><span className="muted text-xs mono">{m.stage}</span></div></td>
+                  <td className="num tabnum">{2+Math.floor(Math.random()*3)}</td>
+                  <td className="num"><b>₩ {fmtKRW(500000 + Math.floor(Math.random()*5)*100000)}</b></td>
+                  <td className="num"><span style={{color:'var(--ok)'}}>₩ {fmtKRW(200000)}</span></td>
+                  <td className="num"><span style={{color:'var(--warn)'}}>₩ {fmtKRW(100000)}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ); crumb='ADMIN / SETTLEMENTS'; break;
+    default: page = <Dashboard go={go} state={state}/>;
+  }
+
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [pwaShown, setPwaShown] = React.useState(() => !localStorage.getItem('oc.pwa-dismissed'));
+  React.useEffect(() => { if (!pwaShown) localStorage.setItem('oc.pwa-dismissed','1'); }, [pwaShown]);
+  // close drawer on route change
+  React.useEffect(()=>{ setDrawerOpen(false); }, [route]);
+
+  return (
+    <div className="app">
+      <Sidebar route={r} go={go} tweaks={tweaks} setTweak={setTweak}/>
+      <MobileHeader onMenu={()=>setDrawerOpen(true)} onBell={()=>go('announcements')} crumb={crumb}/>
+      <MobileDrawer open={drawerOpen} onClose={()=>setDrawerOpen(false)} route={r} go={go} tweaks={tweaks}/>
+      <main className="main">
+        <div className="topbar">
+          <div className="crumb">{crumb}</div>
+          <div className="spacer"/>
+          <input className="search" placeholder="프로젝트·멤버 검색"/>
+          <button className="btn icon-only"><I.bell size={15}/></button>
+          <button className="btn primary" onClick={()=>go('projectNew')}>
+            <I.plus size={14}/>새 프로젝트
+          </button>
+        </div>
+        {pwaShown && <PWABanner onDismiss={()=>setPwaShown(false)}/>}
+        {page}
+        <div style={{height:84}} className="m-only"/>
+      </main>
+
+      <MobileBottomNav route={r} go={go}/>
+
+      {/* mobile FAB for new project (admin/owner) */}
+      {tweaks.role !== 'member' && (
+        <button className="m-fab" onClick={()=>go('projectNew')} aria-label="새 프로젝트">
+          <I.plus size={20}/>
+        </button>
+      )}
+
+      <div className="toasts">
+        {toasts.map(t => <div key={t.id} className="toast"><I.check size={14}/>{t.msg}</div>)}
+      </div>
+
+      <Tweaks tweaks={tweaks} setTweak={setTweak} visible={tweaksVisible}/>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+
+</body>
+</html>

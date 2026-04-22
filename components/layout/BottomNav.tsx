@@ -2,40 +2,45 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Settings, User } from "lucide-react";
+import { Home, Folder, Sparkles, Calendar, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const tabs = [
-  { href: "/", label: "홈", icon: Home },
-  { href: "/manage", label: "관리", icon: Settings },
-  { href: "/mypage", label: "내 정보", icon: User },
-];
+const TABS = [
+  { href: "/", label: "홈", icon: Home, key: "home" },
+  { href: "/projects", label: "프로젝트", icon: Folder, key: "projects" },
+  { href: "/apply", label: "지원", icon: Sparkles, key: "apply" },
+  { href: "/calendar", label: "캘린더", icon: Calendar, key: "calendar" },
+  { href: "/mypage", label: "마이", icon: User, key: "mypage" },
+] as const;
 
-export function BottomNav() {
+interface MobileBottomNavProps {
+  counts?: {
+    myPending?: number;
+  };
+}
+
+export function BottomNav({ counts = {} }: MobileBottomNavProps) {
   const pathname = usePathname();
+
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-background/95 backdrop-blur supports-[padding:env(safe-area-inset-bottom)]:pb-[env(safe-area-inset-bottom)]"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 6px)" }}
-    >
-      <div className="mx-auto flex h-14 max-w-lg items-center justify-around">
-        {tabs.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex min-w-[56px] flex-col items-center gap-0.5 py-1.5 transition-colors",
-                active ? "text-primary" : "text-muted-foreground"
-              )}
-            >
-              <Icon className="size-6" strokeWidth={active ? 2.5 : 1.8} />
-              <span className="text-[10px] font-medium">{label}</span>
-            </Link>
-          );
-        })}
-      </div>
+    <nav className="m-bottom mob-only">
+      {TABS.map(({ href, label, icon: Icon, key }) => {
+        const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const count = key === "mypage" ? (counts.myPending ?? 0) : 0;
+
+        return (
+          <Link
+            key={key}
+            href={href}
+            className={cn("tab", isActive && "on")}
+            aria-current={isActive ? "page" : undefined}
+          >
+            <Icon size={18} strokeWidth={2} />
+            <span>{label}</span>
+            {count > 0 && <span className="cnt">{count}</span>}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

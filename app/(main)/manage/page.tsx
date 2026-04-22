@@ -1,186 +1,109 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { MobileHeader } from "@/components/layout/MobileHeader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  ChevronRight,
-  FolderOpen,
-  Plus,
-  Users,
-  Banknote,
-  CalendarDays,
-  UserCog,
-} from "lucide-react";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Folder, Plus, Users, DollarSign, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-const statusLabel: Record<string, string> = {
-  recruiting: "모집 중",
-  in_progress: "진행 중",
-  completed: "종료",
-  cancelled: "취소",
-};
-
-const statusVariant: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  recruiting: "default",
-  in_progress: "secondary",
-  completed: "outline",
-  cancelled: "destructive",
-};
-
-type ProjectRow = {
-  id: string;
-  title: string;
-  status: string;
-  start_date: string | null;
-  fee: number;
-};
 
 export default async function ManagePage() {
   const supabase = createServerSupabaseClient();
 
-  let projects: ProjectRow[] = [];
+  let projects: Array<{
+    id: string; title: string; status: string; type: string;
+    start_date: string | null; fee: number;
+  }> = [];
   let appCounts: Record<string, number> = {};
 
-  if (supabase) {
+  try {
     const { data } = await supabase
       .from("projects")
-      .select("id, title, status, start_date, fee")
+      .select("id, title, status, type, start_date, fee")
       .order("created_at", { ascending: false });
-    projects = (data ?? []) as ProjectRow[];
+    projects = (data ?? []) as typeof projects;
 
-    const projectIds = projects.map((p) => p.id);
-    if (projectIds.length > 0) {
+    if (projects.length > 0) {
+      const ids = projects.map(p => p.id);
       const { data: apps } = await supabase
         .from("project_applications")
         .select("project_id")
-        .in("project_id", projectIds);
+        .in("project_id", ids);
       for (const a of apps ?? []) {
         appCounts[a.project_id] = (appCounts[a.project_id] ?? 0) + 1;
       }
     }
+  } catch {
+    // 빈 상태
   }
 
   return (
-    <div>
-      <MobileHeader title="관리" />
-      <div className="px-4 py-4">
-        <Link href="/manage/members">
-          <Card className="mb-4 border-0 shadow-sm transition-shadow active:shadow-md">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <UserCog className="size-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground">멤버 관리</p>
-                <p className="text-xs text-muted-foreground">
-                  팀원 추가·삭제, 운영진 지정·해제
-                </p>
-              </div>
-              <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <p className="text-sm font-medium text-foreground">프로젝트</p>
-          <Link href="/manage/projects/new">
-            <Button size="sm" className="gap-1.5 rounded-lg">
-              <Plus className="size-4" />
-              새 프로젝트
-            </Button>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>프로젝트 관리</h1>
+          <div className="sub">관리자 워크벤치</div>
+        </div>
+        <div className="row gap-8">
+          <Link href="/manage/members" className="btn">
+            <Users size={14} strokeWidth={2} />
+            멤버 관리
+          </Link>
+          <Link href="/manage/settlements" className="btn">
+            <DollarSign size={14} strokeWidth={2} />
+            정산 리포트
+          </Link>
+          <Link href="/manage/projects/new" className="btn primary">
+            <Plus size={14} strokeWidth={2} />
+            새 프로젝트
           </Link>
         </div>
-
-        {projects.length === 0 ? (
-          <Card className="border-0 bg-muted/30">
-            <CardContent className="py-10 text-center">
-              <FolderOpen className="mx-auto size-10 text-muted-foreground/50" />
-              <p className="mt-3 text-sm text-muted-foreground">
-                등록된 프로젝트가 없습니다.
-              </p>
-              <Link href="/manage/projects/new">
-                <Button className="mt-4 rounded-xl gap-1.5">
-                  <Plus className="size-4" />
-                  첫 프로젝트 만들기
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {projects.map((p) => (
-              <Card
-                key={p.id}
-                className="border-0 shadow-sm transition-shadow active:shadow-md"
-              >
-                <CardContent className="p-4">
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className="flex min-w-0 flex-row items-center gap-3"
-                  >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-                      <FolderOpen className="size-5 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground">{p.title}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant={statusVariant[p.status] ?? "outline"}
-                          className="text-xs"
-                        >
-                          {statusLabel[p.status] ?? p.status}
-                        </Badge>
-                        {p.fee > 0 && (
-                          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                            <Banknote className="size-3" />
-                            {`${p.fee.toLocaleString()}원`}
-                          </span>
-                        )}
-                      </div>
-                      {p.start_date && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {new Date(p.start_date).toLocaleDateString("ko-KR")}
-                        </p>
-                      )}
-                    </div>
-                    <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-                  </Link>
-
-                  <div className="mt-3 flex gap-2">
-                    <Link
-                      href={`/manage/projects/${p.id}/applicants`}
-                      className="flex-1"
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-1.5 rounded-lg"
-                      >
-                        <Users className="size-4" />
-                        지원자{" "}
-                        {appCounts[p.id] ? `(${appCounts[p.id]})` : ""}
-                      </Button>
-                    </Link>
-                    <Link href={`/manage/projects/${p.id}/schedule`}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 rounded-lg"
-                      >
-                        <CalendarDays className="size-4" />
-                        일정
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
       </div>
+
+      {projects.length === 0 ? (
+        <div className="card">
+          <div className="empty">
+            <Folder className="ico" strokeWidth={1.5} />
+            <div>아직 프로젝트가 없어요</div>
+            <Link href="/manage/projects/new" className="btn primary sm mt-12">
+              <Plus size={12} strokeWidth={2} />
+              새 프로젝트 만들기
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="card flush">
+          {projects.map((p, i) => (
+            <div
+              key={p.id}
+              style={{
+                padding: "16px 18px",
+                borderBottom: i < projects.length - 1 ? "1px solid var(--border)" : "none",
+                display: "flex", alignItems: "center", gap: 14,
+              }}
+            >
+              <div className="flex-1">
+                <div className="row gap-8 mb-6">
+                  <StatusBadge status={p.status} />
+                  <StatusBadge status={p.type} />
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{p.title}</div>
+                {p.start_date && (
+                  <div className="mono text-xs muted mt-4">{p.start_date}</div>
+                )}
+              </div>
+              <div className="row gap-8">
+                <Link href={`/manage/projects/${p.id}?tab=applications`} className="btn sm">
+                  <Users size={12} strokeWidth={2} />
+                  지원 {appCounts[p.id] ? `(${appCounts[p.id]})` : ""}
+                </Link>
+                <Link href={`/manage/projects/${p.id}`} className="btn sm">
+                  관리
+                  <ChevronRight size={12} strokeWidth={2} />
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

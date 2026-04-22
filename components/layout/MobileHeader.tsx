@@ -1,18 +1,29 @@
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+"use client";
 
-export function MobileHeader({ title, backHref }: { title: string; backHref?: string }) {
+import { Bell, Menu } from "lucide-react";
+
+interface MobileHeaderProps {
+  title?: string;
+  unread?: number;
+  onMenuClick: () => void;
+}
+
+export function MobileHeader({ title = "원샷크루", unread = 0, onMenuClick }: MobileHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-border/60 bg-background/95 px-4 backdrop-blur">
-      {backHref && (
-        <Link
-          href={backHref}
-          className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-5" />
-        </Link>
-      )}
-      <h1 className="truncate text-base font-semibold">{title}</h1>
+    <header className="m-header mob-only">
+      <button
+        className="icon-btn"
+        onClick={onMenuClick}
+        aria-label="메뉴 열기"
+      >
+        <Menu size={18} strokeWidth={2} />
+      </button>
+      <img src="/icon-192.png" alt="원샷크루" />
+      <div className="title">{title}</div>
+      <button className="icon-btn" aria-label="알림">
+        <Bell size={18} strokeWidth={2} />
+        {unread > 0 && <span className="dot" aria-hidden />}
+      </button>
     </header>
   );
 }

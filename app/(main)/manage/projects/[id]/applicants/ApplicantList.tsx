@@ -3,22 +3,17 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, Pause, Mail, Phone, Loader2 } from "lucide-react";
-import type { Applicant } from "./page";
+import { Check, X, Mail, Phone, Loader2 } from "lucide-react";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { toast } from "sonner";
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "대기",
-  approved: "확정",
-  rejected: "보류",
-};
-
-const STATUS_VARIANT: Record<string, "default" | "outline" | "destructive"> = {
-  pending: "outline",
-  approved: "default",
-  rejected: "destructive",
+export type Applicant = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  created_at: string;
 };
 
 function formatDateTime(d: string): string {
@@ -31,98 +26,95 @@ function formatDateTime(d: string): string {
 
 export function ApplicantList({ applicants: initial }: { applicants: Applicant[] }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   async function updateStatus(appId: string, status: string) {
     setUpdatingId(appId);
-    await supabase
+    const { error } = await supabase
       .from("project_applications")
       .update({ status })
       .eq("id", appId);
-    startTransition(() => router.refresh());
+    if (error) {
+      toast.error("상태 변경에 실패했습니다");
+    } else {
+      toast.success("상태가 변경되었습니다");
+      startTransition(() => router.refresh());
+    }
     setUpdatingId(null);
   }
 
   if (initial.length === 0) {
     return (
-      <div className="py-12 text-center text-sm text-muted-foreground">
-        아직 지원자가 없습니다
+      <div className="card">
+        <div className="empty">아직 지원자가 없습니다</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {initial.map((a, idx) => (
-        <Card key={a.id} className="border-0 shadow-sm">
-          <CardContent className="flex items-start gap-3 p-3">
-            {/* Order number */}
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-              {idx + 1}
-            </div>
-
-            {/* Info */}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{a.name}</span>
-                <Badge
-                  variant={STATUS_VARIANT[a.status] ?? "outline"}
-                  className="text-[10px] px-1.5 py-0"
-                >
-                  {STATUS_LABEL[a.status] ?? a.status}
-                </Badge>
-              </div>
-
-              {a.email && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Mail className="size-3" />
-                  {a.email}
-                </div>
-              )}
-              {a.phone && (
-                <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Phone className="size-3" />
-                  {a.phone}
-                </div>
-              )}
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {formatDateTime(a.created_at)}
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex shrink-0 gap-1">
-              {updatingId === a.id ? (
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              ) : (
-                <>
-                  <Button
-                    size="icon"
-                    variant={a.status === "approved" ? "default" : "ghost"}
-                    className="size-8"
-                    onClick={() => updateStatus(a.id, "approved")}
-                    disabled={isPending}
-                    title="확정"
-                  >
-                    <Check className="size-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant={a.status === "rejected" ? "destructive" : "ghost"}
-                    className="size-8"
-                    onClick={() => updateStatus(a.id, "rejected")}
-                    disabled={isPending}
-                    title="보류"
-                  >
-                    <Pause className="size-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="card flush">
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>이름</th>
+            <th>연락처</th>
+            <th>상태</th>
+            <th>지원일</th>
+            <th>액션</th>
+          </tr>
+        </thead>
+        <tbody>
+          {initial.map((a, idx) => (
+            <tr key={a.id}>
+              <td data-label="#" className="mono text-xs muted">{idx + 1}</td>
+              <td data-label="이름" style={{ fontWeight: 600 }}>{a.name}</td>
+              <td data-label="연락처">
+                {a.email && (
+                  <div className="row gap-4" style={{ fontSize: 12, color: "var(--mf)" }}>
+                    <Mail size={11} strokeWidth={2} />
+                    {a.email}
+                  </div>
+                )}
+                {a.phone && (
+                  <div className="row gap-4" style={{ fontSize: 12, color: "var(--mf)" }}>
+                    <Phone size={11} strokeWidth={2} />
+                    {a.phone}
+                  </div>
+                )}
+                {!a.email && !a.phone && <span style={{ color: "var(--mf-2)" }}>—</span>}
+              </td>
+              <td data-label="상태"><StatusBadge status={a.status} /></td>
+              <td data-label="지원일" className="mono text-xs muted">{formatDateTime(a.created_at)}</td>
+              <td data-label="액션">
+                {updatingId === a.id ? (
+                  <Loader2 size={14} className="animate-spin" style={{ color: "var(--mf)" }} />
+                ) : (
+                  <div className="row gap-6">
+                    <button
+                      className="btn sm icon-only ghost"
+                      style={a.status === "approved" ? { background: "var(--ok)", color: "#fff" } : {}}
+                      onClick={() => updateStatus(a.id, "approved")}
+                      title="확정"
+                    >
+                      <Check size={12} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      className="btn sm icon-only ghost danger"
+                      style={a.status === "rejected" ? { background: "var(--danger)", color: "#fff" } : {}}
+                      onClick={() => updateStatus(a.id, "rejected")}
+                      title="거절"
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

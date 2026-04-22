@@ -1,54 +1,11 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { MobileHeader } from "@/components/layout/MobileHeader";
-import { ScheduleVotingForm } from "@/components/project/ScheduleVotingForm";
-import { ProjectApplyForm } from "@/components/project/ProjectApplyForm";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Banknote, Users, Clock, AlertCircle } from "lucide-react";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { fmtKRW } from "@/lib/utils";
+import { ChevronLeft, Calendar, MapPin, Users, DollarSign } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-const statusLabel: Record<string, string> = {
-  recruiting: "모집 중",
-  in_progress: "진행 중",
-  completed: "종료",
-  cancelled: "취소",
-};
-
-const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  recruiting: "default",
-  in_progress: "secondary",
-  completed: "outline",
-  cancelled: "destructive",
-};
-
-function getRecruitmentStatus(
-  startAt: string | null,
-  endAt: string | null,
-  applicantCount: number,
-  maxParticipants: number | null
-) {
-  const now = new Date();
-  if (startAt && new Date(startAt) > now) return { label: "모집 예정", open: false };
-  if (endAt && new Date(endAt + "T23:59:59") < now) return { label: "모집 마감", open: false };
-  if (maxParticipants !== null && applicantCount >= maxParticipants)
-    return { label: "모집 마감 (정원)", open: false };
-  return { label: "모집 중", open: true };
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function formatFee(fee: number): string | null {
-  if (!fee || fee === 0) return null;
-  return `${fee.toLocaleString("ko-KR")}원`;
-}
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -58,8 +15,6 @@ export default async function ProjectDetailPage({ params }: Props) {
   const { id: projectId } = await params;
   const supabase = createServerSupabaseClient();
 
-  if (!supabase) notFound();
-
   const { data: project, error } = await supabase
     .from("projects")
     .select("*")
@@ -68,160 +23,186 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   if (error || !project) notFound();
 
+  // 지원자 수 조회
   const { count: applicantCount } = await supabase
     .from("project_applications")
-    .select("id", { count: "exact", head: true })
+    .select("*", { count: "exact", head: true })
     .eq("project_id", projectId);
 
-  const { count: scheduleDateCount } = await supabase
-    .from("project_schedule_dates")
-    .select("id", { count: "exact", head: true })
-    .eq("project_id", projectId);
+  const { count: confirmedCount } = await supabase
+    .from("project_applications")
+    .select("*", { count: "exact", head: true })
+    .eq("project_id", projectId)
+    .eq("status", "approved");
 
-  const recruitment = getRecruitmentStatus(
-    project.recruitment_start_at,
-    project.recruitment_end_at,
-    applicantCount ?? 0,
-    project.max_participants
-  );
+  // 현재 유저의 지원 여부
+  const { data: { user } } = await supabase.auth.getUser();
+  let myApp: { status: string } | null = null;
+  if (user) {
+    const { data } = await supabase
+      .from("project_applications")
+      .select("status")
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    myApp = data;
+  }
 
-  const hasScheduleDates = (scheduleDateCount ?? 0) > 0;
+  const isRecruiting = project.status === "recruiting";
+  const canApply = isRecruiting && !myApp;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <MobileHeader title={project.title} backHref="/" />
+    <div className="page">
+      {/* 뒤로 가기 */}
+      <div className="row mb-12">
+        <Link href="/projects" className="btn ghost sm">
+          <ChevronLeft size={14} strokeWidth={2} />
+          프로젝트
+        </Link>
+        <span className="mono text-xs muted" style={{ letterSpacing: "0.08em" }}>PROJECT</span>
+      </div>
 
-      {project.poster_url ? (
-        <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={project.poster_url} alt={project.title} className="h-full w-full object-cover" />
-        </div>
-      ) : (
-        <div className="aspect-[16/9] w-full bg-gradient-to-br from-primary/20 via-primary/10 to-background" />
-      )}
-
-      <div className="space-y-4 px-4 py-5">
-        {/* Title & Badges */}
+      {/* 헤더 */}
+      <div className="page-head">
         <div>
-          <h1 className="text-xl font-bold text-foreground">{project.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariant[project.status] ?? "outline"}>
-              {statusLabel[project.status] ?? project.status}
-            </Badge>
-            <Badge variant={recruitment.open ? "default" : "secondary"}>
-              {recruitment.label}
-            </Badge>
-            {formatFee(project.fee ?? 0) && (
-              <Badge variant="outline">
-                <Banknote className="size-3" />
-                {formatFee(project.fee ?? 0)}
-              </Badge>
+          <div className="row gap-8 mb-8">
+            <StatusBadge status={project.status} />
+            <StatusBadge status={project.type} />
+            {project.fee > 0 && (
+              <span className="badge outline">₩ {fmtKRW(project.fee)}</span>
             )}
+          </div>
+          <h1 style={{ marginBottom: 6 }}>{project.title}</h1>
+          {project.description && (
+            <p className="sub" style={{ maxWidth: 600 }}>
+              {project.description.length > 120
+                ? project.description.slice(0, 120) + "…"
+                : project.description}
+            </p>
+          )}
+        </div>
+        {canApply && (
+          <Link href={`/projects/${projectId}/apply`} className="btn primary lg">
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 16 }}>✦</span>
+            지원하기
+          </Link>
+        )}
+        {myApp && (
+          <div className="row gap-8">
+            <span className="mono text-xs muted">내 지원 상태</span>
+            <StatusBadge status={myApp.status} />
+          </div>
+        )}
+      </div>
+
+      <div className="os-grid grid-2">
+        {/* 왼쪽 컬럼 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 일시/장소 */}
+          <div className="card">
+            <div className="card-head">
+              <h3>일시 / 장소</h3>
+            </div>
+            <div style={{ padding: 18 }}>
+              <dl className="kv">
+                <dt>일시</dt>
+                <dd>
+                  {project.schedule_undecided
+                    ? "미정"
+                    : project.start_date
+                      ? project.start_date + (project.end_date && project.end_date !== project.start_date ? ` ~ ${project.end_date}` : "")
+                      : "미정"}
+                </dd>
+                {project.venue && (
+                  <>
+                    <dt>장소</dt>
+                    <dd>{project.venue}</dd>
+                  </>
+                )}
+                {project.address && (
+                  <>
+                    <dt>주소</dt>
+                    <dd>{project.address}</dd>
+                  </>
+                )}
+                {project.fee !== 0 && (
+                  <>
+                    <dt>출연료</dt>
+                    <dd className="tabnum" style={{ fontWeight: 600 }}>
+                      {project.fee > 0 ? `₩ ${fmtKRW(project.fee)}` : `참가비 ₩ ${fmtKRW(Math.abs(project.fee))}`}
+                    </dd>
+                  </>
+                )}
+                {project.recruitment_end_at && (
+                  <>
+                    <dt>모집마감</dt>
+                    <dd className="mono text-xs">{project.recruitment_end_at}</dd>
+                  </>
+                )}
+                {project.max_participants && (
+                  <>
+                    <dt>정원</dt>
+                    <dd>{project.max_participants}명</dd>
+                  </>
+                )}
+              </dl>
+            </div>
+          </div>
+
+          {/* 지원 현황 */}
+          <div className="card">
+            <div className="card-head">
+              <h3>지원 현황</h3>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div className="os-grid grid-2" style={{ gap: 12 }}>
+                <div className="stat">
+                  <div className="lab">총 지원자</div>
+                  <div className="num tabnum">{applicantCount ?? 0}</div>
+                </div>
+                <div className="stat">
+                  <div className="lab">확정</div>
+                  <div className="num tabnum">{confirmedCount ?? 0}</div>
+                </div>
+              </div>
+              {canApply && (
+                <div style={{ marginTop: 16 }}>
+                  <Link href={`/projects/${projectId}/apply`} className="btn primary" style={{ width: "100%", justifyContent: "center" }}>
+                    지원하기
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* 모집 기간 */}
-        <Card>
-          <CardContent className="flex items-start gap-3 p-4">
-            <Clock className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">모집 기간</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {project.recruitment_start_at
-                  ? formatDate(project.recruitment_start_at)
-                  : "시작일 미정"}
-                {" ~ "}
-                {project.recruitment_end_at
-                  ? formatDate(project.recruitment_end_at)
-                  : "마감일 없음"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 오른쪽 컬럼 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 포스터 */}
+          {project.poster_url ? (
+            <img
+              src={project.poster_url}
+              alt={project.title}
+              style={{ width: "100%", aspectRatio: "21/9", objectFit: "cover", borderRadius: "var(--radius-os)", border: "1px solid var(--border)" }}
+            />
+          ) : (
+            <div className="poster" style={{ width: "100%" }}>NO POSTER</div>
+          )}
 
-        {/* 프로젝트 일정 */}
-        <Card>
-          <CardContent className="flex items-start gap-3 p-4">
-            <Calendar className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">프로젝트 일정</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {project.schedule_undecided
-                  ? "미정"
-                  : project.start_date
-                    ? `${formatDate(project.start_date)}${project.end_date && project.end_date !== project.start_date ? ` ~ ${formatDate(project.end_date)}` : ""}`
-                    : "미정"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 지원자 수 */}
-        <Card>
-          <CardContent className="flex items-start gap-3 p-4">
-            <Users className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium text-foreground">지원 현황</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                현재 지원자 {applicantCount ?? 0}명
-                {project.max_participants
-                  ? ` / 최대 ${project.max_participants}명`
-                  : ""}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 프로젝트 소개 */}
-        {project.description && (
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm font-medium text-foreground">프로젝트 소개</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                {project.description}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 참여 비용 */}
-        {(project.fee ?? 0) > 0 && (
-          <Card>
-            <CardContent className="flex items-start gap-3 p-4">
-              <Banknote className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-foreground">참여 비용</p>
-                <p className="mt-0.5 text-lg font-semibold text-foreground">
-                  {formatFee(project.fee)}
+          {/* 상세 설명 */}
+          {project.description && project.description.length > 120 && (
+            <div className="card">
+              <div className="card-head">
+                <h3>소개</h3>
+              </div>
+              <div style={{ padding: 18 }}>
+                <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--fg-soft)", whiteSpace: "pre-wrap" }}>
+                  {project.description}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {hasScheduleDates && <ScheduleVotingForm projectId={projectId} />}
-
-        {recruitment.open && (
-          <ProjectApplyForm
-            projectId={projectId}
-            maxParticipants={project.max_participants}
-            currentApplicants={applicantCount ?? 0}
-          />
-        )}
-
-        {/* Recruitment closed messages */}
-        {!recruitment.open && project.status === "recruiting" && (
-          <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
-            <CardContent className="flex items-start gap-3 p-4">
-              <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                {recruitment.label === "모집 예정"
-                  ? `모집이 아직 시작되지 않았습니다. ${project.recruitment_start_at ? formatDate(project.recruitment_start_at) + "부터 지원할 수 있습니다." : ""}`
-                  : "모집이 마감되었습니다."}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

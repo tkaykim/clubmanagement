@@ -15,9 +15,9 @@
 - **Testing**: Playwright (E2E)
 
 ## Current Phase
-> **Phase**: SETUP
-> **Last Agent**: -
-> **Status**: 프로젝트 초기화 완료, 에이전트 세팅 중
+> **Phase**: 4-QA-PASSED (OneShot Crew 재구성 v1)
+> **Last Agent**: backend (QA 지적사항 fix)
+> **Status**: Architect → Designer + Backend → Frontend → QA → Backend-fix 완료. `tsc --noEmit` + `npm run build` 통과. 수동 apply 필요: `supabase/migrations/003_active_guard_rls.sql`.
 
 ## Conventions
 

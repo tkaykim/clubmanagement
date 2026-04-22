@@ -3,529 +3,258 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Plus, X, CalendarDays, ImageIcon } from "lucide-react";
+import { Plus, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+const PROJECT_TYPES = [
+  { value: "paid_gig", label: "유료행사" },
+  { value: "practice", label: "연습" },
+  { value: "audition", label: "오디션" },
+  { value: "workshop", label: "워크숍" },
+] as const;
+
+const PROJECT_STATUSES = [
+  { value: "recruiting", label: "모집중" },
+  { value: "selecting", label: "선별중" },
+  { value: "in_progress", label: "진행중" },
+  { value: "completed", label: "완료" },
+] as const;
+
+type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
 
 export function NewProjectForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const [type, setType] = useState<ProjectType>("paid_gig");
+  const [status, setStatus] = useState("recruiting");
   const [description, setDescription] = useState("");
-  const [posterUrl, setPosterUrl] = useState("");
+  const [fee, setFee] = useState(0);
+  const [venue, setVenue] = useState("");
+  const [address, setAddress] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [scheduleUndecided, setScheduleUndecided] = useState(false);
-  const [fee, setFee] = useState(0);
-  const [hasFee, setHasFee] = useState(false);
-  const [recruitmentStartAt, setRecruitmentStartAt] = useState("");
-  const [hasDeadline, setHasDeadline] = useState(true);
   const [recruitmentEndAt, setRecruitmentEndAt] = useState("");
-  const [hasMaxParticipants, setHasMaxParticipants] = useState(false);
-  const [maxParticipants, setMaxParticipants] = useState<number>(20);
-  const [scheduleDates, setScheduleDates] = useState<string[]>([]);
-  const [rangeStart, setRangeStart] = useState("");
-  const [rangeEnd, setRangeEnd] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState("");
+  const [scheduleDates, setScheduleDates] = useState<Array<{ date: string; kind: "event" | "practice"; label: string }>>([]);
+  const [newDate, setNewDate] = useState("");
+  const [newKind, setNewKind] = useState<"event" | "practice">("event");
+  const [newLabel, setNewLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  function handleStartDateChange(value: string) {
-    setStartDate(value);
-    if (value && endDate && value > endDate) setEndDate(value);
-    const effectiveEnd = value && endDate && value > endDate ? value : endDate;
-    setRangeStart(value);
-    setRangeEnd(effectiveEnd || value);
-  }
+  const addDate = () => {
+    if (!newDate) return;
+    if (scheduleDates.some(d => d.date === newDate)) return;
+    setScheduleDates(prev => [...prev, { date: newDate, kind: newKind, label: newLabel }].sort((a, b) => a.date.localeCompare(b.date)));
+    setNewDate("");
+    setNewLabel("");
+  };
 
-  function handleEndDateChange(value: string) {
-    if (value && startDate && value < startDate) return;
-    setEndDate(value);
-    setRangeEnd(value);
-  }
+  const removeDate = (date: string) => {
+    setScheduleDates(prev => prev.filter(d => d.date !== date));
+  };
 
-  function addScheduleRange() {
-    if (!rangeStart || !rangeEnd) return;
-    const start = new Date(rangeStart + "T00:00:00");
-    const end = new Date(rangeEnd + "T00:00:00");
-    if (start > end) {
-      setError("시작일이 종료일보다 늦을 수 없습니다.");
-      return;
-    }
-    const diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
-    if (diff > 90) {
-      setError("최대 90일 구간까지 추가할 수 있습니다.");
-      return;
-    }
-    const newDates: string[] = [];
-    const cursor = new Date(start);
-    while (cursor <= end) {
-      const ds = cursor.toISOString().slice(0, 10);
-      if (!scheduleDates.includes(ds)) newDates.push(ds);
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    if (newDates.length === 0) {
-      setError("이미 모두 추가된 날짜입니다.");
-      return;
-    }
-    setScheduleDates((prev) => [...prev, ...newDates].sort());
-    setRangeStart("");
-    setRangeEnd("");
-    setError(null);
-  }
-
-  function removeScheduleDate(date: string) {
-    setScheduleDates((prev) => prev.filter((d) => d !== date));
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      setError("프로젝트 이름을 입력하세요.");
+    if (!title.trim()) {
+      toast.error("프로젝트 제목을 입력하세요");
       return;
     }
-    if (!scheduleUndecided && startDate && endDate && startDate > endDate) {
-      setError("프로젝트 종료일이 시작일보다 앞설 수 없습니다.");
-      return;
-    }
-    if (
-      hasDeadline &&
-      recruitmentStartAt &&
-      recruitmentEndAt &&
-      recruitmentStartAt.slice(0, 10) > recruitmentEndAt
-    ) {
-      setError("모집 시작일이 마감일보다 늦을 수 없습니다.");
-      return;
-    }
-    if (!scheduleUndecided && !startDate) {
-      setError("프로젝트 일정을 설정하거나 '미정'으로 표시하세요.");
-      return;
-    }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setError("로그인이 필요합니다.");
-      return;
-    }
+
     setSubmitting(true);
     try {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("projects")
-        .insert({
-          owner_id: user.id,
-          title: trimmedTitle,
-          description: description.trim() || null,
-          poster_url: posterUrl.trim() || null,
-          start_date: scheduleUndecided ? null : startDate || null,
-          end_date: scheduleUndecided ? null : endDate || null,
-          schedule_undecided: scheduleUndecided,
-          fee: hasFee ? fee : 0,
-          recruitment_start_at: recruitmentStartAt
-            ? new Date(recruitmentStartAt).toISOString()
-            : null,
-          recruitment_end_at:
-            hasDeadline && recruitmentEndAt ? recruitmentEndAt : null,
-          max_participants: hasMaxParticipants ? maxParticipants : null,
-          status: "recruiting",
-        })
-        .select("id")
-        .single();
-
-      if (insertErr || !inserted) {
-        setError(insertErr?.message || "생성에 실패했습니다.");
-        setSubmitting(false);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("로그인이 필요합니다");
         return;
       }
 
-      if (scheduleDates.length > 0) {
-        const rows = scheduleDates.map((date, i) => ({
-          project_id: inserted.id,
-          date,
-          sort_order: i,
-        }));
-        const { error: dateErr } = await supabase
-          .from("project_schedule_dates")
-          .insert(rows);
-        if (dateErr) {
-          console.error("일정 후보 저장 실패:", dateErr.message);
-        }
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          type,
+          status,
+          description: description.trim() || null,
+          fee: fee || 0,
+          venue: venue.trim() || null,
+          address: address.trim() || null,
+          start_date: scheduleUndecided ? null : startDate || null,
+          end_date: scheduleUndecided ? null : endDate || null,
+          schedule_undecided: scheduleUndecided,
+          recruitment_end_at: recruitmentEndAt || null,
+          max_participants: maxParticipants ? parseInt(maxParticipants) : null,
+          dates: scheduleDates,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.error) {
+        toast.error(json.error ?? "생성에 실패했습니다");
+        return;
       }
 
-      router.push("/manage");
+      toast.success("프로젝트가 생성되었습니다");
+      router.push(`/manage/projects/${json.data?.id ?? ""}?tab=applications`);
     } catch {
-      setError("생성에 실패했습니다.");
+      toast.error("네트워크 오류가 발생했습니다");
+    } finally {
       setSubmitting(false);
     }
-  }
+  };
 
   return (
-    <Card className="border-0 shadow-sm">
-      <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* 기본 정보 */}
-          <div className="space-y-2">
-            <Label htmlFor="title">프로젝트 이름 *</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 2025 정기 공연"
-              className="rounded-lg"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">프로젝트 설명</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="프로젝트에 대해 소개해주세요"
-              className="min-h-[100px] rounded-lg"
-            />
-          </div>
-
-          {/* 포스터 이미지 */}
-          <div className="space-y-2">
-            <Label htmlFor="poster_url" className="flex items-center gap-1.5">
-              <ImageIcon className="size-4" />
-              포스터 이미지 URL
-            </Label>
-            <Input
-              id="poster_url"
-              type="url"
-              value={posterUrl}
-              onChange={(e) => setPosterUrl(e.target.value)}
-              placeholder="https://example.com/poster.jpg"
-              className="rounded-lg"
-            />
-            {posterUrl && (
-              <div className="relative mt-2 aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={posterUrl}
-                  alt="포스터 미리보기"
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
+    <form onSubmit={handleSubmit}>
+      <div className="os-grid grid-2">
+        {/* 왼쪽 — 기본 정보 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="card">
+            <div className="card-head"><h3>기본 정보</h3></div>
+            <div style={{ padding: 18 }}>
+              <div className="field">
+                <label htmlFor="title">제목 <span className="req">*</span></label>
+                <input id="title" className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="2026 정기 공연" required />
               </div>
-            )}
-          </div>
 
-          {/* 참여비 */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Label className="text-sm font-medium">참여비</Label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="radio"
-                    name="hasFee"
-                    checked={!hasFee}
-                    onChange={() => {
-                      setHasFee(false);
-                      setFee(0);
-                    }}
+              <div className="field">
+                <label>종류 <span className="req">*</span></label>
+                <div className="seg full">
+                  {PROJECT_TYPES.map(t => (
+                    <button key={t.value} type="button" className={cn(type === t.value && "on")} onClick={() => setType(t.value)}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="status">상태</label>
+                <select id="status" className="select" value={status} onChange={e => setStatus(e.target.value)}>
+                  {PROJECT_STATUSES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="description">설명</label>
+                <textarea id="description" className="textarea" value={description} onChange={e => setDescription(e.target.value)} placeholder="프로젝트 소개" rows={3} />
+              </div>
+
+              {type === "paid_gig" && (
+                <div className="field">
+                  <label htmlFor="fee">출연료 (원)</label>
+                  <input id="fee" className="input" type="number" min={0} step={10000} value={fee} onChange={e => setFee(Number(e.target.value))} placeholder="0" />
+                </div>
+              )}
+
+              <div className="field">
+                <label htmlFor="venue">장소</label>
+                <input id="venue" className="input" value={venue} onChange={e => setVenue(e.target.value)} placeholder="공연장 이름" />
+              </div>
+
+              <div className="field">
+                <label htmlFor="address">주소</label>
+                <input id="address" className="input" value={address} onChange={e => setAddress(e.target.value)} placeholder="상세 주소" />
+              </div>
+
+              <div className="field">
+                <label htmlFor="recruitmentEnd">모집 마감</label>
+                <input id="recruitmentEnd" className="input" type="date" value={recruitmentEndAt} onChange={e => setRecruitmentEndAt(e.target.value)} />
+              </div>
+
+              <div className="field">
+                <label htmlFor="maxParticipants">최대 인원 <span className="hint">선택</span></label>
+                <input id="maxParticipants" className="input" type="number" min={1} value={maxParticipants} onChange={e => setMaxParticipants(e.target.value)} placeholder="제한 없음" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 오른쪽 — 일정 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="card">
+            <div className="card-head">
+              <h3>프로젝트 일정</h3>
+              <div style={{ marginLeft: "auto" }}>
+                <label className="row gap-6" style={{ fontSize: 12.5, color: "var(--mf)", cursor: "pointer" }}>
+                  <button
+                    type="button"
+                    className={cn("cbx", scheduleUndecided && "on")}
+                    onClick={() => setScheduleUndecided(v => !v)}
+                    role="checkbox"
+                    aria-checked={scheduleUndecided}
                   />
-                  무료
-                </label>
-                <label className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="radio"
-                    name="hasFee"
-                    checked={hasFee}
-                    onChange={() => setHasFee(true)}
-                  />
-                  유료
+                  미정
                 </label>
               </div>
             </div>
-            {hasFee && (
-              <div className="space-y-1.5">
-                <Input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={fee}
-                  onChange={(e) => setFee(Number(e.target.value) || 0)}
-                  placeholder="금액 입력"
-                  className="rounded-lg"
-                />
-                <p className="text-xs text-muted-foreground">
-                  원 단위로 입력하세요
-                </p>
-              </div>
-            )}
-          </div>
+            <div style={{ padding: 18 }}>
+              {!scheduleUndecided && (
+                <>
+                  <div className="os-grid grid-2" style={{ gap: 12, marginBottom: 14 }}>
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label htmlFor="startDate">시작일</label>
+                      <input id="startDate" className="input" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    </div>
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label htmlFor="endDate">종료일</label>
+                      <input id="endDate" className="input" type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                </>
+              )}
 
-          {/* 모집 기간 */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">모집 기간</Label>
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="recruitment_start"
-                className="text-xs text-muted-foreground"
-              >
-                모집 시작일
-              </Label>
-              <Input
-                id="recruitment_start"
-                type="datetime-local"
-                value={recruitmentStartAt}
-                onChange={(e) => setRecruitmentStartAt(e.target.value)}
-                className="rounded-lg"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="recruitment_end"
-                  className="text-xs text-muted-foreground"
-                >
-                  모집 마감일
-                </Label>
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={!hasDeadline}
-                    onChange={(e) => {
-                      setHasDeadline(!e.target.checked);
-                      if (e.target.checked) setRecruitmentEndAt("");
-                    }}
-                  />
-                  마감일 없음
-                </label>
+              {/* 일정 날짜 목록 */}
+              <div className="field">
+                <label>일정 날짜 <span className="hint">투표 대상</span></label>
+                <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
+                  <input className="input" type="date" value={newDate} onChange={e => setNewDate(e.target.value)} />
+                  <select className="select" value={newKind} onChange={e => setNewKind(e.target.value as "event" | "practice")}>
+                    <option value="event">본행사</option>
+                    <option value="practice">연습</option>
+                  </select>
+                </div>
+                <input className="input" placeholder="레이블 (선택)" value={newLabel} onChange={e => setNewLabel(e.target.value)} style={{ marginBottom: 8 }} />
+                <button type="button" className="btn sm" onClick={addDate} disabled={!newDate} style={{ width: "100%", justifyContent: "center" }}>
+                  <Plus size={12} strokeWidth={2} />
+                  날짜 추가
+                </button>
               </div>
-              {hasDeadline && (
-                <Input
-                  id="recruitment_end"
-                  type="date"
-                  value={recruitmentEndAt}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (recruitmentStartAt && v && v < recruitmentStartAt.slice(0, 10)) return;
-                    setRecruitmentEndAt(v);
-                  }}
-                  min={recruitmentStartAt ? recruitmentStartAt.slice(0, 10) : undefined}
-                  className="rounded-lg"
-                />
+
+              {scheduleDates.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  {scheduleDates.map(d => (
+                    <div key={d.date} className="row" style={{ padding: "8px 0", borderBottom: "1px solid var(--border)", justifyContent: "space-between" }}>
+                      <div>
+                        <span className="mono text-xs">{d.date}</span>
+                        <span className="badge" style={{ marginLeft: 8 }}>{d.kind === "event" ? "본행사" : "연습"}</span>
+                        {d.label && <span style={{ fontSize: 12, color: "var(--mf)", marginLeft: 8 }}>{d.label}</span>}
+                      </div>
+                      <button type="button" className="btn ghost icon-only sm" onClick={() => removeDate(d.date)}>
+                        <X size={12} strokeWidth={2} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* 참여 인원 제한 */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Label className="text-sm font-medium">참여 인원</Label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="radio"
-                    name="hasMax"
-                    checked={!hasMaxParticipants}
-                    onChange={() => setHasMaxParticipants(false)}
-                  />
-                  제한 없음
-                </label>
-                <label className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="radio"
-                    name="hasMax"
-                    checked={hasMaxParticipants}
-                    onChange={() => setHasMaxParticipants(true)}
-                  />
-                  인원 제한
-                </label>
-              </div>
-            </div>
-            {hasMaxParticipants && (
-              <div className="space-y-1.5">
-                <Input
-                  type="number"
-                  min={1}
-                  value={maxParticipants}
-                  onChange={(e) =>
-                    setMaxParticipants(Number(e.target.value) || 1)
-                  }
-                  placeholder="최대 인원 수"
-                  className="rounded-lg"
-                />
-                <p className="text-xs text-muted-foreground">
-                  최대 {maxParticipants}명까지 지원 받습니다
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* 프로젝트 일정 */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">프로젝트 일정</Label>
-              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={scheduleUndecided}
-                  onChange={(e) => setScheduleUndecided(e.target.checked)}
-                />
-                미정
-              </label>
-            </div>
-            {!scheduleUndecided && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="start_date"
-                    className="text-xs text-muted-foreground"
-                  >
-                    시작일
-                  </Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => handleStartDateChange(e.target.value)}
-                    className="rounded-lg"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="end_date"
-                    className="text-xs text-muted-foreground"
-                  >
-                    종료일
-                  </Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => handleEndDateChange(e.target.value)}
-                    min={startDate || undefined}
-                    className="rounded-lg"
-                  />
-                </div>
-              </div>
-            )}
-            {scheduleUndecided && (
-              <p className="text-xs text-muted-foreground">
-                일정이 미정인 경우 아래 후보 날짜를 설정하여 참여자들의 연습
-                가능 일정을 취합할 수 있습니다.
-              </p>
-            )}
-          </div>
-
-          {/* 연습 가능 일정 후보 */}
-          <div className="space-y-3">
-            <Label className="flex items-center gap-1.5 text-sm font-medium">
-              <CalendarDays className="size-4" />
-              연습 가능 일정 후보
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              참여자들이 각 날짜별로 가능한 시간대를 투표합니다.
-            </p>
-
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    시작일
-                  </Label>
-                  <Input
-                    type="date"
-                    value={rangeStart}
-                    onChange={(e) => setRangeStart(e.target.value)}
-                    className="rounded-lg"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    종료일
-                  </Label>
-                  <Input
-                    type="date"
-                    value={rangeEnd}
-                    onChange={(e) => {
-                      if (rangeStart && e.target.value && e.target.value < rangeStart) return;
-                      setRangeEnd(e.target.value);
-                    }}
-                    min={rangeStart || undefined}
-                    className="rounded-lg"
-                  />
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addScheduleRange}
-                disabled={!rangeStart || !rangeEnd}
-                className="w-full rounded-lg gap-1"
-              >
-                <Plus className="size-4" />
-                구간 날짜 일괄 추가
-              </Button>
-            </div>
-
-            {scheduleDates.length > 0 && (
-              <div className="space-y-1.5">
-                {scheduleDates.map((date) => (
-                  <div
-                    key={date}
-                    className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm"
-                  >
-                    <span className="flex items-center gap-2">
-                      <CalendarDays className="size-3.5 text-muted-foreground" />
-                      {new Date(date + "T00:00:00").toLocaleDateString(
-                        "ko-KR",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          weekday: "short",
-                        },
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeScheduleDate(date)}
-                      className="text-muted-foreground transition-colors hover:text-destructive"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    {scheduleDates.length}개 후보 날짜가 설정되었습니다.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setScheduleDates([])}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    전체 삭제
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-xl"
-          >
-            {submitting ? "생성 중…" : "프로젝트 공지하기"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      <div className="row" style={{ justifyContent: "flex-end", gap: 8, marginTop: 24 }}>
+        <button type="button" className="btn ghost" onClick={() => router.back()} disabled={submitting}>
+          취소
+        </button>
+        <button type="submit" className="btn primary lg" disabled={submitting}>
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          {submitting ? "저장 중…" : "저장"}
+        </button>
+      </div>
+    </form>
   );
 }
