@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Plus, X, Loader2, Trash2, CalendarRange } from "lucide-react";
+import { Plus, X, Loader2, Trash2, CalendarRange, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,7 @@ const VISIBILITY_OPTIONS = [
 type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
 type Visibility = "public" | "admin" | "private";
 type Kind = "event" | "practice";
+type AddMode = "range" | "single";
 
 type ScheduleDateItem = { date: string; kind: Kind; label: string };
 
@@ -48,6 +49,33 @@ function enumerateDates(start: string, end: string): string[] {
   return out;
 }
 
+// 로컬 시각을 "YYYY-MM-DDTHH:MM" (datetime-local 입력값 형식) 으로
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function defaultRecruitmentStart(): string {
+  const d = new Date();
+  d.setHours(22, 0, 0, 0);
+  return toLocalInputValue(d);
+}
+
+function defaultRecruitmentEnd(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  d.setHours(22, 0, 0, 0);
+  return toLocalInputValue(d);
+}
+
+// datetime-local 문자열 → ISO (로컬 타임존 반영)
+function localInputToISO(v: string): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export function NewProjectForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -58,10 +86,14 @@ export function NewProjectForm() {
   const [fee, setFee] = useState(0);
   const [venue, setVenue] = useState("");
   const [address, setAddress] = useState("");
-  const [recruitmentEndAt, setRecruitmentEndAt] = useState("");
+  const [recruitmentStartAt, setRecruitmentStartAt] = useState<string>(defaultRecruitmentStart);
+  const [recruitmentEndAt, setRecruitmentEndAt] = useState<string>(defaultRecruitmentEnd);
   const [maxParticipants, setMaxParticipants] = useState("");
   const [scheduleDates, setScheduleDates] = useState<ScheduleDateItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // 추가 모드 토글
+  const [addMode, setAddMode] = useState<AddMode>("range");
 
   // 단일 추가 입력
   const [newDate, setNewDate] = useState("");
@@ -154,6 +186,13 @@ export function NewProjectForm() {
       return;
     }
 
+    const startISO = localInputToISO(recruitmentStartAt);
+    const endISO = localInputToISO(recruitmentEndAt);
+    if (startISO && endISO && new Date(startISO) > new Date(endISO)) {
+      toast.error("모집 시작이 종료보다 늦을 수 없습니다");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -174,7 +213,8 @@ export function NewProjectForm() {
           fee: fee || 0,
           venue: venue.trim() || null,
           address: address.trim() || null,
-          recruitment_end_at: recruitmentEndAt || null,
+          recruitment_start_at: startISO,
+          recruitment_end_at: endISO,
           max_participants: maxParticipants ? parseInt(maxParticipants) : null,
           dates: scheduleDates
             .filter((d) => d.kind === "event")
@@ -277,8 +317,26 @@ export function NewProjectForm() {
               </div>
 
               <div className="field">
-                <label htmlFor="recruitmentEnd">모집 마감</label>
-                <input id="recruitmentEnd" className="input" type="date" value={recruitmentEndAt} onChange={(e) => setRecruitmentEndAt(e.target.value)} />
+                <label htmlFor="recruitmentStart">모집 시작</label>
+                <input
+                  id="recruitmentStart"
+                  className="input"
+                  type="datetime-local"
+                  value={recruitmentStartAt}
+                  onChange={(e) => setRecruitmentStartAt(e.target.value)}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="recruitmentEnd">모집 종료</label>
+                <input
+                  id="recruitmentEnd"
+                  className="input"
+                  type="datetime-local"
+                  value={recruitmentEndAt}
+                  onChange={(e) => setRecruitmentEndAt(e.target.value)}
+                  min={recruitmentStartAt || undefined}
+                />
               </div>
 
               <div className="field">
@@ -299,84 +357,97 @@ export function NewProjectForm() {
               </div>
             </div>
             <div style={{ padding: 18 }}>
-              {/* 기간으로 추가 */}
-              <div className="field" style={{ marginBottom: 18 }}>
-                <label className="row gap-6" style={{ alignItems: "center" }}>
-                  <CalendarRange size={13} strokeWidth={2} />
-                  기간으로 추가
-                </label>
-                <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
-                  <input
-                    className="input"
-                    type="date"
-                    value={rangeStart}
-                    onChange={(e) => setRangeStart(e.target.value)}
-                    placeholder="시작일"
-                    aria-label="기간 시작일"
-                  />
-                  <input
-                    className="input"
-                    type="date"
-                    value={rangeEnd}
-                    min={rangeStart || undefined}
-                    onChange={(e) => setRangeEnd(e.target.value)}
-                    placeholder="종료일"
-                    aria-label="기간 종료일"
-                  />
-                </div>
-                <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
-                  <select className="select" value={rangeKind} onChange={(e) => setRangeKind(e.target.value as Kind)}>
-                    <option value="event">본행사</option>
-                    <option value="practice">연습</option>
-                  </select>
-                  <input
-                    className="input"
-                    placeholder={rangeApplyLabelAll ? "공통 라벨 (선택)" : "라벨 개별 지정"}
-                    value={rangeLabel}
-                    onChange={(e) => setRangeLabel(e.target.value)}
-                    disabled={!rangeApplyLabelAll}
-                  />
-                </div>
-                <label className="row gap-6" style={{ fontSize: 12.5, color: "var(--mf)", cursor: "pointer", marginBottom: 8 }}>
-                  <button
-                    type="button"
-                    className={cn("cbx", rangeApplyLabelAll && "on")}
-                    onClick={() => setRangeApplyLabelAll((v) => !v)}
-                    role="checkbox"
-                    aria-checked={rangeApplyLabelAll}
-                  />
-                  모든 날짜에 같은 라벨 적용
-                </label>
+              {/* 모드 토글 */}
+              <div className="seg full" style={{ marginBottom: 14 }}>
                 <button
                   type="button"
-                  className="btn sm primary"
-                  onClick={addRange}
-                  disabled={!rangeStart || !rangeEnd}
-                  style={{ width: "100%", justifyContent: "center" }}
+                  className={cn(addMode === "range" && "on")}
+                  onClick={() => setAddMode("range")}
                 >
-                  <Plus size={12} strokeWidth={2} />
-                  범위 전체 추가
+                  <CalendarRange size={13} strokeWidth={2} />
+                  <span style={{ marginLeft: 6 }}>기간으로 추가</span>
+                </button>
+                <button
+                  type="button"
+                  className={cn(addMode === "single" && "on")}
+                  onClick={() => setAddMode("single")}
+                >
+                  <CalendarDays size={13} strokeWidth={2} />
+                  <span style={{ marginLeft: 6 }}>단일 날짜 추가</span>
                 </button>
               </div>
 
-              <div className="divider" style={{ margin: "14px 0" }} />
-
-              {/* 단일 추가 */}
-              <div className="field">
-                <label>단일 날짜 추가</label>
-                <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
-                  <input className="input" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
-                  <select className="select" value={newKind} onChange={(e) => setNewKind(e.target.value as Kind)}>
-                    <option value="event">본행사</option>
-                    <option value="practice">연습</option>
-                  </select>
+              {addMode === "range" ? (
+                <div className="field">
+                  <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
+                    <input
+                      className="input"
+                      type="date"
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value)}
+                      placeholder="시작일"
+                      aria-label="기간 시작일"
+                    />
+                    <input
+                      className="input"
+                      type="date"
+                      value={rangeEnd}
+                      min={rangeStart || undefined}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                      placeholder="종료일"
+                      aria-label="기간 종료일"
+                    />
+                  </div>
+                  <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
+                    <select className="select" value={rangeKind} onChange={(e) => setRangeKind(e.target.value as Kind)}>
+                      <option value="event">본행사</option>
+                      <option value="practice">연습</option>
+                    </select>
+                    <input
+                      className="input"
+                      placeholder={rangeApplyLabelAll ? "공통 라벨 (선택)" : "라벨 개별 지정"}
+                      value={rangeLabel}
+                      onChange={(e) => setRangeLabel(e.target.value)}
+                      disabled={!rangeApplyLabelAll}
+                    />
+                  </div>
+                  <label className="row gap-6" style={{ fontSize: 12.5, color: "var(--mf)", cursor: "pointer", marginBottom: 8 }}>
+                    <button
+                      type="button"
+                      className={cn("cbx", rangeApplyLabelAll && "on")}
+                      onClick={() => setRangeApplyLabelAll((v) => !v)}
+                      role="checkbox"
+                      aria-checked={rangeApplyLabelAll}
+                    />
+                    모든 날짜에 같은 라벨 적용
+                  </label>
+                  <button
+                    type="button"
+                    className="btn sm primary"
+                    onClick={addRange}
+                    disabled={!rangeStart || !rangeEnd}
+                    style={{ width: "100%", justifyContent: "center" }}
+                  >
+                    <Plus size={12} strokeWidth={2} />
+                    범위 전체 추가
+                  </button>
                 </div>
-                <input className="input" placeholder="레이블 (선택)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} style={{ marginBottom: 8 }} />
-                <button type="button" className="btn sm" onClick={addSingle} disabled={!newDate} style={{ width: "100%", justifyContent: "center" }}>
-                  <Plus size={12} strokeWidth={2} />
-                  날짜 추가
-                </button>
-              </div>
+              ) : (
+                <div className="field">
+                  <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
+                    <input className="input" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+                    <select className="select" value={newKind} onChange={(e) => setNewKind(e.target.value as Kind)}>
+                      <option value="event">본행사</option>
+                      <option value="practice">연습</option>
+                    </select>
+                  </div>
+                  <input className="input" placeholder="레이블 (선택)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} style={{ marginBottom: 8 }} />
+                  <button type="button" className="btn sm primary" onClick={addSingle} disabled={!newDate} style={{ width: "100%", justifyContent: "center" }}>
+                    <Plus size={12} strokeWidth={2} />
+                    날짜 추가
+                  </button>
+                </div>
+              )}
 
               {/* 목록 */}
               {scheduleDates.length > 0 && (
