@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
+import { memberKindOf } from "@/lib/utils";
 import { Users } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -55,17 +56,7 @@ export default async function MembersPage() {
                 </div>
               </div>
               <div className="row gap-6 wrap">
-                <StatusBadge
-                  status={
-                    m.role === "admin" || m.role === "owner"
-                      ? "operator"
-                      : m.contract_type === "contract"
-                        ? "contract_member"
-                        : m.contract_type === "guest"
-                          ? "external_guest"
-                          : "regular_member"
-                  }
-                />
+                <StatusBadge status={memberKindOf(m.role, m.contract_type)} />
                 {m.position && (
                   <span className="badge">{m.position}</span>
                 )}

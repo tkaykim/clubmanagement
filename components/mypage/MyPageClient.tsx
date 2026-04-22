@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
-import { fmtKRW } from "@/lib/utils";
+import { fmtKRW, memberKindOf } from "@/lib/utils";
 import { LogOut, User, FileText, Calendar, DollarSign, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -108,8 +108,7 @@ export function MyPageClient({ member, applications, payouts, presets }: MyPageC
                     <div className="mono text-xs muted">{member.stage_name}</div>
                   )}
                   <div className="row gap-6 mt-8">
-                    <StatusBadge status={member?.role ?? "member"} />
-                    {member?.contract_type && <StatusBadge status={member.contract_type} />}
+                    <StatusBadge status={memberKindOf(member?.role, member?.contract_type)} />
                   </div>
                 </div>
               </div>

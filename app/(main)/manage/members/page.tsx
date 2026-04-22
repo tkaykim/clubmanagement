@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
 import { Plus, X, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, memberKindOf } from "@/lib/utils";
 import type { UserRole } from "@/lib/types";
 
 type MemberRow = {
@@ -221,8 +221,7 @@ export default function ManageMembersPage() {
             <thead>
               <tr>
                 <th>멤버</th>
-                <th>역할</th>
-                <th>계약</th>
+                <th>구분</th>
                 <th>포지션</th>
                 <th>합류</th>
                 {isAdmin && <th>액션</th>}
@@ -241,8 +240,7 @@ export default function ManageMembersPage() {
                       </div>
                     </div>
                   </td>
-                  <td data-label="역할"><StatusBadge status={m.role} /></td>
-                  <td data-label="계약"><StatusBadge status={m.contract_type} /></td>
+                  <td data-label="구분"><StatusBadge status={memberKindOf(m.role, m.contract_type)} /></td>
                   <td data-label="포지션"><span style={{ fontSize: 13 }}>{m.position ?? "—"}</span></td>
                   <td data-label="합류" className="mono text-xs muted">{m.joined_month ?? "—"}</td>
                   {isAdmin && m.role !== "owner" && (

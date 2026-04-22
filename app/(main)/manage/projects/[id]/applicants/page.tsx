@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { Calendar, Banknote, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ApplicantList, type Applicant } from "./ApplicantList";
-import { fmtPay } from "@/lib/utils";
+import { fmtPay, memberKindOf } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -75,19 +75,6 @@ export default async function ApplicantsPage({ params }: Props) {
     }
   }
 
-  // 참여자 구분 칩 계산
-  // - user_id 없음 → 외부 게스트
-  // - crew_members 매칭 실패 → 외부 게스트 (데이터 정합성 방어)
-  // - role 이 admin/owner → 운영진
-  // - contract_type === 'contract' → 계약멤버
-  // - 그 외(non_contract, guest) → 일반멤버
-  function classify(m: MemberInfo | null | undefined, hasUserId: boolean): Applicant["kind"] {
-    if (!hasUserId || !m) return "external_guest";
-    if (m.role === "admin" || m.role === "owner") return "operator";
-    if (m.contract_type === "contract") return "contract_member";
-    return "regular_member";
-  }
-
   const applicants: Applicant[] = rows.map(a => {
     const m = a.user_id ? memberMap.get(a.user_id) : null;
     return {
@@ -97,7 +84,8 @@ export default async function ApplicantsPage({ params }: Props) {
       phone: a.guest_phone ?? m?.phone ?? null,
       status: a.status,
       created_at: a.created_at,
-      kind: classify(m, !!a.user_id),
+      // 멤버 매칭 실패 시에도 외부 게스트로 취급 (defensive)
+      kind: memberKindOf(m?.role, m?.contract_type, !!(a.user_id && m)),
     };
   });
 

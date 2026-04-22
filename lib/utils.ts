@@ -25,6 +25,35 @@ export function initials(name = ""): string {
 }
 
 // ============================================================
+// Member kind (리더 / 운영진 / 계약멤버 / 일반멤버 / 게스트)
+// ============================================================
+
+export type MemberKind =
+  | "leader"
+  | "operator"
+  | "contract_member"
+  | "regular_member"
+  | "external_guest";
+
+/**
+ * crew_members.role + contract_type + user_id 유무로 통일된 kind 를 계산.
+ * 우선순위: 외부게스트(user_id 없음) > 리더(owner) > 운영진(admin) >
+ *          계약멤버(contract) > 게스트(contract_type=guest) > 일반멤버(그 외)
+ */
+export function memberKindOf(
+  role: string | null | undefined,
+  contractType: string | null | undefined,
+  hasUserId: boolean = true
+): MemberKind {
+  if (!hasUserId) return "external_guest";
+  if (role === "owner") return "leader";
+  if (role === "admin") return "operator";
+  if (contractType === "contract") return "contract_member";
+  if (contractType === "guest") return "external_guest";
+  return "regular_member";
+}
+
+// ============================================================
 // Number / currency helpers
 // ============================================================
 

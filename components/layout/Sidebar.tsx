@@ -11,8 +11,16 @@ import {
   Bug,
 } from "lucide-react";
 import { NavItem } from "./NavItem";
-import { initials } from "@/lib/utils";
+import { initials, memberKindOf } from "@/lib/utils";
 import type { CrewMember } from "@/lib/types";
+
+const KIND_LABEL: Record<ReturnType<typeof memberKindOf>, string> = {
+  leader: "리더",
+  operator: "운영진",
+  contract_member: "계약멤버",
+  regular_member: "일반멤버",
+  external_guest: "게스트",
+};
 
 interface SidebarProps {
   me: CrewMember | null;
@@ -77,7 +85,7 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
           <div className="avatar">{initials(me.name)}</div>
           <div>
             <b>{me.stage_name ?? me.name}</b>
-            <small>{me.role.toUpperCase()}</small>
+            <small>{KIND_LABEL[memberKindOf(me.role, me.contract_type)]}</small>
           </div>
         </div>
       )}

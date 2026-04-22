@@ -7,7 +7,7 @@ import { Check, X, Mail, Phone, Loader2, Plus, Pencil, Trash2, Save } from "luci
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { toast } from "sonner";
 
-export type ApplicantKind = "operator" | "contract_member" | "regular_member" | "external_guest";
+import type { MemberKind } from "@/lib/utils";
 
 export type Applicant = {
   id: string;
@@ -16,7 +16,7 @@ export type Applicant = {
   phone: string | null;
   status: string;
   created_at: string;
-  kind: ApplicantKind;
+  kind: MemberKind;
 };
 
 type CrewOption = { id: string; name: string; stage_name: string | null; user_id: string | null };

@@ -23,7 +23,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const [memberRes, projResult, annResult, pendingResult] = await Promise.all([
     supabase
       .from("crew_members")
-      .select("id, user_id, name, stage_name, role, is_active")
+      .select("id, user_id, name, stage_name, role, contract_type, is_active")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
