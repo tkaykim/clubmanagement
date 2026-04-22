@@ -19,7 +19,7 @@ export default async function ScheduleManagePage({
             돌아가기
           </Link>
           <h1>연습 일정 관리</h1>
-          <div className="sub">가용성 집계 · 일정 확정</div>
+          <div className="sub">가능 일정 집계 · 일정 확정</div>
         </div>
       </div>
       <ScheduleAggregationView projectId={id} />

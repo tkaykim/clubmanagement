@@ -133,7 +133,7 @@ export function PublicApplyForm({ projectId, fee, scheduleDates }: PublicApplyFo
 
       {scheduleDates.length > 0 && (
         <div className="field">
-          <label>일정 가용 여부</label>
+          <label>가능 일정</label>
           <div className="sched">
             {scheduleDates.map(d => {
               const v = votes[d.id];

@@ -56,7 +56,7 @@ interface MyPageClientProps {
 const TABS = [
   { key: "profile", label: "프로필", icon: User },
   { key: "applications", label: "내 지원", icon: FileText },
-  { key: "schedules", label: "가용성", icon: Calendar },
+  { key: "schedules", label: "가능 일정", icon: Calendar },
   { key: "payouts", label: "정산", icon: DollarSign },
 ] as const;
 
@@ -199,11 +199,11 @@ export function MyPageClient({ member, applications, payouts, presets }: MyPageC
             {presets.length === 0 ? (
               <div className="empty">
                 <Calendar className="ico" strokeWidth={1.5} />
-                <div>저장된 가용성 프리셋이 없어요</div>
+                <div>저장된 가능 일정 프리셋이 없어요</div>
               </div>
             ) : (
               <div style={{ padding: 18 }}>
-                <div style={{ fontWeight: 600, marginBottom: 12 }}>가용성 프리셋</div>
+                <div style={{ fontWeight: 600, marginBottom: 12 }}>가능 일정 프리셋</div>
                 {presets.map(p => (
                   <div key={p.id} className="row" style={{ marginBottom: 8, justifyContent: "space-between" }}>
                     <div>

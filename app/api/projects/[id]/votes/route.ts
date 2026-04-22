@@ -63,7 +63,7 @@ export async function POST(request: Request, { params }: Params) {
     if (error) {
       console.error("[POST /api/projects/[id]/votes] error:", error);
       return NextResponse.json(
-        { error: "가용성 제출에 실패했습니다" },
+        { error: "가능 일정 제출에 실패했습니다" },
         { status: 500 }
       );
     }

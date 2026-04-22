@@ -177,10 +177,10 @@ export function ApplyForm({
         />
       </div>
 
-      {/* 일정 가용성 */}
+      {/* 가능 일정 */}
       {scheduleDates.length > 0 && (
         <div className="field">
-          <label>일정 가용 여부 <span className="req">*</span></label>
+          <label>가능 일정 <span className="req">*</span></label>
           <div className="sched">
             {scheduleDates.map(d => {
               const v = votes[d.id];

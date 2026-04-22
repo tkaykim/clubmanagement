@@ -42,7 +42,7 @@ export default async function CalendarPage() {
       <div className="page-head">
         <div>
           <h1>내 캘린더</h1>
-          <div className="sub">일정 · 가용성 확인</div>
+          <div className="sub">일정 · 가능 여부 확인</div>
         </div>
       </div>
 

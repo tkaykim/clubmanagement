@@ -10,7 +10,7 @@ import { Check, X, Loader2, DollarSign, Download, Megaphone } from "lucide-react
 
 const TABS = [
   { key: "applications", label: "지원자" },
-  { key: "availability", label: "가용성" },
+  { key: "availability", label: "가능 일정" },
   { key: "settlement", label: "정산" },
   { key: "announcements", label: "공지" },
   { key: "settings", label: "설정" },

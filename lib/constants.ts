@@ -114,7 +114,7 @@ export const FEE_AGREEMENT_LABELS: Record<string, string> = {
 export const MANAGE_TABS = [
   { id: "applicants", label: "지원자" },
   { id: "roster", label: "로스터" },
-  { id: "availability", label: "가용성" },
+  { id: "availability", label: "가능 일정" },
   { id: "settlement", label: "정산" },
   { id: "announce", label: "공지" },
   { id: "settings", label: "설정" },
@@ -129,7 +129,7 @@ export type ManageTab = (typeof MANAGE_TABS)[number]["id"];
 export const MYPAGE_TABS = [
   { id: "apps", label: "지원 이력" },
   { id: "payouts", label: "정산" },
-  { id: "presets", label: "가용성 프리셋" },
+  { id: "presets", label: "가능 일정 프리셋" },
   { id: "profile", label: "프로필" },
 ] as const;
 
