@@ -14,6 +14,7 @@ const STATUS_MAP: Record<string, { label: string; kind: string }> = {
   practice:     { label: "연습",     kind: "outline" },
   audition:     { label: "오디션",   kind: "info" },
   workshop:     { label: "워크숍",   kind: "outline" },
+  shooting:     { label: "촬영",     kind: "info" },
   paid:         { label: "지급완료", kind: "ok" },
   scheduled:    { label: "예정",     kind: "info" },
   // 참여자 구분 칩 (리더/운영진/계약멤버/일반멤버/게스트)

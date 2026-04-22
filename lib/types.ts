@@ -13,7 +13,7 @@ export type ProjectStatus =
   | "completed"
   | "cancelled";
 
-export type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
+export type ProjectType = "paid_gig" | "practice" | "audition" | "workshop" | "shooting";
 
 export type ProjectVisibility = "public" | "admin" | "private";
 

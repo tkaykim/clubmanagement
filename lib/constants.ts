@@ -48,6 +48,7 @@ export const PROJECT_TYPE_LABELS: Record<string, string> = {
   practice: "연습",
   audition: "오디션",
   workshop: "워크숍",
+  shooting: "촬영",
 } as const;
 
 // ============================================================
@@ -157,6 +158,7 @@ export const PROJECT_TYPE_OPTIONS = [
   { value: "practice", label: "연습" },
   { value: "audition", label: "오디션" },
   { value: "workshop", label: "워크숍" },
+  { value: "shooting", label: "촬영" },
 ] as const;
 
 export const PROJECT_STATUS_FILTER_OPTIONS = [

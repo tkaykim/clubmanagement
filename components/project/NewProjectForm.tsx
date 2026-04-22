@@ -12,6 +12,7 @@ const PROJECT_TYPES = [
   { value: "practice", label: "연습" },
   { value: "audition", label: "오디션" },
   { value: "workshop", label: "워크숍" },
+  { value: "shooting", label: "촬영" },
 ] as const;
 
 const PROJECT_STATUSES = [
@@ -27,13 +28,13 @@ const VISIBILITY_OPTIONS = [
   { value: "private", label: "비공개", hint: "등록자와 owner만" },
 ] as const;
 
-type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
+type ProjectType = "paid_gig" | "practice" | "audition" | "workshop" | "shooting";
 type Visibility = "public" | "admin" | "private";
 type Kind = "event" | "practice";
 type AddMode = "range" | "single";
 
 function defaultPayType(pt: ProjectType): PayType {
-  if (pt === "paid_gig") return "pay";
+  if (pt === "paid_gig" || pt === "shooting") return "pay";
   if (pt === "workshop" || pt === "audition") return "fee";
   return "free"; // practice
 }

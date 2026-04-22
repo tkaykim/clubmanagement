@@ -32,7 +32,7 @@ const scheduleDateInputSchema = z.object({
 export const createProjectSchema = z.object({
   title: z.string().min(1, "프로젝트 제목을 입력해주세요").max(200),
   description: z.string().nullable().optional(),
-  type: z.enum(["paid_gig", "practice", "audition", "workshop"]),
+  type: z.enum(["paid_gig", "practice", "audition", "workshop", "shooting"]),
   visibility: z.enum(["public", "admin", "private"]).default("public"),
   venue: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
