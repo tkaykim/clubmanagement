@@ -356,12 +356,15 @@ export function NewProjectForm() {
                   </label>
                   <input
                     id="fee"
-                    className="input"
-                    type="number"
-                    min={0}
-                    step={10000}
-                    value={fee || ""}
-                    onChange={(e) => setFee(Number(e.target.value) || 0)}
+                    className="input tabnum"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={fee ? fee.toLocaleString("ko-KR") : ""}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^\d]/g, "");
+                      setFee(digits ? parseInt(digits, 10) : 0);
+                    }}
                     placeholder="0"
                   />
                 </div>
