@@ -33,11 +33,13 @@ export function ActiveGuard({ children, initialStatus }: ActiveGuardProps) {
         }
         const { data: member } = await supabase
           .from("crew_members")
-          .select("is_active")
+          .select("is_active, role")
           .eq("user_id", user.id)
           .maybeSingle();
         if (!cancelled) {
-          setStatus(member?.is_active ? "active" : "inactive");
+          // admin/owner 는 is_active 와 무관하게 활성 처리 (관리자 잠금 방지)
+          const isAdmin = member?.role === "admin" || member?.role === "owner";
+          setStatus(isAdmin || member?.is_active ? "active" : "inactive");
         }
       } catch (err) {
         console.error("[ActiveGuard] auth check failed:", err);

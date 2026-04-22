@@ -39,6 +39,7 @@ export default function ManageMembersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isAdmin = currentRole === "owner" || currentRole === "admin";
+  const isOwner = currentRole === "owner";
 
   const fetchMembers = useCallback(async () => {
     const { data } = await supabase
@@ -254,20 +255,24 @@ export default function ManageMembersPage() {
                           </button>
                         ) : (
                           <>
-                            <button
-                              className="btn sm icon-only ghost"
-                              onClick={() => handleToggleAdmin(m)}
-                              disabled={actionLoading === m.id}
-                              title={m.role === "admin" ? "멤버로 변경" : "운영진으로 변경"}
-                            >
-                              {m.role === "admin" ? <ShieldOff size={13} strokeWidth={2} /> : <ShieldCheck size={13} strokeWidth={2} />}
-                            </button>
+                            {isOwner && (
+                              <button
+                                className="btn sm icon-only ghost"
+                                onClick={() => handleToggleAdmin(m)}
+                                disabled={actionLoading === m.id}
+                                title={m.role === "admin" ? "멤버로 변경" : "운영진으로 변경"}
+                              >
+                                {m.role === "admin" ? <ShieldOff size={13} strokeWidth={2} /> : <ShieldCheck size={13} strokeWidth={2} />}
+                              </button>
+                            )}
                             <button className="btn sm icon-only ghost" onClick={() => handleDeactivate(m.id)} disabled={actionLoading === m.id} title="비활성화">
                               <UserX size={13} strokeWidth={2} />
                             </button>
-                            <button className="btn sm icon-only ghost danger" onClick={() => handleDelete(m.id)} disabled={actionLoading === m.id} title="삭제">
-                              <Trash2 size={13} strokeWidth={2} />
-                            </button>
+                            {isOwner && (
+                              <button className="btn sm icon-only ghost danger" onClick={() => handleDelete(m.id)} disabled={actionLoading === m.id} title="삭제">
+                                <Trash2 size={13} strokeWidth={2} />
+                              </button>
+                            )}
                           </>
                         )}
                       </div>

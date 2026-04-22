@@ -38,12 +38,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   const me = memberRes.data as CrewMember | null;
   const isAdmin = me?.role === "admin" || me?.role === "owner";
+  // admin/owner 는 is_active 플래그와 무관하게 활성 처리 (관리자 잠금 방지)
+  const initialStatus: "active" | "inactive" = isAdmin || me?.is_active ? "active" : "inactive";
 
   const projectCount = projResult.count ?? 0;
   const unreadAnn = annResult.count ?? 0;
   const myPending = pendingResult.count ?? 0;
-
-  const initialStatus: "active" | "inactive" = me?.is_active ? "active" : "inactive";
 
   return (
     <ActiveGuard initialStatus={initialStatus}>

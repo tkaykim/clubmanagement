@@ -31,15 +31,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // users 테이블에 레코드 생성 (트리거가 없을 경우 직접 삽입)
-    if (data.user) {
-      await supabase.from("users").upsert({
-        id: data.user.id,
-        email,
-        name,
-        role: "member",
-      });
-    }
+    // public.users + public.crew_members 레코드는 auth.users 트리거(on_auth_user_created)가
+    // 자동 생성한다 (crew_members 는 is_active=false 로 승인 대기). 여기서는 추가 작업 없음.
 
     return NextResponse.json({ data: { user: data.user } });
   } catch {
