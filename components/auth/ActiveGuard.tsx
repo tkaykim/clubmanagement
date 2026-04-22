@@ -62,20 +62,21 @@ export function ActiveGuard({ children }: { children: React.ReactNode }) {
     };
   }, [pathname]);
 
-  if (status === "loading") {
+  // 익명 사용자 리다이렉트는 render 사이클이 아닌 effect 에서 처리.
+  // render 중 router.replace 호출은 진행 중이던 내비게이션을 abort 시켜
+  // "AbortError: signal is aborted without reason" 콘솔 에러의 원인이 된다.
+  useEffect(() => {
+    if (status === "anonymous") {
+      router.replace("/login");
+    }
+  }, [status, router]);
+
+  if (status === "loading" || status === "anonymous") {
     return (
       <div style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center" }}>
         <Loader2 size={24} className="animate-spin" style={{ color: "var(--mf)" }} />
       </div>
     );
-  }
-
-  if (status === "anonymous") {
-    // 서버 미들웨어가 이미 리다이렉트하지만 클라이언트에서도 처리
-    if (typeof window !== "undefined") {
-      router.replace("/login");
-    }
-    return null;
   }
 
   if (status === "inactive") {

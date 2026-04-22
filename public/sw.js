@@ -1,8 +1,6 @@
-const CACHE_NAME = 'oneshot-v4';
+const CACHE_NAME = 'oneshot-v5';
 
-self.addEventListener('install', (e) => {
-  // precache 실패가 설치 전체를 깨뜨리지 않도록 install 단계에서는 아무것도 강제 캐시하지 않는다.
-  // 필요한 자산은 fetch 핸들러에서 런타임 캐시로 채운다.
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -10,15 +8,12 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  if (e.request.mode === 'navigate') return;
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
-  );
-});
+// fetch 핸들러는 등록하지 않는다.
+// - Next.js 의 RSC/prefetch fetch 는 자주 abort 되는데
+//   SW 가 중간에서 가로채면 "AbortError: signal is aborted without reason" 이 재발사되어
+//   콘솔이 지저분해지고 일부 브라우저에서는 네비게이션이 망가진다.
+// - PWA 설치 요건은 매니페스트 + SW 등록 자체로 충족되므로 fetch 가로채기는 불필요.
