@@ -22,12 +22,19 @@ interface Project {
   title: string;
   status: string;
   type: string;
+  visibility: string;
   fee: number;
   description: string | null;
   venue: string | null;
   max_participants: number | null;
   recruitment_end_at: string | null;
 }
+
+const VISIBILITY_OPTIONS = [
+  { value: "public", label: "전체공개", hint: "활성 멤버 누구나" },
+  { value: "admin", label: "운영진만", hint: "owner · admin" },
+  { value: "private", label: "비공개", hint: "등록자와 owner만" },
+] as const;
 
 interface Application {
   id: string;
@@ -91,6 +98,35 @@ export function ManageProjectClient({
   const [tab, setTab] = useState<Tab>((initialTab as Tab) || "applications");
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<string>(project.visibility ?? "public");
+  const [savingVisibility, setSavingVisibility] = useState(false);
+
+  const handleVisibilityChange = async (next: string) => {
+    if (next === visibility) return;
+    const prev = visibility;
+    setVisibility(next);
+    setSavingVisibility(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility: next }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        setVisibility(prev);
+        toast.error(json.error ?? "변경에 실패했습니다");
+      } else {
+        toast.success("열람권한이 변경되었습니다");
+        router.refresh();
+      }
+    } catch {
+      setVisibility(prev);
+      toast.error("네트워크 오류");
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
 
   const pendingApps = applications.filter(a => a.status === "pending");
   const approvedApps = applications.filter(a => a.status === "approved");
@@ -491,9 +527,35 @@ export function ManageProjectClient({
 
       {/* 설정 탭 */}
       {tab === "settings" && (
-        <div className="card">
-          <div style={{ padding: 24 }}>
-            <h3 style={{ marginBottom: 20 }}>위험 구역</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="card">
+            <div style={{ padding: 24 }}>
+              <h3 style={{ marginBottom: 8 }}>열람권한</h3>
+              <div className="mono text-xs muted" style={{ marginBottom: 16, letterSpacing: "0.02em" }}>
+                누가 이 프로젝트를 볼 수 있는지 결정합니다.
+              </div>
+              <div className="seg full" style={{ opacity: savingVisibility ? 0.6 : 1, pointerEvents: savingVisibility ? "none" : "auto" }}>
+                {VISIBILITY_OPTIONS.map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    className={cn(visibility === v.value && "on")}
+                    onClick={() => handleVisibilityChange(v.value)}
+                    title={v.hint}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              <div className="hint" style={{ fontSize: 11.5, color: "var(--mf)", marginTop: 8 }}>
+                {VISIBILITY_OPTIONS.find((v) => v.value === visibility)?.hint}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ padding: 24 }}>
+              <h3 style={{ marginBottom: 20 }}>위험 구역</h3>
             <div className="banner" style={{ background: "var(--danger-bg)", border: "1px solid #FCA5A5", color: "var(--danger)", marginBottom: 12 }}>
               <span style={{ fontSize: 13 }}>삭제한 프로젝트는 복구할 수 없습니다.</span>
             </div>
@@ -513,6 +575,7 @@ export function ManageProjectClient({
             >
               프로젝트 삭제
             </button>
+            </div>
           </div>
         </div>
       )}

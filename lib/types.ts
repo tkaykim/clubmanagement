@@ -15,6 +15,8 @@ export type ProjectStatus =
 
 export type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
 
+export type ProjectVisibility = "public" | "admin" | "private";
+
 export type ScheduleDateKind = "event" | "practice";
 
 export type VoteStatus = "available" | "unavailable" | "maybe";
@@ -74,6 +76,7 @@ export type Project = {
   poster_url: string | null;
   status: ProjectStatus;
   type: ProjectType;
+  visibility: ProjectVisibility;
   venue: string | null;
   address: string | null;
   fee: number; // negative = participation cost

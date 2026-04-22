@@ -54,7 +54,14 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
       {isAdmin && (
         <>
           <div className="nav-group-title">ADMIN</div>
-          <NavItem href="/manage" icon={FileText} onClick={onNavClick}>프로젝트 관리</NavItem>
+          <NavItem
+            href="/manage"
+            icon={FileText}
+            onClick={onNavClick}
+            exclude={["/manage/settlements", "/manage/members"]}
+          >
+            프로젝트 관리
+          </NavItem>
           <NavItem href="/manage/settlements" icon={DollarSign} onClick={onNavClick}>정산 리포트</NavItem>
           <NavItem href="/manage/members" icon={Users} onClick={onNavClick}>멤버 관리</NavItem>
         </>

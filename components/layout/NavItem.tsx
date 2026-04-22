@@ -11,12 +11,21 @@ interface NavItemProps {
   count?: number;
   children: React.ReactNode;
   onClick?: () => void;
+  /**
+   * 하위 경로지만 이 항목으로 활성화돼서는 안 되는 prefix 목록.
+   * 예: href="/manage" 인 "프로젝트 관리" 는 /manage/members 에서 활성화되면 안 됨.
+   */
+  exclude?: string[];
 }
 
-export function NavItem({ href, icon: Icon, count, children, onClick }: NavItemProps) {
+export function NavItem({ href, icon: Icon, count, children, onClick, exclude }: NavItemProps) {
   const pathname = usePathname();
+  const isExcluded =
+    exclude?.some((p) => pathname === p || pathname.startsWith(p + "/")) ?? false;
   const isActive =
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+    href === "/"
+      ? pathname === "/"
+      : !isExcluded && (pathname === href || pathname.startsWith(href + "/"));
 
   return (
     <Link

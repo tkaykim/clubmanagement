@@ -21,7 +21,14 @@ const PROJECT_STATUSES = [
   { value: "completed", label: "완료" },
 ] as const;
 
+const VISIBILITY_OPTIONS = [
+  { value: "public", label: "전체공개", hint: "활성 멤버 누구나" },
+  { value: "admin", label: "운영진만", hint: "owner · admin" },
+  { value: "private", label: "비공개", hint: "등록자와 owner만" },
+] as const;
+
 type ProjectType = "paid_gig" | "practice" | "audition" | "workshop";
+type Visibility = "public" | "admin" | "private";
 type Kind = "event" | "practice";
 
 type ScheduleDateItem = { date: string; kind: Kind; label: string };
@@ -46,6 +53,7 @@ export function NewProjectForm() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<ProjectType>("paid_gig");
   const [status, setStatus] = useState("recruiting");
+  const [visibility, setVisibility] = useState<Visibility>("public");
   const [description, setDescription] = useState("");
   const [fee, setFee] = useState(0);
   const [venue, setVenue] = useState("");
@@ -161,6 +169,7 @@ export function NewProjectForm() {
           title: title.trim(),
           type,
           status,
+          visibility,
           description: description.trim() || null,
           fee: fee || 0,
           venue: venue.trim() || null,
@@ -223,6 +232,26 @@ export function NewProjectForm() {
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="field">
+                <label>열람권한 <span className="req">*</span></label>
+                <div className="seg full">
+                  {VISIBILITY_OPTIONS.map((v) => (
+                    <button
+                      key={v.value}
+                      type="button"
+                      className={cn(visibility === v.value && "on")}
+                      onClick={() => setVisibility(v.value)}
+                      title={v.hint}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="hint" style={{ fontSize: 11.5, color: "var(--mf)", marginTop: 6 }}>
+                  {VISIBILITY_OPTIONS.find((v) => v.value === visibility)?.hint}
+                </div>
               </div>
 
               <div className="field">
