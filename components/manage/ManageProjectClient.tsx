@@ -6,7 +6,10 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, initials } from "@/lib/utils";
 import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
-import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users } from "lucide-react";
+import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil } from "lucide-react";
+import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
+import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
+import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/components/project/VoteScheduleEditor";
 
 const TABS = [
   { key: "applications", label: "지원자" },
@@ -115,7 +118,9 @@ export function ManageProjectClient({
   const [feeAmount, setFeeAmount] = useState<number>(project.fee ?? 0);
   const [savingPay, setSavingPay] = useState(false);
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
-  const [aggView, setAggView] = useState<"heatmap" | "by-date">("by-date");
+  const [aggView, setAggView] = useState<"timetable" | "by-date" | "heatmap">("timetable");
+  const [poolFilter, setPoolFilter] = useState<"all" | "pending" | "approved">("all");
+  const [editingAppId, setEditingAppId] = useState<string | null>(null);
 
   const toggleExpanded = (appId: string) => {
     setExpandedApp((prev) => (prev === appId ? null : appId));
@@ -187,6 +192,13 @@ export function ManageProjectClient({
   const pendingApps = applications.filter(a => a.status === "pending");
   const approvedApps = applications.filter(a => a.status === "approved");
 
+  // 가용성 분석 풀: rejected 외 전부 / pending 만 / approved 만
+  const analysisPool = applications.filter((a) => {
+    if (poolFilter === "all") return a.status !== "rejected";
+    if (poolFilter === "pending") return a.status === "pending";
+    return a.status === "approved";
+  });
+
   // 열지도 매트릭스: user_id → schedule_date_id → vote
   const votesByUser = (() => {
     const m = new Map<string, Map<string, ScheduleVoteRow>>();
@@ -199,7 +211,7 @@ export function ManageProjectClient({
 
   const availabilitySummary = scheduleDates.map(d => {
     const cnt = { available: 0, partial: 0, adjustable: 0, unavailable: 0, none: 0 };
-    for (const a of approvedApps) {
+    for (const a of analysisPool) {
       if (!a.user_id) { cnt.none++; continue; }
       const v = votesByUser.get(a.user_id)?.get(d.id);
       if (!v) cnt.none++;
@@ -210,6 +222,28 @@ export function ManageProjectClient({
     }
     return { ...d, cnt };
   });
+
+  // 편집 모달용 초기값 계산
+  const editingApp = editingAppId ? applications.find((a) => a.id === editingAppId) ?? null : null;
+  const editingInitialVotes: VotesMap = (() => {
+    const map: VotesMap = {};
+    for (const d of scheduleDates) {
+      map[d.id] = { status: "available" as VoteStatusType, time_slots: [], note: "" };
+    }
+    if (editingApp?.user_id) {
+      const uv = votesByUser.get(editingApp.user_id);
+      if (uv) {
+        for (const [dateId, v] of uv) {
+          map[dateId] = {
+            status: v.status as VoteStatusType,
+            time_slots: v.time_slots,
+            note: v.note ?? "",
+          } satisfies VoteState;
+        }
+      }
+    }
+    return map;
+  })();
 
   const handleStatus = async (appId: string, status: "approved" | "rejected") => {
     setLoading(appId);
@@ -480,38 +514,84 @@ export function ManageProjectClient({
                 일정 날짜가 등록되지 않았어요
               </div>
             </div>
-          ) : approvedApps.length === 0 ? (
+          ) : analysisPool.length === 0 ? (
             <div className="card">
-              <div className="empty">
-                확정된 지원자가 없어요. 지원자 탭에서 승인한 뒤 확인할 수 있습니다.
+              {/* 풀 토글은 보여줘서 다른 필터로 전환 유도 */}
+              <div
+                className="row mb-12 gap-6"
+                style={{ justifyContent: "flex-end", flexWrap: "wrap" }}
+              >
+                <PoolToggle
+                  value={poolFilter}
+                  onChange={setPoolFilter}
+                  counts={{
+                    all: applications.filter((a) => a.status !== "rejected").length,
+                    pending: pendingApps.length,
+                    approved: approvedApps.length,
+                  }}
+                />
               </div>
+              <div className="empty">분석할 지원자가 없어요</div>
             </div>
           ) : (
             <>
-              {/* 뷰 전환 */}
-              <div className="row mb-12 gap-8" style={{ justifyContent: "flex-end" }}>
-                <button
-                  className={cn("btn sm", aggView === "by-date" && "primary")}
-                  onClick={() => setAggView("by-date")}
-                  title="날짜별 누가 언제 되는지 확인"
-                >
-                  <Users size={12} strokeWidth={2} />
-                  날짜별 취합
-                </button>
-                <button
-                  className={cn("btn sm", aggView === "heatmap" && "primary")}
-                  onClick={() => setAggView("heatmap")}
-                  title="멤버 × 날짜 열지도"
-                >
-                  열지도
-                </button>
+              {/* 상단 컨트롤: 풀 필터 + 뷰 전환 */}
+              <div
+                className="row mb-12 gap-8"
+                style={{ justifyContent: "space-between", flexWrap: "wrap" }}
+              >
+                <PoolToggle
+                  value={poolFilter}
+                  onChange={setPoolFilter}
+                  counts={{
+                    all: applications.filter((a) => a.status !== "rejected").length,
+                    pending: pendingApps.length,
+                    approved: approvedApps.length,
+                  }}
+                />
+                <div className="row gap-6">
+                  <button
+                    className={cn("btn sm", aggView === "timetable" && "primary")}
+                    onClick={() => setAggView("timetable")}
+                    title="날짜 × 30분 단위 시간 격자"
+                  >
+                    <CalendarRange size={12} strokeWidth={2} />
+                    타임테이블
+                  </button>
+                  <button
+                    className={cn("btn sm", aggView === "by-date" && "primary")}
+                    onClick={() => setAggView("by-date")}
+                    title="날짜별 누가 언제 되는지 확인"
+                  >
+                    <Users size={12} strokeWidth={2} />
+                    날짜별 취합
+                  </button>
+                  <button
+                    className={cn("btn sm", aggView === "heatmap" && "primary")}
+                    onClick={() => setAggView("heatmap")}
+                    title="멤버 × 날짜 열지도"
+                  >
+                    <Grid3x3 size={12} strokeWidth={2} />
+                    멤버 열지도
+                  </button>
+                </div>
               </div>
+
+              {aggView === "timetable" && (
+                <AvailabilityTimetable
+                  scheduleDates={scheduleDates}
+                  pool={analysisPool}
+                  votes={votes}
+                  onEditMember={(appId) => setEditingAppId(appId)}
+                />
+              )}
 
               {aggView === "by-date" && (
                 <AvailabilityByDate
                   scheduleDates={scheduleDates}
-                  approvedApps={approvedApps}
+                  approvedApps={analysisPool}
                   votesByUser={votesByUser}
+                  onEditMember={(appId) => setEditingAppId(appId)}
                 />
               )}
 
@@ -548,16 +628,32 @@ export function ManageProjectClient({
                     )}
                   </div>
                 ))}
-                {approvedApps.map(a => {
+                {analysisPool.map(a => {
                   const name = a.crew_members?.name ?? a.guest_name ?? "—";
                   const userVotes = a.user_id ? votesByUser.get(a.user_id) : undefined;
+                  const pending = a.status === "pending";
                   return (
                     <div key={`row-${a.id}`} style={{ display: "contents" }}>
                       <div
                         className="heat-name"
-                        style={{ padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}
+                        style={{ padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
                       >
-                        {name}
+                        <span>{name}</span>
+                        {pending && (
+                          <span style={{ fontSize: 9, color: "var(--mf)" }}>(검토중)</span>
+                        )}
+                        {a.user_id && (
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            onClick={() => setEditingAppId(a.id)}
+                            aria-label="가능시간 수정"
+                            title="가능시간 수정"
+                            style={{ padding: 2, marginLeft: "auto" }}
+                          >
+                            <Pencil size={10} strokeWidth={2} />
+                          </button>
+                        )}
                       </div>
                       {scheduleDates.map(d => {
                         const v = userVotes?.get(d.id);
@@ -853,6 +949,50 @@ export function ManageProjectClient({
           </div>
         </div>
       )}
+
+      <AdminVoteEditorModal
+        open={editingApp !== null}
+        projectId={project.id}
+        application={editingApp}
+        scheduleDates={scheduleDates}
+        initialVotes={editingInitialVotes}
+        onClose={() => setEditingAppId(null)}
+      />
+    </div>
+  );
+}
+
+function PoolToggle({
+  value,
+  onChange,
+  counts,
+}: {
+  value: "all" | "pending" | "approved";
+  onChange: (v: "all" | "pending" | "approved") => void;
+  counts: { all: number; pending: number; approved: number };
+}) {
+  const options: Array<{ value: typeof value; label: string; count: number }> = [
+    { value: "all", label: "전체", count: counts.all },
+    { value: "pending", label: "검토중", count: counts.pending },
+    { value: "approved", label: "확정", count: counts.approved },
+  ];
+  return (
+    <div className="seg" role="tablist" aria-label="분석 대상 지원자 풀">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          aria-selected={value === o.value}
+          className={cn(value === o.value && "on")}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}{" "}
+          <span className="mono text-xs" style={{ opacity: 0.6 }}>
+            {o.count}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -890,11 +1030,14 @@ interface AvailabilityByDateProps {
   scheduleDates: ScheduleDate[];
   approvedApps: Application[];
   votesByUser: Map<string, Map<string, ScheduleVoteRow>>;
+  onEditMember?: (appId: string) => void;
 }
 
 type MemberStat = {
   name: string;
   userId: string | null;
+  appId: string;
+  appStatus: string;
   status: "available" | "partial" | "adjustable" | "unavailable" | "none";
   timeSlots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
   note: string | null;
@@ -972,7 +1115,7 @@ function analyzePartialOverlap(members: MemberStat[]) {
   return ranges;
 }
 
-function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser }: AvailabilityByDateProps) {
+function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMember }: AvailabilityByDateProps) {
   const perDate = useMemo(() => {
     return scheduleDates.map((d) => {
       const members: MemberStat[] = approvedApps.map((a) => {
@@ -981,6 +1124,8 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser }: Availa
         return {
           name: a.crew_members?.name ?? a.guest_name ?? "—",
           userId: a.user_id,
+          appId: a.id,
+          appStatus: a.status,
           status: v ? s : "none",
           timeSlots: v?.time_slots ?? [],
           note: v?.note ?? null,
@@ -1069,6 +1214,7 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser }: Availa
                   color="#22c55e"
                   members={grouped.available}
                   emptyText="없음"
+                  onEditMember={onEditMember}
                 />
                 <MemberGroupBlock
                   title="부분가능"
@@ -1076,6 +1222,7 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser }: Availa
                   members={grouped.partial}
                   emptyText="없음"
                   showSlots
+                  onEditMember={onEditMember}
                 />
                 <MemberGroupBlock
                   title="조정가능"
@@ -1083,12 +1230,14 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser }: Availa
                   members={grouped.adjustable}
                   emptyText="없음"
                   showNote
+                  onEditMember={onEditMember}
                 />
                 <MemberGroupBlock
                   title="불가"
                   color="#94a3b8"
                   members={grouped.unavailable}
                   emptyText="없음"
+                  onEditMember={onEditMember}
                 />
               </div>
 
@@ -1139,6 +1288,7 @@ function MemberGroupBlock({
   emptyText,
   showSlots,
   showNote,
+  onEditMember,
 }: {
   title: string;
   color: string;
@@ -1146,6 +1296,7 @@ function MemberGroupBlock({
   emptyText: string;
   showSlots?: boolean;
   showNote?: boolean;
+  onEditMember?: (appId: string) => void;
 }) {
   return (
     <div
@@ -1166,8 +1317,25 @@ function MemberGroupBlock({
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 4 }}>
           {members.map((m, i) => (
-            <li key={`${m.userId ?? m.name}-${i}`} style={{ fontSize: 12 }}>
-              <div style={{ fontWeight: 500 }}>{m.name}</div>
+            <li key={`${m.appId ?? m.name}-${i}`} style={{ fontSize: 12 }}>
+              <div className="row" style={{ alignItems: "center", gap: 6 }}>
+                <span style={{ fontWeight: 500 }}>{m.name}</span>
+                {m.appStatus === "pending" && (
+                  <span style={{ fontSize: 9, color: "var(--mf)" }}>(검토중)</span>
+                )}
+                {onEditMember && m.userId && (
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => onEditMember(m.appId)}
+                    aria-label="가능시간 수정"
+                    title="가능시간 수정"
+                    style={{ padding: 2, marginLeft: "auto" }}
+                  >
+                    <Pencil size={10} strokeWidth={2} />
+                  </button>
+                )}
+              </div>
               {showSlots && m.timeSlots.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 2 }}>
                   {m.timeSlots.map((t, j) => {

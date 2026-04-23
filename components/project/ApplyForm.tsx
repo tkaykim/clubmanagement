@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   VoteScheduleEditor,
@@ -19,6 +19,12 @@ interface ScheduleDate {
   sort_order: number;
 }
 
+export interface ApplyFormInitial {
+  motivation: string;
+  fee_agreement: "yes" | "partial";
+  answers_note: string;
+}
+
 interface ApplyFormProps {
   projectId: string;
   projectTitle: string;
@@ -26,6 +32,9 @@ interface ApplyFormProps {
   scheduleDates: ScheduleDate[];
   defaultName: string;
   defaultPhone: string;
+  mode?: "create" | "edit";
+  initialApplication?: ApplyFormInitial;
+  initialVotes?: VotesMap;
 }
 
 export function ApplyForm({
@@ -34,15 +43,23 @@ export function ApplyForm({
   scheduleDates,
   defaultName,
   defaultPhone,
+  mode = "create",
+  initialApplication,
+  initialVotes,
 }: ApplyFormProps) {
   const router = useRouter();
+  const isEdit = mode === "edit";
 
-  const [motivation, setMotivation] = useState("");
-  const [feeAgreement, setFeeAgreement] = useState<"yes" | "partial">("yes");
-  const [answersNote, setAnswersNote] = useState("");
+  const [motivation, setMotivation] = useState(initialApplication?.motivation ?? "");
+  const [feeAgreement, setFeeAgreement] = useState<"yes" | "partial">(
+    initialApplication?.fee_agreement ?? "yes"
+  );
+  const [answersNote, setAnswersNote] = useState(initialApplication?.answers_note ?? "");
   const [loading, setLoading] = useState(false);
 
-  const [votes, setVotes] = useState<VotesMap>(() => initialVotesFromSchedule(scheduleDates));
+  const [votes, setVotes] = useState<VotesMap>(
+    () => initialVotes ?? initialVotesFromSchedule(scheduleDates)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +76,7 @@ export function ApplyForm({
     setLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/apply`, {
-        method: "POST",
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           motivation,
@@ -72,12 +89,13 @@ export function ApplyForm({
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        toast.error(json.error ?? "지원에 실패했습니다");
+        toast.error(json.error ?? (isEdit ? "수정에 실패했습니다" : "지원에 실패했습니다"));
         return;
       }
 
-      toast.success("지원이 접수되었습니다");
+      toast.success(isEdit ? "지원 내용을 수정했습니다" : "지원이 접수되었습니다");
       router.push(`/projects/${projectId}`);
+      router.refresh();
     } catch {
       toast.error("네트워크 오류가 발생했습니다");
     } finally {
@@ -87,6 +105,28 @@ export function ApplyForm({
 
   return (
     <form onSubmit={handleSubmit}>
+      {isEdit && (
+        <div
+          className="row gap-8"
+          style={{
+            alignItems: "flex-start",
+            padding: "10px 12px",
+            marginBottom: 16,
+            background: "var(--accent-soft, #dbeafe)",
+            color: "var(--accent, #1d4ed8)",
+            border: "1px solid var(--accent, #1d4ed8)",
+            borderRadius: 8,
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          <Info size={14} strokeWidth={2} style={{ marginTop: 2, flexShrink: 0 }} />
+          <div>
+            이미 지원한 프로젝트입니다. 내용을 수정하고 저장하면 기존 지원서가 갱신됩니다.
+          </div>
+        </div>
+      )}
+
       <div className="field">
         <label>이름</label>
         <input
@@ -177,7 +217,9 @@ export function ApplyForm({
         </button>
         <button type="submit" className="btn primary" disabled={loading}>
           {loading && <Loader2 size={14} className="animate-spin" />}
-          {loading ? "제출 중…" : "지원서 제출"}
+          {loading
+            ? (isEdit ? "저장 중…" : "제출 중…")
+            : (isEdit ? "변경사항 저장" : "지원서 제출")}
         </button>
       </div>
     </form>
