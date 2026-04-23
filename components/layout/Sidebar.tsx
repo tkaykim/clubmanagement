@@ -9,6 +9,8 @@ import {
   FileText,
   DollarSign,
   Bug,
+  ImageIcon,
+  Inbox,
 } from "lucide-react";
 import { NavItem } from "./NavItem";
 import { initials, memberKindOf } from "@/lib/utils";
@@ -29,6 +31,7 @@ interface SidebarProps {
     projects?: number;
     unreadAnn?: number;
     myPending?: number;
+    newInquiry?: number;
   };
   className?: string;
   onNavClick?: () => void;
@@ -68,10 +71,12 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
             href="/manage"
             icon={FileText}
             onClick={onNavClick}
-            exclude={["/manage/settlements", "/manage/members", "/manage/bugs"]}
+            exclude={["/manage/settlements", "/manage/members", "/manage/bugs", "/manage/portfolio", "/manage/inquiries"]}
           >
             프로젝트 관리
           </NavItem>
+          <NavItem href="/manage/portfolio" icon={ImageIcon} onClick={onNavClick}>포트폴리오 관리</NavItem>
+          <NavItem href="/manage/inquiries" icon={Inbox} count={counts.newInquiry} onClick={onNavClick}>섭외 문의</NavItem>
           <NavItem href="/manage/settlements" icon={DollarSign} onClick={onNavClick}>정산 리포트</NavItem>
           <NavItem href="/manage/members" icon={Users} onClick={onNavClick}>멤버 관리</NavItem>
           <NavItem href="/manage/bugs" icon={Bug} onClick={onNavClick}>버그 리포트</NavItem>

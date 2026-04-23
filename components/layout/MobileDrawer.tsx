@@ -15,6 +15,7 @@ interface MobileDrawerProps {
     projects?: number;
     unreadAnn?: number;
     myPending?: number;
+    newInquiry?: number;
   };
 }
 

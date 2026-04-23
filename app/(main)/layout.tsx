@@ -20,7 +20,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   }
 
   // crew_member + counts 5개 쿼리 전부 병렬 실행 — 모바일 탭 전환 레이턴시 최소화
-  const [memberRes, projResult, annResult, pendingResult] = await Promise.all([
+  const [memberRes, projResult, annResult, pendingResult, inquiryResult] = await Promise.all([
     supabase
       .from("crew_members")
       .select("id, user_id, name, stage_name, role, contract_type, is_active")
@@ -39,6 +39,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("status", "pending"),
+    supabase
+      .from("portfolio_inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new"),
   ]);
 
   const me = memberRes.data as CrewMember | null;
@@ -49,13 +53,14 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const projectCount = projResult.count ?? 0;
   const unreadAnn = annResult.count ?? 0;
   const myPending = pendingResult.count ?? 0;
+  const newInquiry = inquiryResult.count ?? 0;
 
   return (
     <ActiveGuard initialStatus={initialStatus}>
       <AppShell
         me={me}
         isAdmin={isAdmin}
-        counts={{ projects: projectCount, unreadAnn, myPending }}
+        counts={{ projects: projectCount, unreadAnn, myPending, newInquiry }}
       >
         {children}
       </AppShell>

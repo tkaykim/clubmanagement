@@ -3,13 +3,11 @@ import { SectionEditor } from "@/components/portfolio/admin/SectionEditor";
 import { MediaManager } from "@/components/portfolio/admin/MediaManager";
 import { CareerManager } from "@/components/portfolio/admin/CareerManager";
 import { MemberPublicEditor } from "@/components/portfolio/admin/MemberPublicEditor";
-import { InquiryInbox } from "@/components/portfolio/admin/InquiryInbox";
 import { PortfolioAdminTabs } from "@/components/portfolio/admin/PortfolioAdminTabs";
 import type {
   PortfolioSectionKey,
   PortfolioMediaWithMembers,
   PortfolioCareerWithMedia,
-  PortfolioInquiry,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -39,12 +37,9 @@ export default async function ManagePortfolioPage() {
     is_active: boolean;
     joined_month: string | null;
   }> = [];
-  let inquiries: PortfolioInquiry[] = [];
-  let inquiryTotal = 0;
-  let newCount = 0;
 
   try {
-    const [sectionsRes, mediaRes, careersRes, membersRes, inquiriesRes] = await Promise.all([
+    const [sectionsRes, mediaRes, careersRes, membersRes] = await Promise.all([
       supabase.from("portfolio_sections").select("key, value"),
       supabase
         .from("portfolio_media")
@@ -66,11 +61,6 @@ export default async function ManagePortfolioPage() {
         .select("id, name, stage_name, position, profile_image_url, is_public, public_bio, specialties, is_active, joined_month")
         .eq("is_active", true)
         .order("name"),
-      supabase
-        .from("portfolio_inquiries")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50),
     ]);
 
     for (const s of sectionsRes.data ?? []) {
@@ -88,9 +78,6 @@ export default async function ManagePortfolioPage() {
 
     careers = (careersRes.data ?? []) as unknown as PortfolioCareerWithMedia[];
     members = (membersRes.data ?? []) as typeof members;
-    inquiries = (inquiriesRes.data ?? []) as PortfolioInquiry[];
-    inquiryTotal = inquiries.length;
-    newCount = inquiries.filter((i) => i.status === "new").length;
   } catch {
     // silently fail, use defaults
   }
@@ -110,7 +97,6 @@ export default async function ManagePortfolioPage() {
       </div>
 
       <PortfolioAdminTabs
-        newCount={newCount}
         sectionEditor={
           <div className="card">
             <div className="card-head"><h3>소개 텍스트</h3></div>
@@ -134,14 +120,6 @@ export default async function ManagePortfolioPage() {
             <div className="card-head"><h3>멤버 공개 프로필</h3></div>
             <div style={{ padding: 20 }}>
               <MemberPublicEditor members={members} />
-            </div>
-          </div>
-        }
-        inquiryInbox={
-          <div className="card">
-            <div className="card-head"><h3>섭외 문의함</h3></div>
-            <div style={{ padding: 20 }}>
-              <InquiryInbox initialInquiries={inquiries} initialTotal={inquiryTotal} />
             </div>
           </div>
         }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Folder, Plus, Users, DollarSign, ChevronRight, ImageIcon, Inbox } from "lucide-react";
+import { Folder, Plus, Users, DollarSign, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,7 @@ export default async function ManagePage() {
     id: string; title: string; status: string; type: string;
     start_date: string | null; fee: number;
   }> = [];
-  let appCounts: Record<string, number> = {};
-  let newInquiryCount = 0;
+  const appCounts: Record<string, number> = {};
 
   try {
     const { data } = await supabase
@@ -31,15 +30,6 @@ export default async function ManagePage() {
       for (const a of apps ?? []) {
         appCounts[a.project_id] = (appCounts[a.project_id] ?? 0) + 1;
       }
-    }
-    try {
-      const { count } = await supabase
-        .from("portfolio_inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "new");
-      newInquiryCount = count ?? 0;
-    } catch {
-      // ignore
     }
   } catch {
     // 빈 상태
@@ -66,26 +56,6 @@ export default async function ManagePage() {
             새 프로젝트
           </Link>
         </div>
-      </div>
-
-      {/* 포트폴리오 빠른 링크 */}
-      <div className="os-grid grid-2" style={{ marginBottom: 20 }}>
-        <Link href="/manage/portfolio" className="card" style={{ display: "flex", alignItems: "center", gap: 12, padding: 16, textDecoration: "none", color: "inherit" }}>
-          <ImageIcon size={20} strokeWidth={1.5} style={{ color: "var(--mf)", flexShrink: 0 }} />
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>포트폴리오 관리</div>
-            <div style={{ fontSize: 12, color: "var(--mf)" }}>공개 페이지 콘텐츠 편집</div>
-          </div>
-        </Link>
-        <Link href="/manage/portfolio?tab=inquiries" className="card" style={{ display: "flex", alignItems: "center", gap: 12, padding: 16, textDecoration: "none", color: "inherit" }}>
-          <Inbox size={20} strokeWidth={1.5} style={{ color: newInquiryCount > 0 ? "var(--info)" : "var(--mf)", flexShrink: 0 }} />
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>섭외 문의함</div>
-            <div style={{ fontSize: 12, color: newInquiryCount > 0 ? "var(--info)" : "var(--mf)" }}>
-              {newInquiryCount > 0 ? `신규 ${newInquiryCount}건` : "새 문의 없음"}
-            </div>
-          </div>
-        </Link>
       </div>
 
       {projects.length === 0 ? (

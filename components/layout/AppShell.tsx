@@ -19,6 +19,7 @@ interface AppShellProps {
     projects?: number;
     unreadAnn?: number;
     myPending?: number;
+    newInquiry?: number;
   };
 }
 
