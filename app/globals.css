@@ -60,19 +60,21 @@
   --ring: #0A0A0B;
   --radius: 0.5rem;
 
-  /* ── Portfolio 전용 토큰 ── */
-  --pf-bg:              #F8F4EB;  /* 아이보리 메인 */
-  --pf-bg-alt:          #F1EADA;  /* 약간 깊은 아이보리 (교차 섹션) */
-  --pf-bg-card:         #FFFDF7;  /* 카드/영상 배경(거의 흰색이지만 따뜻) */
-  --pf-border:          #E7DFCB;  /* 아이보리톤 보더 */
-  --pf-border-2:        #D8CFB8;
-  --pf-ink:             #1B1714;  /* 진한 흙빛 — 본문 */
-  --pf-ink-soft:        #4A4138;
-  --pf-mf:              #8A7F6E;  /* 미드 뮤티드 */
-  --pf-accent:          #B84B3A;  /* 주황 테라코타 — 한국 전통 포인트 */
-  --pf-hero-bg:         #14100D;  /* 검정 대신 따뜻한 다크 */
-  --pf-hero-fg:         #FBF6EA;  /* 순백 대신 크림 */
-  --pf-hero-muted:      rgba(251,246,234,0.58);
+  /* ── Portfolio 전용 토큰 (다크 모노크롬, 브랜드 PDF 기반) ── */
+  --pf-bg:              #0B0B0D;  /* 근검정 — 메인 */
+  --pf-bg-alt:          #121215;  /* 살짝 올린 톤 (교차 밴드) */
+  --pf-bg-card:         #17171B;  /* 카드 배경 */
+  --pf-bg-elev:         #1D1D22;  /* 호버/강조 */
+  --pf-border:          rgba(255,255,255,0.10);
+  --pf-border-2:        rgba(255,255,255,0.18);
+  --pf-ink:             #F5F5F7;  /* 본문 텍스트 (화이트) */
+  --pf-ink-soft:        #C7C7CC;
+  --pf-mf:              #86868B;  /* 뮤티드 */
+  --pf-mf-2:            #5B5B60;
+  --pf-accent:          #F5F5F7;  /* 모노톤 악센트 (순백) */
+  --pf-hero-bg:         #0B0B0D;
+  --pf-hero-fg:         #FFFFFF;
+  --pf-hero-muted:      rgba(255,255,255,0.62);
   --pf-section-gap:     56px;
   --pf-section-gap-md:  40px;
   --pf-section-gap-sm:  32px;
