@@ -262,3 +262,180 @@ export const updateBugReportSchema = z.object({
 });
 
 export type UpdateBugReportInput = z.infer<typeof updateBugReportSchema>;
+
+// ============================================================
+// Portfolio schemas
+// ============================================================
+
+export const portfolioSectionUpdateSchema = z.object({
+  key: z.enum([
+    "hero_title",
+    "hero_subtitle",
+    "about_team",
+    "genres",
+    "contact_email",
+    "contact_phone",
+  ]),
+  value: z.string().max(2000, "2000자 이하로 입력해주세요"),
+});
+
+export type PortfolioSectionUpdateInput = z.infer<typeof portfolioSectionUpdateSchema>;
+
+export const portfolioMediaInputSchema = z.object({
+  kind: z.enum([
+    "hero_image",
+    "hero_video",
+    "photo",
+    "performance",
+    "cover",
+    "other_video",
+  ]),
+  title: z.string().max(200, "제목은 200자 이하로 입력해주세요").optional().nullable(),
+  description: z.string().max(2000, "설명은 2000자 이하로 입력해주세요").optional().nullable(),
+  image_url: z.string().url("올바른 URL을 입력해주세요").optional().nullable(),
+  // YouTube URL은 기본 .url() 검증 후 route handler에서 extractYouTubeId 로 검증
+  youtube_url: z.string().url("올바른 YouTube URL을 입력해주세요").optional().nullable(),
+  thumbnail_url: z.string().url("올바른 URL을 입력해주세요").optional().nullable(),
+  sort_order: z.number().int().min(0).default(0),
+  is_featured: z.boolean().default(false),
+  event_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다")
+    .optional()
+    .nullable(),
+  venue: z.string().max(200, "장소는 200자 이하로 입력해주세요").optional().nullable(),
+  member_ids: z.array(z.string().uuid()).default([]),
+});
+
+export type PortfolioMediaInput = z.infer<typeof portfolioMediaInputSchema>;
+
+export const portfolioCareerInputSchema = z.object({
+  title: z
+    .string()
+    .min(1, "경력 제목을 입력해주세요")
+    .max(300, "경력 제목은 300자 이하로 입력해주세요"),
+  category: z
+    .enum(["performance", "broadcast", "commercial", "competition", "workshop"])
+    .optional()
+    .nullable(),
+  event_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다")
+    .optional()
+    .nullable(),
+  location: z.string().max(200, "장소는 200자 이하로 입력해주세요").optional().nullable(),
+  description: z.string().max(2000, "설명은 2000자 이하로 입력해주세요").optional().nullable(),
+  link_url: z.string().url("올바른 URL을 입력해주세요").optional().nullable(),
+  media_id: z.string().uuid().optional().nullable(),
+  sort_order: z.number().int().min(0).default(0),
+});
+
+export type PortfolioCareerInput = z.infer<typeof portfolioCareerInputSchema>;
+
+export const portfolioInquiryInputSchema = z
+  .object({
+    target_type: z.enum(["team", "member"]),
+    target_member_id: z.string().uuid().optional().nullable(),
+    reference_media_id: z.string().uuid().optional().nullable(),
+    inquiry_type: z.enum([
+      "performance",
+      "broadcast",
+      "commercial",
+      "workshop",
+      "other",
+    ]),
+    requester_name: z
+      .string()
+      .min(1, "이름을 입력해주세요")
+      .max(80, "이름은 80자 이하로 입력해주세요"),
+    requester_organization: z
+      .string()
+      .max(200, "소속은 200자 이하로 입력해주세요")
+      .optional()
+      .nullable(),
+    requester_email: z.string().email("올바른 이메일 주소를 입력해주세요"),
+    requester_phone: z
+      .string()
+      .max(40, "연락처는 40자 이하로 입력해주세요")
+      .optional()
+      .nullable(),
+    region: z.string().max(200, "지역은 200자 이하로 입력해주세요").optional().nullable(),
+    event_date_start: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다")
+      .optional()
+      .nullable(),
+    event_date_end: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다")
+      .optional()
+      .nullable(),
+    event_time: z
+      .string()
+      .max(100, "공연 시간은 100자 이하로 입력해주세요")
+      .optional()
+      .nullable(),
+    budget_type: z.enum(["fixed", "range", "tbd"]).default("tbd"),
+    budget_amount: z.number().int().min(0).optional().nullable(),
+    budget_min: z.number().int().min(0).optional().nullable(),
+    budget_max: z.number().int().min(0).optional().nullable(),
+    message: z
+      .string()
+      .min(10, "문의 내용을 10자 이상 입력해주세요")
+      .max(4000, "문의 내용은 4000자 이하로 입력해주세요"),
+  })
+  .refine(
+    (d) => d.target_type === "team" || !!d.target_member_id,
+    {
+      message: "개인 섭외 시 멤버를 선택해주세요",
+      path: ["target_member_id"],
+    }
+  )
+  .refine(
+    (d) => {
+      if (d.event_date_start && d.event_date_end) {
+        return d.event_date_start <= d.event_date_end;
+      }
+      return true;
+    },
+    {
+      message: "종료일은 시작일보다 같거나 이후여야 합니다",
+      path: ["event_date_end"],
+    }
+  )
+  .refine(
+    (d) => {
+      if (d.budget_type === "range") {
+        if (d.budget_min != null && d.budget_max != null) {
+          return d.budget_min <= d.budget_max;
+        }
+      }
+      return true;
+    },
+    {
+      message: "최대 예산은 최소 예산보다 같거나 커야 합니다",
+      path: ["budget_max"],
+    }
+  );
+
+export type PortfolioInquiryInput = z.infer<typeof portfolioInquiryInputSchema>;
+
+/** 관리자 문의 상태 업데이트 */
+export const portfolioInquiryAdminUpdateSchema = z.object({
+  status: z.enum(["new", "in_review", "contacted", "closed"]).optional(),
+  admin_memo: z.string().max(2000).optional().nullable(),
+});
+
+export type PortfolioInquiryAdminUpdateInput = z.infer<
+  typeof portfolioInquiryAdminUpdateSchema
+>;
+
+/** 멤버 공개 프로필 업데이트 (owner/admin 또는 본인) */
+export const memberPublicProfileSchema = z.object({
+  profile_image_url: z.string().url("올바른 URL을 입력해주세요").optional().nullable(),
+  is_public: z.boolean().optional(),
+  public_bio: z.string().max(500, "소개는 500자 이하로 입력해주세요").optional().nullable(),
+  specialties: z.array(z.string().max(50)).max(10).optional().nullable(),
+});
+
+export type MemberPublicProfileInput = z.infer<typeof memberPublicProfileSchema>;

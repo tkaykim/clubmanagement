@@ -15,9 +15,9 @@
 - **Testing**: Playwright (E2E)
 
 ## Current Phase
-> **Phase**: 4-QA-PASSED (OneShot Crew 재구성 v1)
-> **Last Agent**: backend (QA 지적사항 fix)
-> **Status**: Architect → Designer + Backend → Frontend → QA → Backend-fix 완료. `tsc --noEmit` + `npm run build` 통과. 수동 apply 필요: `supabase/migrations/003_active_guard_rls.sql`.
+> **Phase**: 2-BACKEND COMPLETE (Portfolio + Inquiry v1)
+> **Last Agent**: backend (portfolio API 라우트 구현, tsc+build 통과)
+> **Status**: Portfolio API 라우트 10개 파일(18 핸들러) 구현 완료. `tsc --noEmit` + `npm run build` 통과. DB 마이그레이션 수동 apply 필요: `supabase/migrations/014_portfolio.sql` → Supabase Studio SQL Editor. 다음: frontend 착수.
 
 ## Conventions
 

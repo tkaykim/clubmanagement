@@ -294,3 +294,187 @@ export type CalendarEvent = {
 };
 
 export type CalendarDateMap = Record<string, CalendarEvent[]>; // keyed by YYYY-MM-DD
+
+// ============================================================
+// Portfolio domain types
+// ============================================================
+
+export type PortfolioSectionKey =
+  | "hero_title"
+  | "hero_subtitle"
+  | "about_team"
+  | "genres"
+  | "contact_email"
+  | "contact_phone";
+
+export type PortfolioMediaKind =
+  | "hero_image"
+  | "hero_video"
+  | "photo"
+  | "performance"
+  | "cover"
+  | "other_video";
+
+export type PortfolioCareerCategory =
+  | "performance"
+  | "broadcast"
+  | "commercial"
+  | "competition"
+  | "workshop";
+
+export type PortfolioInquiryType =
+  | "performance"
+  | "broadcast"
+  | "commercial"
+  | "workshop"
+  | "other";
+
+export type PortfolioInquiryTargetType = "team" | "member";
+
+export type PortfolioInquiryBudgetType = "fixed" | "range" | "tbd";
+
+export type PortfolioInquiryStatus = "new" | "in_review" | "contacted" | "closed";
+
+// ============================================================
+// Portfolio DB Row types (1:1 with table columns)
+// ============================================================
+
+export type PortfolioSection = {
+  id: string;
+  key: PortfolioSectionKey;
+  value: string;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type PortfolioMedia = {
+  id: string;
+  kind: PortfolioMediaKind;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  youtube_url: string | null;
+  thumbnail_url: string | null;
+  sort_order: number;
+  is_featured: boolean;
+  event_date: string | null; // YYYY-MM-DD
+  venue: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PortfolioMediaMember = {
+  media_id: string;
+  crew_member_id: string;
+  sort_order: number;
+};
+
+export type PortfolioCareer = {
+  id: string;
+  title: string;
+  category: PortfolioCareerCategory | null;
+  event_date: string | null; // YYYY-MM-DD
+  location: string | null;
+  description: string | null;
+  link_url: string | null;
+  media_id: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PortfolioInquiry = {
+  id: string;
+  target_type: PortfolioInquiryTargetType;
+  target_member_id: string | null;
+  reference_media_id: string | null;
+  inquiry_type: PortfolioInquiryType;
+  requester_name: string;
+  requester_organization: string | null;
+  requester_email: string;
+  requester_phone: string | null;
+  region: string | null;
+  event_date_start: string | null; // YYYY-MM-DD
+  event_date_end: string | null;   // YYYY-MM-DD
+  event_time: string | null;
+  budget_type: PortfolioInquiryBudgetType;
+  budget_amount: number | null;
+  budget_min: number | null;
+  budget_max: number | null;
+  message: string;
+  status: PortfolioInquiryStatus;
+  admin_memo: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 공개 포트폴리오 페이지에서 노출할 멤버 필드만 포함.
+ * crew_members 테이블의 민감 컬럼(email, phone)은 제외.
+ * public_crew_members_view 뷰 또는 API select 제한과 일치.
+ */
+export type PublicCrewMember = {
+  id: string;
+  stage_name: string | null;
+  name: string;
+  position: string | null;
+  profile_image_url: string | null;
+  public_bio: string | null;
+  specialties: string[] | null;
+  is_public: boolean;
+  is_active: boolean;
+  joined_month: string | null; // YYYY-MM
+};
+
+// ============================================================
+// Portfolio composite / joined types
+// ============================================================
+
+/** 미디어 + 참여 멤버 목록 (공개 페이지 렌더용) */
+export type PortfolioMediaWithMembers = PortfolioMedia & {
+  members: Pick<PublicCrewMember, "id" | "stage_name" | "name" | "profile_image_url">[];
+};
+
+/** 경력 + 연관 미디어 (타임라인 렌더용) */
+export type PortfolioCareerWithMedia = PortfolioCareer & {
+  media: Pick<PortfolioMedia, "id" | "title" | "thumbnail_url" | "youtube_url"> | null;
+};
+
+// ============================================================
+// Portfolio API DTO types
+// ============================================================
+
+/** GET /api/portfolio/public 응답 */
+export type PortfolioPublicData = {
+  sections: Record<PortfolioSectionKey, string>;
+  media: PortfolioMediaWithMembers[];
+  careers: PortfolioCareerWithMedia[];
+  members: PublicCrewMember[];
+};
+
+/** PATCH /api/portfolio/sections 요청 body 요소 */
+export type PortfolioSectionUpsert = {
+  key: PortfolioSectionKey;
+  value: string;
+};
+
+/** POST /api/portfolio/media/reorder 요청 body */
+export type MediaReorderItem = {
+  id: string;
+  sort_order: number;
+};
+
+/** POST /api/portfolio/upload-url 요청 body */
+export type UploadUrlRequest = {
+  kind: "hero" | "photos" | "thumbnails" | "members";
+  ext: string;
+};
+
+/** POST /api/portfolio/upload-url 응답 */
+export type UploadUrlResponse = {
+  signedUrl: string;
+  path: string;
+  publicUrl: string;
+};
