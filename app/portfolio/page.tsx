@@ -113,7 +113,7 @@ export default async function PortfolioPage() {
         mediaMap={mediaMap}
       />
 
-      <AboutSection aboutText={aboutText} genres={genres} />
+      <AboutSection aboutText={aboutText} genres={genres} members={members} />
 
       {featuredVideos.length > 0 && (
         <FeaturedVideoSection items={featuredVideos} />

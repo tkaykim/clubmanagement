@@ -81,7 +81,7 @@ export default async function PortfolioLayout({ children }: { children: React.Re
   }
 
   return (
-    <>
+    <div className="pf-shell">
       <PublicHeader
         contactEmail={contactEmail}
         members={members}
@@ -94,6 +94,6 @@ export default async function PortfolioLayout({ children }: { children: React.Re
         members={members}
         mediaMap={mediaMap}
       />
-    </>
+    </div>
   );
 }

@@ -60,11 +60,15 @@ export function OtherVideoTabs({ coverItems, otherItems, members, mediaMap }: Ot
 
   return (
     <>
-      <section id="cover-video" style={{ background: "var(--muted)" }}>
+      <section id="cover-video" className="pf-section-band alt">
         <div className="pf-section">
-          <h2 className="pf-section-title">영상</h2>
+          <div className="pf-section-head">
+            <span className="pf-section-num">04 / COVER & OTHER</span>
+            <h2 className="pf-section-title">영상</h2>
+            <span className="pf-section-kicker">{coverItems.length + otherItems.length} clips</span>
+          </div>
 
-          <div className="tabs" style={{ marginBottom: 24 }}>
+          <div className="tabs" style={{ marginBottom: 20 }}>
             <button
               className={`tab ${activeTab === "cover" ? "on" : ""}`}
               onClick={() => setActiveTab("cover")}

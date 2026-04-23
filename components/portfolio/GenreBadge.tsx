@@ -15,11 +15,11 @@ export function GenreBadge({ genre, size = "default" }: GenreBadgeProps) {
         gap: 6,
         fontSize,
         padding,
-        border: "1px solid var(--border-2)",
+        border: "1px solid var(--pf-border)",
         borderRadius: 999,
         fontWeight: 500,
-        background: "#fff",
-        color: "var(--fg)",
+        background: "var(--pf-bg-card)",
+        color: "var(--pf-ink)",
       }}
     >
       {genre.trim()}

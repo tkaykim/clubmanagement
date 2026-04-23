@@ -8,9 +8,13 @@ interface FeaturedVideoSectionProps {
 
 export function FeaturedVideoSection({ items }: FeaturedVideoSectionProps) {
   return (
-    <section id="featured-video" style={{ background: "var(--muted)" }}>
+    <section id="featured-video" className="pf-section-band alt">
       <div className="pf-section">
-        <h2 className="pf-section-title">대표 영상</h2>
+        <div className="pf-section-head">
+          <span className="pf-section-num">02 / FEATURED</span>
+          <h2 className="pf-section-title">대표 영상</h2>
+          <span className="pf-section-kicker">Signature</span>
+        </div>
 
         {items.length === 0 ? (
           <div className="empty">

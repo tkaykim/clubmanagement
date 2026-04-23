@@ -16,6 +16,19 @@ interface HeroSectionProps {
   mediaMap: Record<string, PortfolioMediaWithMembers>;
 }
 
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--pf-hero-fg)", letterSpacing: "-0.01em" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export function HeroSection({ title, subtitle, heroMedia, members, mediaMap }: HeroSectionProps) {
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -82,6 +95,21 @@ export function HeroSection({ title, subtitle, heroMedia, members, mediaMap }: H
               >
                 공연 영상 보기 ↓
               </a>
+            </div>
+
+            <div
+              style={{
+                marginTop: 40,
+                paddingTop: 24,
+                borderTop: "1px solid rgba(255,255,255,0.14)",
+                display: "flex",
+                gap: 40,
+                flexWrap: "wrap",
+              }}
+            >
+              <HeroStat label="TOTAL MEMBERS" value="50+" />
+              <HeroStat label="ACTIVE" value={`${members.length || 16}`} />
+              <HeroStat label="GENRES" value="5" />
             </div>
           </div>
 

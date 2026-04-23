@@ -61,12 +61,21 @@
   --radius: 0.5rem;
 
   /* ── Portfolio 전용 토큰 ── */
-  --pf-hero-bg:         #0A0A0B;
-  --pf-hero-fg:         #FFFFFF;
-  --pf-hero-muted:      rgba(255,255,255,0.55);
-  --pf-section-gap:     96px;
-  --pf-section-gap-md:  64px;
-  --pf-section-gap-sm:  48px;
+  --pf-bg:              #F8F4EB;  /* 아이보리 메인 */
+  --pf-bg-alt:          #F1EADA;  /* 약간 깊은 아이보리 (교차 섹션) */
+  --pf-bg-card:         #FFFDF7;  /* 카드/영상 배경(거의 흰색이지만 따뜻) */
+  --pf-border:          #E7DFCB;  /* 아이보리톤 보더 */
+  --pf-border-2:        #D8CFB8;
+  --pf-ink:             #1B1714;  /* 진한 흙빛 — 본문 */
+  --pf-ink-soft:        #4A4138;
+  --pf-mf:              #8A7F6E;  /* 미드 뮤티드 */
+  --pf-accent:          #B84B3A;  /* 주황 테라코타 — 한국 전통 포인트 */
+  --pf-hero-bg:         #14100D;  /* 검정 대신 따뜻한 다크 */
+  --pf-hero-fg:         #FBF6EA;  /* 순백 대신 크림 */
+  --pf-hero-muted:      rgba(251,246,234,0.58);
+  --pf-section-gap:     56px;
+  --pf-section-gap-md:  40px;
+  --pf-section-gap-sm:  32px;
   --pf-max-w:           1200px;
   --pf-max-w-narrow:     840px;
   --career-performance-bg:  #EFF6FF;
@@ -967,6 +976,21 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .pf-header-email { display: none; }
 }
 
+/* 포트폴리오 전용 Shell — 아이보리 배경을 portfolio 페이지에만 적용 */
+.pf-shell { background: var(--pf-bg); color: var(--pf-ink); }
+.pf-shell .pf-section-band { background: var(--pf-bg); }
+.pf-shell .pf-section-band.alt { background: var(--pf-bg-alt); }
+
+/* About 레이아웃 */
+.pf-about-grid { grid-template-columns: 1.1fr 1fr; }
+@media (max-width: 900px) {
+  .pf-about-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+}
+.pf-stat-grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 640px) {
+  .pf-stat-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+}
+
 /* 섹션 공통 */
 .pf-section {
   padding-block: var(--pf-section-gap);
@@ -975,18 +999,44 @@ table.tbl { width: 100%; border-collapse: collapse; }
   padding-inline: 32px;
 }
 .pf-section-narrow { max-width: var(--pf-max-w-narrow); margin: 0 auto; }
+
+/* Eyebrow 번호 + 라벨 (섹션 헤더) */
+.pf-section-head {
+  display: flex; align-items: baseline; gap: 14px;
+  margin: 0 0 28px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--pf-border);
+}
+.pf-section-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--pf-accent);
+  text-transform: uppercase;
+}
 .pf-section-title {
-  font-size: 32px; font-weight: 700;
-  margin: 0 0 40px;
+  font-size: 28px; font-weight: 700;
+  margin: 0;
   letter-spacing: -0.02em;
+  color: var(--pf-ink);
+}
+.pf-section-kicker {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--pf-mf);
+  letter-spacing: 0.08em;
 }
 @media (max-width: 1023px) {
   .pf-section { padding-block: var(--pf-section-gap-md); }
-  .pf-section-title { font-size: 26px; margin-bottom: 28px; }
+  .pf-section-title { font-size: 24px; }
+  .pf-section-head { margin-bottom: 22px; }
 }
 @media (max-width: 640px) {
   .pf-section { padding-block: var(--pf-section-gap-sm); padding-inline: 16px; }
-  .pf-section-title { font-size: 22px; margin-bottom: 20px; }
+  .pf-section-title { font-size: 20px; }
+  .pf-section-head { gap: 10px; margin-bottom: 18px; padding-bottom: 10px; }
+  .pf-section-kicker { display: none; }
 }
 
 /* 어두운 배경 섹션 */
@@ -1149,8 +1199,8 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .pf-video-card {
   border-radius: var(--radius-os);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--bg-elev);
+  border: 1px solid var(--pf-border);
+  background: var(--pf-bg-card);
   transition: transform 150ms ease, box-shadow 150ms ease;
 }
 .pf-video-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -1194,8 +1244,8 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .pf-member-card {
   border-radius: var(--radius-os);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--bg-elev);
+  border: 1px solid var(--pf-border);
+  background: var(--pf-bg-card);
   transition: transform 150ms ease, box-shadow 150ms ease;
 }
 .pf-member-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }

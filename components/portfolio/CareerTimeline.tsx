@@ -35,9 +35,13 @@ export function CareerTimeline({ careers }: CareerTimelineProps) {
   const grouped = groupByYear(careers);
 
   return (
-    <section id="career" style={{ background: "var(--muted)" }}>
+    <section id="career" className="pf-section-band alt">
       <div className="pf-section">
-        <h2 className="pf-section-title">주요 경력</h2>
+        <div className="pf-section-head">
+          <span className="pf-section-num">06 / TRACK RECORD</span>
+          <h2 className="pf-section-title">주요 경력</h2>
+          <span className="pf-section-kicker">{careers.length > 0 ? `${careers.length} entries` : ""}</span>
+        </div>
 
         {careers.length === 0 ? (
           <div className="empty">

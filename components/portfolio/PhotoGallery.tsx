@@ -36,9 +36,13 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
 
   return (
     <>
-      <section id="gallery" style={{ background: "var(--bg)" }}>
+      <section id="gallery" className="pf-section-band">
         <div className="pf-section">
-          <h2 className="pf-section-title">포토 갤러리</h2>
+          <div className="pf-section-head">
+            <span className="pf-section-num">05 / GALLERY</span>
+            <h2 className="pf-section-title">포토</h2>
+            <span className="pf-section-kicker">{photos.length > 0 ? `${photos.length} photos` : ""}</span>
+          </div>
 
           {photos.length === 0 ? (
             <div className="empty">

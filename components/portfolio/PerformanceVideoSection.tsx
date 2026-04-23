@@ -30,9 +30,13 @@ export function PerformanceVideoSection({ items, members, mediaMap }: Performanc
 
   return (
     <>
-      <section id="performance" style={{ background: "var(--bg)" }}>
+      <section id="performance" className="pf-section-band">
         <div className="pf-section">
-          <h2 className="pf-section-title">공연 영상</h2>
+          <div className="pf-section-head">
+            <span className="pf-section-num">03 / PERFORMANCE</span>
+            <h2 className="pf-section-title">공연 영상</h2>
+            <span className="pf-section-kicker">{items.length > 0 ? `${items.length} works` : ""}</span>
+          </div>
 
           {items.length === 0 ? (
             <div className="empty">

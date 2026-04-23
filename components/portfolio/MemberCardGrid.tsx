@@ -22,9 +22,13 @@ export function MemberCardGrid({ members, mediaMap }: MemberCardGridProps) {
 
   return (
     <>
-      <section id="members" style={{ background: "var(--bg)" }}>
+      <section id="members" className="pf-section-band">
         <div className="pf-section">
-          <h2 className="pf-section-title">멤버 소개</h2>
+          <div className="pf-section-head">
+            <span className="pf-section-num">07 / MEMBERS</span>
+            <h2 className="pf-section-title">멤버 소개</h2>
+            <span className="pf-section-kicker">{members.length > 0 ? `${members.length} active` : ""}</span>
+          </div>
 
           {members.length === 0 ? (
             <div className="empty">
