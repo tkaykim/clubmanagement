@@ -35,15 +35,17 @@ const STATUS_OPTIONS: { value: VoteStatus; label: string; description: string }[
   { value: "unavailable", label: "불가", description: "참여 불가" },
 ];
 
-function kstDayDow(dateStr: string): { day: number; dow: string } {
+function kstDayDow(dateStr: string): { month: number; day: number; dow: string } {
   const parts = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
+    month: "numeric",
     day: "numeric",
     weekday: "short",
   }).formatToParts(new Date(`${dateStr}T00:00:00+09:00`));
+  const month = Number(parts.find((p) => p.type === "month")?.value ?? 0);
   const day = Number(parts.find((p) => p.type === "day")?.value ?? 0);
   const dow = parts.find((p) => p.type === "weekday")?.value ?? DOW_SHORT[new Date(dateStr + "T00:00:00").getDay()];
-  return { day, dow };
+  return { month, day, dow };
 }
 
 function slotKey(s: TimeSlot) {
@@ -155,12 +157,23 @@ export function VoteScheduleEditor({
       <div className="sched">
         {scheduleDates.map((d) => {
           const v = value[d.id] ?? { status: "available" as VoteStatus, time_slots: [], note: "" };
-          const { day, dow } = kstDayDow(d.date);
+          const { month, day, dow } = kstDayDow(d.date);
           const isPractice = d.kind === "practice";
 
           return (
             <div key={d.id} className="sched-row">
               <div className="date-col">
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--mf)",
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 500,
+                    lineHeight: 1,
+                  }}
+                >
+                  {month}월
+                </div>
                 <div className="d">{day}</div>
                 <div className="dow">{dow}</div>
                 <div

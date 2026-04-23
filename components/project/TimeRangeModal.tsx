@@ -28,15 +28,6 @@ export interface TimeRangeModalProps {
   }) => void;
 }
 
-type Preset = { key: string; label: string; start: string; end: string };
-
-const PRESETS: Preset[] = [
-  { key: "allday", label: "종일", start: "10:00", end: "22:00" },
-  { key: "morning", label: "오전 (09:00~12:00)", start: "09:00", end: "12:00" },
-  { key: "afternoon", label: "오후 (13:00~18:00)", start: "13:00", end: "18:00" },
-  { key: "evening", label: "저녁 (18:00~22:00)", start: "18:00", end: "22:00" },
-];
-
 function kstFormat(dateStr: string): { d: number; dow: string } {
   const d = new Date(`${dateStr}T00:00:00+09:00`);
   // day-of-month 를 KST 로 뽑기 위해 toLocaleString 사용
@@ -86,11 +77,6 @@ export function TimeRangeModal({
     else setSelectedIds(new Set(selectableIds));
   };
 
-  const applyPreset = (p: Preset) => {
-    setStart(p.start);
-    setEnd(p.end);
-  };
-
   const handleApply = () => {
     if (!start || !end || start >= end) return;
     if (selectedIds.size === 0) return;
@@ -124,26 +110,6 @@ export function TimeRangeModal({
           <button type="button" className="btn ghost sm" onClick={onClose} aria-label="닫기">
             <X size={14} strokeWidth={2} />
           </button>
-        </div>
-
-        {/* 시간 프리셋 */}
-        <div className="mb-12">
-          <div className="lab" style={{ fontSize: 11, marginBottom: 6 }}>빠른 선택</div>
-          <div className="row gap-6" style={{ flexWrap: "wrap" }}>
-            {PRESETS.map((p) => {
-              const active = start === p.start && end === p.end;
-              return (
-                <button
-                  key={p.key}
-                  type="button"
-                  className={cn("btn sm", active && "primary")}
-                  onClick={() => applyPreset(p)}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* 직접 시간 설정 */}

@@ -1145,7 +1145,7 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
   const maxScore = Math.max(0, ...perDate.map((x) => x.score));
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 8 }}>
       <div className="hint" style={{ fontSize: 11 }}>
         가능 {"×"}2 + 부분가능 {"×"}1 + 조정가능 {"×"}0.5 - 불가 로 점수를 계산해, 최적 일정 순으로 정렬됩니다.
       </div>
@@ -1156,95 +1156,122 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
           const total = members.length;
           const yesCount = grouped.available.length + grouped.partial.length + grouped.adjustable.length;
           const isBest = score === maxScore && total > 0;
+          const statusOrder: Array<{
+            key: MemberStat["status"];
+            title: string;
+            color: string;
+            list: MemberStat[];
+            showSlots?: boolean;
+            showNote?: boolean;
+          }> = [
+            { key: "available", title: "가능", color: "#22c55e", list: grouped.available },
+            { key: "partial", title: "부분가능", color: "#84cc16", list: grouped.partial, showSlots: true },
+            { key: "adjustable", title: "조정가능", color: "#eab308", list: grouped.adjustable, showNote: true },
+            { key: "unavailable", title: "불가", color: "#94a3b8", list: grouped.unavailable },
+          ];
+          const nonEmpty = statusOrder.filter((s) => s.list.length > 0);
           return (
             <div
               key={d.id}
               className="card"
               style={{
-                padding: 16,
+                padding: "8px 10px",
                 borderLeft: isBest ? "3px solid var(--accent, #3b82f6)" : undefined,
               }}
             >
-              <div className="row mb-12" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div className="row gap-8" style={{ alignItems: "center" }}>
-                    <strong style={{ fontSize: 15 }}>{d.date}</strong>
+              {/* 헤더: 날짜 + 종류 + 점수 + 상태별 카운트 pills */}
+              <div
+                className="row"
+                style={{
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 6,
+                }}
+              >
+                <div className="row gap-6" style={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: 13 }}>{d.date}</strong>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      padding: "1px 5px",
+                      borderRadius: 3,
+                      background: d.kind === "practice" ? "var(--muted)" : "var(--accent-soft, #f0f4ff)",
+                      color: d.kind === "practice" ? "var(--mf)" : "var(--accent, #3b82f6)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {d.kind === "practice" ? "연습" : "본행사"}
+                  </span>
+                  {d.label && (
+                    <span style={{ fontSize: 10, color: "var(--mf)", fontFamily: "var(--font-mono)" }}>
+                      {d.label}
+                    </span>
+                  )}
+                  {isBest && (
                     <span
                       style={{
-                        fontSize: 10,
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        background: d.kind === "practice" ? "var(--muted)" : "var(--accent-soft, #f0f4ff)",
-                        color: d.kind === "practice" ? "var(--mf)" : "var(--accent, #3b82f6)",
+                        fontSize: 9,
+                        padding: "1px 5px",
+                        borderRadius: 3,
+                        background: "var(--accent, #3b82f6)",
+                        color: "#fff",
                         fontWeight: 600,
                       }}
                     >
-                      {d.kind === "practice" ? "연습" : "본행사"}
+                      추천
                     </span>
-                    {d.label && (
-                      <span style={{ fontSize: 11, color: "var(--mf)", fontFamily: "var(--font-mono)" }}>
-                        {d.label}
-                      </span>
-                    )}
-                    {isBest && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "1px 6px",
-                          borderRadius: 4,
-                          background: "var(--accent, #3b82f6)",
-                          color: "#fff",
-                          fontWeight: 600,
-                        }}
-                      >
-                        추천
-                      </span>
-                    )}
-                  </div>
-                  <div className="mono text-xs muted" style={{ marginTop: 4 }}>
-                    참여 가능 {yesCount}/{total}명 · 점수 {score}
-                  </div>
+                  )}
+                  <span className="mono" style={{ fontSize: 10, color: "var(--mf)" }}>
+                    참여 {yesCount}/{total} · 점수 {score}
+                  </span>
+                </div>
+                <div className="row gap-4" style={{ flexWrap: "wrap" }}>
+                  {statusOrder.map((s) => (
+                    <span
+                      key={s.key}
+                      title={`${s.title} ${s.list.length}명`}
+                      style={{
+                        fontSize: 10,
+                        padding: "1px 6px",
+                        borderRadius: 10,
+                        border: "1px solid var(--border)",
+                        color: s.list.length > 0 ? s.color : "var(--mf)",
+                        fontWeight: s.list.length > 0 ? 600 : 400,
+                        opacity: s.list.length > 0 ? 1 : 0.55,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <span style={{ fontSize: 10 }}>●</span>
+                      {s.title} {s.list.length}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              {/* 상태별 멤버 목록 */}
-              <div className="os-grid grid-2" style={{ gap: 8 }}>
-                <MemberGroupBlock
-                  title="가능"
-                  color="#22c55e"
-                  members={grouped.available}
-                  emptyText="없음"
-                  onEditMember={onEditMember}
-                />
-                <MemberGroupBlock
-                  title="부분가능"
-                  color="#84cc16"
-                  members={grouped.partial}
-                  emptyText="없음"
-                  showSlots
-                  onEditMember={onEditMember}
-                />
-                <MemberGroupBlock
-                  title="조정가능"
-                  color="#eab308"
-                  members={grouped.adjustable}
-                  emptyText="없음"
-                  showNote
-                  onEditMember={onEditMember}
-                />
-                <MemberGroupBlock
-                  title="불가"
-                  color="#94a3b8"
-                  members={grouped.unavailable}
-                  emptyText="없음"
-                  onEditMember={onEditMember}
-                />
-              </div>
+              {/* 상태별 멤버 목록 — 채워진 그룹만 인라인으로 표시 */}
+              {nonEmpty.length > 0 && (
+                <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
+                  {nonEmpty.map((s) => (
+                    <MemberGroupLine
+                      key={s.key}
+                      title={s.title}
+                      color={s.color}
+                      members={s.list}
+                      showSlots={s.showSlots}
+                      showNote={s.showNote}
+                      onEditMember={onEditMember}
+                    />
+                  ))}
+                </div>
+              )}
 
               {/* 미투표 */}
               {grouped.none.length > 0 && (
-                <div style={{ marginTop: 8, fontSize: 11, color: "var(--mf)" }}>
-                  <strong>미투표:</strong> {grouped.none.map((m) => m.name).join(", ")}
+                <div style={{ marginTop: 4, fontSize: 10, color: "var(--mf)" }}>
+                  미투표 {grouped.none.length}: {grouped.none.map((m) => m.name).join(", ")}
                 </div>
               )}
 
@@ -1252,25 +1279,21 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
               {overlap.length > 0 && (
                 <div
                   style={{
-                    marginTop: 12,
-                    padding: "8px 10px",
-                    borderRadius: 6,
+                    marginTop: 6,
+                    padding: "4px 8px",
+                    borderRadius: 4,
                     background: "var(--accent-soft, #f0f4ff)",
-                    fontSize: 12,
+                    fontSize: 11,
                   }}
                 >
-                  <div className="row gap-6" style={{ alignItems: "center", marginBottom: 4, color: "var(--accent, #3b82f6)", fontWeight: 600 }}>
-                    <Users size={12} strokeWidth={2} />
-                    <span>부분가능 멤버 전원이 겹치는 시간대</span>
-                  </div>
+                  <span style={{ color: "var(--accent, #3b82f6)", fontWeight: 600, marginRight: 6 }}>
+                    겹치는 시간대:
+                  </span>
                   {overlap.map((r, i) => (
-                    <div key={i} style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                      {r.start} ~ {r.end}
-                      {" · "}
-                      <span style={{ color: "var(--mf)" }}>
-                        {r.members.join(", ")}
-                      </span>
-                    </div>
+                    <span key={i} style={{ fontFamily: "var(--font-mono)", marginRight: 8 }}>
+                      {r.start}~{r.end}
+                      <span style={{ color: "var(--mf)" }}> ({r.members.join(", ")})</span>
+                    </span>
                   ))}
                 </div>
               )}
@@ -1281,11 +1304,10 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
   );
 }
 
-function MemberGroupBlock({
+function MemberGroupLine({
   title,
   color,
   members,
-  emptyText,
   showSlots,
   showNote,
   onEditMember,
@@ -1293,82 +1315,81 @@ function MemberGroupBlock({
   title: string;
   color: string;
   members: MemberStat[];
-  emptyText: string;
   showSlots?: boolean;
   showNote?: boolean;
   onEditMember?: (appId: string) => void;
 }) {
+  if (members.length === 0) return null;
   return (
     <div
       style={{
-        border: "1px solid var(--border)",
-        borderRadius: 6,
-        padding: "8px 10px",
-        background: "var(--bg)",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 6,
+        fontSize: 11,
+        lineHeight: 1.5,
       }}
     >
-      <div className="row mb-6" style={{ alignItems: "center", gap: 6 }}>
-        <span style={{ color, fontWeight: 700, fontSize: 14 }}>●</span>
-        <strong style={{ fontSize: 12 }}>{title}</strong>
-        <span className="mono text-xs muted">· {members.length}명</span>
+      <span
+        style={{
+          color,
+          fontWeight: 700,
+          flexShrink: 0,
+          minWidth: 56,
+        }}
+      >
+        ● {title}
+      </span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 6px", flex: 1 }}>
+        {members.map((m, i) => {
+          const slotsText =
+            showSlots && m.timeSlots.length > 0
+              ? m.timeSlots
+                  .map((t) => `${t.kind === "unavailable" ? "✕" : ""}${t.start}~${t.end}`)
+                  .join(", ")
+              : "";
+          const noteText = showNote && m.note ? m.note : "";
+          return (
+            <span
+              key={`${m.appId ?? m.name}-${i}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 2 }}
+            >
+              <span style={{ fontWeight: 500 }}>{m.name}</span>
+              {m.appStatus === "pending" && (
+                <span style={{ fontSize: 9, color: "var(--mf)" }}>(검토중)</span>
+              )}
+              {slotsText && (
+                <span
+                  className="mono"
+                  style={{ fontSize: 10, color: "var(--mf)", marginLeft: 2 }}
+                >
+                  {slotsText}
+                </span>
+              )}
+              {noteText && (
+                <span style={{ fontSize: 10, color: "var(--mf)", marginLeft: 2 }}>
+                  · {noteText}
+                </span>
+              )}
+              {onEditMember && m.userId && (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => onEditMember(m.appId)}
+                  aria-label="가능시간 수정"
+                  title="가능시간 수정"
+                  style={{ padding: 0, marginLeft: 2, lineHeight: 1 }}
+                >
+                  <Pencil size={9} strokeWidth={2} />
+                </button>
+              )}
+              {i < members.length - 1 && (
+                <span style={{ color: "var(--mf)", marginLeft: 2 }}>,</span>
+              )}
+            </span>
+          );
+        })}
       </div>
-      {members.length === 0 ? (
-        <div style={{ fontSize: 11, color: "var(--mf)" }}>{emptyText}</div>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 4 }}>
-          {members.map((m, i) => (
-            <li key={`${m.appId ?? m.name}-${i}`} style={{ fontSize: 12 }}>
-              <div className="row" style={{ alignItems: "center", gap: 6 }}>
-                <span style={{ fontWeight: 500 }}>{m.name}</span>
-                {m.appStatus === "pending" && (
-                  <span style={{ fontSize: 9, color: "var(--mf)" }}>(검토중)</span>
-                )}
-                {onEditMember && m.userId && (
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() => onEditMember(m.appId)}
-                    aria-label="가능시간 수정"
-                    title="가능시간 수정"
-                    style={{ padding: 2, marginLeft: "auto" }}
-                  >
-                    <Pencil size={10} strokeWidth={2} />
-                  </button>
-                )}
-              </div>
-              {showSlots && m.timeSlots.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 2 }}>
-                  {m.timeSlots.map((t, j) => {
-                    const unavail = t.kind === "unavailable";
-                    return (
-                      <span
-                        key={j}
-                        style={{
-                          fontSize: 10,
-                          padding: "1px 5px",
-                          borderRadius: 3,
-                          fontFamily: "var(--font-mono)",
-                          background: unavail ? "var(--danger-soft, #fdecec)" : "transparent",
-                          color: unavail ? "var(--danger, #c33)" : "var(--mf)",
-                          border: "1px solid var(--border)",
-                        }}
-                      >
-                        {unavail ? "✕ " : ""}
-                        {t.start}~{t.end}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              {showNote && m.note && (
-                <div className="mono text-xs muted" style={{ marginTop: 2 }}>
-                  · {m.note}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
