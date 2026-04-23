@@ -121,6 +121,7 @@ export function ManageProjectClient({
   const [aggView, setAggView] = useState<"timetable" | "by-date" | "heatmap">("timetable");
   const [poolFilter, setPoolFilter] = useState<"all" | "pending" | "approved">("all");
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
+  const [heatmapCell, setHeatmapCell] = useState<{ appId: string; dateId: string } | null>(null);
 
   const toggleExpanded = (appId: string) => {
     setExpandedApp((prev) => (prev === appId ? null : appId));
@@ -677,15 +678,27 @@ export function ManageProjectClient({
                           ? `${d.date}${d.label ? ` · ${d.label}` : ""}\n상태: ${glyph} ${labelOf(s)}${slots ? `\n시간: ${slots}` : ""}${v.note ? `\n메모: ${v.note}` : ""}`
                           : `${d.date}${d.label ? ` · ${d.label}` : ""}\n미투표`;
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={`${a.id}-${d.id}`}
                             className="heat-cell"
                             data-lvl={s ?? "none"}
                             title={tt}
-                            style={{ color, textAlign: "center", fontWeight: 600 }}
+                            onClick={() => setHeatmapCell({ appId: a.id, dateId: d.id })}
+                            style={{
+                              color,
+                              textAlign: "center",
+                              fontWeight: 600,
+                              background: "transparent",
+                              border: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              font: "inherit",
+                              width: "100%",
+                            }}
                           >
                             {glyph}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -958,6 +971,232 @@ export function ManageProjectClient({
         initialVotes={editingInitialVotes}
         onClose={() => setEditingAppId(null)}
       />
+
+      {heatmapCell && (() => {
+        const app = applications.find((a) => a.id === heatmapCell.appId);
+        const date = scheduleDates.find((d) => d.id === heatmapCell.dateId);
+        if (!app || !date) return null;
+        const vote = app.user_id
+          ? votesByUser.get(app.user_id)?.get(date.id)
+          : undefined;
+        return (
+          <HeatmapCellPopover
+            application={app}
+            date={date}
+            vote={vote}
+            onClose={() => setHeatmapCell(null)}
+            onEditMember={() => {
+              setEditingAppId(app.id);
+              setHeatmapCell(null);
+            }}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+function HeatmapCellPopover({
+  application,
+  date,
+  vote,
+  onClose,
+  onEditMember,
+}: {
+  application: Application;
+  date: ScheduleDate;
+  vote: ScheduleVoteRow | undefined;
+  onClose: () => void;
+  onEditMember: () => void;
+}) {
+  const name =
+    application.crew_members?.stage_name?.trim() ||
+    application.crew_members?.name?.trim() ||
+    application.guest_name ||
+    "지원자";
+  const s = vote?.status as
+    | "available" | "partial" | "adjustable" | "unavailable"
+    | undefined;
+  const statusLabel = labelOf(s);
+  const statusFg = statusColor(s);
+  const slots = vote?.time_slots ?? [];
+  const hasSlots = slots.length > 0;
+  const kindLabel = date.kind === "practice" ? "연습" : "본행사";
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 60,
+        background: "rgba(0,0,0,0.35)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        className="card"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 420, padding: 0 }}
+      >
+        <div
+          className="row"
+          style={{
+            padding: "10px 14px",
+            borderBottom: "1px solid var(--border)",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <div className="row gap-6" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <strong style={{ fontSize: 13 }}>{name}</strong>
+            {application.status === "pending" && (
+              <span style={{ fontSize: 10, color: "var(--mf)" }}>(검토중)</span>
+            )}
+            <span style={{ color: "var(--mf)", fontSize: 12 }}>·</span>
+            <span className="mono" style={{ fontSize: 12 }}>{date.date}</span>
+            <span
+              style={{
+                fontSize: 9,
+                padding: "1px 5px",
+                borderRadius: 3,
+                background: date.kind === "practice" ? "var(--muted)" : "var(--accent-soft, #f0f4ff)",
+                color: date.kind === "practice" ? "var(--mf)" : "var(--accent, #3b82f6)",
+                fontWeight: 600,
+              }}
+            >
+              {kindLabel}
+            </span>
+            {date.label && (
+              <span style={{ fontSize: 11, color: "var(--mf)", fontFamily: "var(--font-mono)" }}>
+                {date.label}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={onClose}
+            aria-label="닫기"
+          >
+            <X size={13} strokeWidth={2} />
+          </button>
+        </div>
+
+        <div style={{ padding: 14, display: "grid", gap: 10 }}>
+          <div className="row gap-6" style={{ alignItems: "center" }}>
+            <span className="lab" style={{ fontSize: 11 }}>상태</span>
+            <span
+              style={{
+                fontSize: 12,
+                padding: "2px 8px",
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                color: statusFg,
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <span style={{ color: statusFg }}>●</span>
+              {statusLabel}
+            </span>
+          </div>
+
+          {(s === "available" || s === "partial") && (
+            <div>
+              <div className="lab" style={{ fontSize: 11, marginBottom: 4 }}>
+                {hasSlots ? "시간대" : "시간대 (종일 가능)"}
+              </div>
+              {hasSlots ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {slots.map((t, i) => {
+                    const unavail = t.kind === "unavailable";
+                    return (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: 12,
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          fontFamily: "var(--font-mono)",
+                          background: unavail
+                            ? "var(--danger-soft, #fdecec)"
+                            : "var(--accent-soft, #f0f4ff)",
+                          color: unavail
+                            ? "var(--danger, #c33)"
+                            : "var(--accent, #3b82f6)",
+                          border: `1px solid ${unavail ? "var(--danger, #c33)" : "var(--accent, #3b82f6)"}`,
+                        }}
+                        title={unavail ? "이 시간은 불가" : "이 시간 가능"}
+                      >
+                        {unavail ? "✕ " : ""}
+                        {t.start}~{t.end}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: "var(--mf)" }}>
+                  전체 시간 가능
+                </div>
+              )}
+            </div>
+          )}
+
+          {s === "unavailable" && (
+            <div style={{ fontSize: 12, color: "var(--mf)" }}>
+              참여 불가
+            </div>
+          )}
+
+          {!s && (
+            <div style={{ fontSize: 12, color: "var(--mf)" }}>
+              아직 투표하지 않았습니다
+            </div>
+          )}
+
+          {vote?.note && (
+            <div>
+              <div className="lab" style={{ fontSize: 11, marginBottom: 4 }}>메모</div>
+              <div style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>
+                {vote.note}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div
+          className="row"
+          style={{
+            padding: "10px 14px",
+            borderTop: "1px solid var(--border)",
+            justifyContent: "flex-end",
+            gap: 8,
+          }}
+        >
+          {application.user_id && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={onEditMember}
+            >
+              <Pencil size={11} strokeWidth={2} />
+              가능시간 수정
+            </button>
+          )}
+          <button type="button" className="btn ghost sm" onClick={onClose}>
+            닫기
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1159,15 +1398,17 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
           const statusOrder: Array<{
             key: MemberStat["status"];
             title: string;
-            color: string;
+            color: string; // 텍스트/테두리용 짙은 색
+            dotColor: string; // ● 아이콘용 원색
+            tintBg: string; // 활성 pill 배경 틴트
             list: MemberStat[];
             showSlots?: boolean;
             showNote?: boolean;
           }> = [
-            { key: "available", title: "가능", color: "#22c55e", list: grouped.available },
-            { key: "partial", title: "부분가능", color: "#84cc16", list: grouped.partial, showSlots: true },
-            { key: "adjustable", title: "조정가능", color: "#eab308", list: grouped.adjustable, showNote: true },
-            { key: "unavailable", title: "불가", color: "#94a3b8", list: grouped.unavailable },
+            { key: "available", title: "가능", color: "#15803d", dotColor: "#22c55e", tintBg: "rgba(34,197,94,0.10)", list: grouped.available },
+            { key: "partial", title: "부분가능", color: "#4d7c0f", dotColor: "#84cc16", tintBg: "rgba(132,204,22,0.10)", list: grouped.partial, showSlots: true },
+            { key: "adjustable", title: "조정가능", color: "#a16207", dotColor: "#eab308", tintBg: "rgba(234,179,8,0.12)", list: grouped.adjustable, showNote: true },
+            { key: "unavailable", title: "불가", color: "#475569", dotColor: "#94a3b8", tintBg: "rgba(148,163,184,0.12)", list: grouped.unavailable },
           ];
           const nonEmpty = statusOrder.filter((s) => s.list.length > 0);
           return (
@@ -1227,27 +1468,31 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
                   </span>
                 </div>
                 <div className="row gap-4" style={{ flexWrap: "wrap" }}>
-                  {statusOrder.map((s) => (
-                    <span
-                      key={s.key}
-                      title={`${s.title} ${s.list.length}명`}
-                      style={{
-                        fontSize: 10,
-                        padding: "1px 6px",
-                        borderRadius: 10,
-                        border: "1px solid var(--border)",
-                        color: s.list.length > 0 ? s.color : "var(--mf)",
-                        fontWeight: s.list.length > 0 ? 600 : 400,
-                        opacity: s.list.length > 0 ? 1 : 0.55,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 3,
-                      }}
-                    >
-                      <span style={{ fontSize: 10 }}>●</span>
-                      {s.title} {s.list.length}
-                    </span>
-                  ))}
+                  {statusOrder.map((s) => {
+                    const active = s.list.length > 0;
+                    return (
+                      <span
+                        key={s.key}
+                        title={`${s.title} ${s.list.length}명`}
+                        style={{
+                          fontSize: 10,
+                          padding: "1px 6px",
+                          borderRadius: 10,
+                          border: "1px solid var(--border)",
+                          background: active ? s.tintBg : "transparent",
+                          color: active ? s.color : "var(--mf)",
+                          fontWeight: active ? 600 : 400,
+                          opacity: active ? 1 : 0.6,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 3,
+                        }}
+                      >
+                        <span style={{ fontSize: 10, color: active ? s.dotColor : "inherit" }}>●</span>
+                        {s.title} {s.list.length}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1259,6 +1504,7 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
                       key={s.key}
                       title={s.title}
                       color={s.color}
+                      dotColor={s.dotColor}
                       members={s.list}
                       showSlots={s.showSlots}
                       showNote={s.showNote}
@@ -1307,6 +1553,7 @@ function AvailabilityByDate({ scheduleDates, approvedApps, votesByUser, onEditMe
 function MemberGroupLine({
   title,
   color,
+  dotColor,
   members,
   showSlots,
   showNote,
@@ -1314,6 +1561,7 @@ function MemberGroupLine({
 }: {
   title: string;
   color: string;
+  dotColor: string;
   members: MemberStat[];
   showSlots?: boolean;
   showNote?: boolean;
@@ -1338,7 +1586,7 @@ function MemberGroupLine({
           minWidth: 56,
         }}
       >
-        ● {title}
+        <span style={{ color: dotColor }}>●</span> {title}
       </span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 6px", flex: 1 }}>
         {members.map((m, i) => {
