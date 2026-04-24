@@ -125,7 +125,7 @@ export function PublicFooter({ contactEmail, contactPhone, members, mediaMap }: 
               YouTube
             </a>
             <a
-              href="https://www.instagram.com/oneshot_crew_official/"
+              href="https://www.instagram.com/oneshot_crew_/"
               target="_blank"
               rel="noopener noreferrer"
               className="btn pf-ghost"

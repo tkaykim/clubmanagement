@@ -36,8 +36,12 @@ export default function LoginPage() {
       // createClientComponentClient 는 세션을 쿠키에 저장한다.
       // router.push 는 클라이언트 측 전환이라 middleware 의 쿠키 검사 타이밍이
       // 꼬이면 무한 리다이렉트로 보일 수 있으므로, full reload 로 홈으로 간다.
+      // 로그인 후 기본 이동: 크루 대시보드.
+      // "/" 는 공개 포트폴리오이므로 로그인 직후 가면 앱 내부에 못 들어간다.
       const redirect = new URLSearchParams(window.location.search).get("redirect");
-      window.location.href = redirect && redirect.startsWith("/") ? redirect : "/";
+      const safeRedirect =
+        redirect && redirect.startsWith("/") && redirect !== "/" ? redirect : "/dashboard";
+      window.location.href = safeRedirect;
     } catch (err) {
       console.error("[login] unexpected error:", err);
       setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");

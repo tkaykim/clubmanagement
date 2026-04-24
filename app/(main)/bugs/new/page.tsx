@@ -8,7 +8,7 @@ export default function NewBugReportPage() {
   return (
     <div className="page">
       <div className="row mb-12">
-        <Link href="/" className="btn ghost sm">
+        <Link href="/dashboard" className="btn ghost sm">
           <ChevronLeft size={14} strokeWidth={2} />
           홈
         </Link>

@@ -58,7 +58,10 @@ export async function middleware(req: NextRequest) {
 
   if (isAuthPath) return res;
 
-  // 게스트 지원 경로는 통과 (공개 링크)
+  // 공개 페이지는 통과 (인증 불필요)
+  //   - 루트 "/"        → 공개 포트폴리오 (app/(public)/page.tsx)
+  //   - /apply/*       → 게스트 지원 링크
+  if (pathname === "/") return res;
   if (pathname.startsWith("/apply/")) return res;
 
   // 비인증 상태에서 보호 경로 접근
@@ -88,7 +91,7 @@ export async function middleware(req: NextRequest) {
           { status: 403 }
         );
       }
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
   }
 

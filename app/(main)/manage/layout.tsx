@@ -14,7 +14,7 @@ export default async function ManageLayout({ children }: { children: React.React
     .maybeSingle();
 
   if (!member || (member.role !== "admin" && member.role !== "owner")) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   return <>{children}</>;

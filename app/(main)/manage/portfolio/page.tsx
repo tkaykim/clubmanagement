@@ -91,7 +91,7 @@ export default async function ManagePortfolioPage() {
           <h1>포트폴리오 관리</h1>
           <div className="sub">공개 페이지 콘텐츠 편집</div>
         </div>
-        <a href="/portfolio" target="_blank" rel="noopener noreferrer" className="btn">
+        <a href="/" target="_blank" rel="noopener noreferrer" className="btn">
           포트폴리오 보기 →
         </a>
       </div>

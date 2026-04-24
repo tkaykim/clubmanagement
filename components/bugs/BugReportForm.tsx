@@ -65,7 +65,7 @@ export function BugReportForm() {
         return;
       }
       toast.success("제보 감사합니다! 확인 후 빠르게 처리할게요.");
-      router.push("/");
+      router.push("/dashboard");
     } catch {
       toast.error("네트워크 오류가 발생했습니다");
     } finally {

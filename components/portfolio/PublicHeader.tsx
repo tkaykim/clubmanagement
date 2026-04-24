@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import { InquiryDialog } from "./InquiryDialog";
 import type { PublicCrewMember, PortfolioMediaWithMembers } from "@/lib/types";
@@ -17,7 +18,7 @@ export function PublicHeader({ contactEmail, members, mediaMap }: PublicHeaderPr
   return (
     <>
       <header className="pf-header">
-        <a href="/portfolio" className="pf-header-brand">
+        <Link href="/" className="pf-header-brand">
           <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.6 }}>ONESHOT</span>
           <span
             aria-hidden="true"
@@ -35,7 +36,7 @@ export function PublicHeader({ contactEmail, members, mediaMap }: PublicHeaderPr
           >
             One Kill
           </span>
-        </a>
+        </Link>
         <div style={{ flex: 1 }} />
         {contactEmail && (
           <a

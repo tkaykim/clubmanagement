@@ -24,7 +24,7 @@ export default async function AdminBugsPage() {
 
   const isAdmin =
     (me?.role === "admin" || me?.role === "owner") && me?.is_active === true;
-  if (!isAdmin) redirect("/");
+  if (!isAdmin) redirect("/dashboard");
 
   const { data: bugs } = await supabase
     .from("bug_reports")

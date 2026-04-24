@@ -51,7 +51,7 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
 
       {/* MAIN 그룹 */}
       <div className="nav-group-title">MAIN</div>
-      <NavItem href="/" icon={Home} onClick={onNavClick}>홈</NavItem>
+      <NavItem href="/dashboard" icon={Home} onClick={onNavClick}>홈</NavItem>
       <NavItem href="/projects" icon={Folder} count={counts.projects} onClick={onNavClick}>프로젝트</NavItem>
       <NavItem href="/calendar" icon={Calendar} onClick={onNavClick}>내 캘린더</NavItem>
       <NavItem href="/members" icon={Users} onClick={onNavClick}>멤버</NavItem>

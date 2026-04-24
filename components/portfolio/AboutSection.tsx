@@ -43,7 +43,7 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
                 wordBreak: "keep-all",
               }}
             >
-              {aboutText || "원샷(ONESHOT)은 2023년 결성된 멀티장르 댄스 크루입니다. K-POP · 한국무용 · 현대무용 · 댄스스포츠 · 힙합 · 브레이킹 6개 장르를 기반으로 공연, 커버, 자체 안무, 방송 · 광고 섭외 등 폭넓은 무대를 만들어갑니다."}
+              {aboutText || "원샷크루(ONESHOT CREW)는 한국의 전통춤과 현대적인 에너지를 결합한 퍼포먼스 팀으로, 댄스필름과 공연을 통해 '하나의 컷(ONE SHOT)'에 담긴 순간의 감동을 전달합니다."}
             </p>
             <p
               style={{
@@ -54,7 +54,7 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
                 wordBreak: "keep-all",
               }}
             >
-              전공자 멤버가 포진해 있어 창작 안무까지 직접 설계합니다. 한 번의 기회를 최고의 무대로 바꾸는 것, 그것이 원샷의 방식입니다.
+              유튜브 기반으로 활동하며, K-POP을 중심으로 한국무용·현대무용·댄스스포츠·힙합·브레이킹 등 다양한 장르를 융합해 국내외에서 주목받는 아티스트들과 협업하고 있습니다.
             </p>
 
             {/* 스탯 카드 */}
@@ -140,7 +140,7 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
                 }}
               >
                 K-POP · 한국무용 · 현대무용 · 댄스스포츠 · 힙합 · 브레이킹
-                —  6개 장르를 한 팀에서. 전공자 기반 창작 안무로 무대를 설계합니다.
+                —  한국의 전통춤과 현대적 에너지가 한 무대에서 만나 &lsquo;하나의 컷(ONE SHOT)&rsquo;이 됩니다.
               </div>
             </div>
           </div>

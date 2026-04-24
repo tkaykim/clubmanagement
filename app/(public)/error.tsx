@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
 export default function PortfolioError({ reset }: { error: Error; reset: () => void }) {
@@ -10,7 +11,7 @@ export default function PortfolioError({ reset }: { error: Error; reset: () => v
       <div style={{ fontSize: 13, color: "var(--mf)" }}>잠시 후 다시 시도해 주세요.</div>
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         <button className="btn primary" onClick={reset}>다시 시도</button>
-        <a href="/portfolio" className="btn ghost">처음으로</a>
+        <Link href="/" className="btn ghost">처음으로</Link>
       </div>
     </div>
   );

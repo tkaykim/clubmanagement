@@ -21,6 +21,16 @@ const CATEGORY_STYLES: Record<PortfolioCareerCategory, { bg: string; fg: string 
   workshop: { bg: "var(--career-workshop-bg)", fg: "var(--career-workshop-fg)" },
 };
 
+function formatCareerDate(date: string | null | undefined): string {
+  if (!date) return "";
+  const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return date.replace(/-/g, ".");
+  const [, y, mo, d] = m;
+  // PDF sourced entries use day=01 as a placeholder → show YYYY.MM only.
+  if (d === "01") return `${y}.${mo}`;
+  return `${y}.${mo}.${d}`;
+}
+
 function groupByYear(careers: PortfolioCareerWithMedia[]) {
   const map = new Map<string, PortfolioCareerWithMedia[]>();
   for (const c of careers) {
@@ -65,7 +75,7 @@ export function CareerTimeline({ careers }: CareerTimelineProps) {
                       }}
                     >
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--pf-mf)", paddingTop: 2 }}>
-                        {career.event_date ? career.event_date.replace(/-/g, ".") : ""}
+                        {formatCareerDate(career.event_date)}
                       </div>
                       <div style={{ position: "relative" }}>
                         <div style={{ width: 2, background: "var(--pf-border-2)", height: "100%", position: "absolute", left: 0, top: 0 }} />
