@@ -2,7 +2,7 @@
   "name": "원샷크루",
   "short_name": "원샷크루",
   "description": "원샷크루 관리 플랫폼",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#FAFAFA",
   "theme_color": "#0A0A0B",
