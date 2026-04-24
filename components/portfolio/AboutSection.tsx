@@ -6,7 +6,7 @@ interface AboutSectionProps {
   members?: PublicCrewMember[];
 }
 
-const GENRE_ORDER = ["K-pop", "한국무용", "현대무용", "댄스스포츠", "창작안무"];
+const GENRE_ORDER = ["K-POP", "한국무용", "현대무용", "댄스스포츠", "힙합", "브레이킹"];
 
 export function AboutSection({ aboutText, genres, members = [] }: AboutSectionProps) {
   const totalMembers = 50;
@@ -15,12 +15,12 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
   const normalized = genres.length > 0 ? genres : GENRE_ORDER;
 
   return (
-    <section id="about" className="pf-section-band">
+    <section id="about" className="pf-section-band alt">
       <div className="pf-section">
         <div className="pf-section-head">
           <span className="pf-section-num">01 / INTRODUCTION</span>
           <h2 className="pf-section-title">팀 소개</h2>
-          <span className="pf-section-kicker">Since 2010</span>
+          <span className="pf-section-kicker">Since 2023</span>
         </div>
 
         <div
@@ -40,9 +40,10 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
                 color: "var(--pf-ink-soft)",
                 margin: "0 0 20px",
                 fontWeight: 500,
+                wordBreak: "keep-all",
               }}
             >
-              {aboutText || "원샷크루(ONESHOT CREW)는 K-POP 댄스를 기반으로 한국무용·현대무용·댄스스포츠까지 소화하는 크루입니다."}
+              {aboutText || "원샷(ONESHOT)은 2023년 결성된 멀티장르 댄스 크루입니다. K-POP · 한국무용 · 현대무용 · 댄스스포츠 · 힙합 · 브레이킹 6개 장르를 기반으로 공연, 커버, 자체 안무, 방송 · 광고 섭외 등 폭넓은 무대를 만들어갑니다."}
             </p>
             <p
               style={{
@@ -50,9 +51,10 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
                 lineHeight: 1.75,
                 color: "var(--pf-mf)",
                 margin: 0,
+                wordBreak: "keep-all",
               }}
             >
-              전공자 멤버가 포진해 있어 <strong style={{ color: "var(--pf-ink)" }}>창작 안무</strong>까지 직접 설계합니다. 단순 공연뿐 아니라 방송·광고·행사 맞춤 안무 제작이 가능합니다.
+              전공자 멤버가 포진해 있어 창작 안무까지 직접 설계합니다. 한 번의 기회를 최고의 무대로 바꾸는 것, 그것이 원샷의 방식입니다.
             </p>
 
             {/* 스탯 카드 */}
@@ -76,27 +78,27 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: 11,
-                letterSpacing: "0.12em",
+                letterSpacing: "0.14em",
                 color: "var(--pf-mf)",
                 textTransform: "uppercase",
                 marginBottom: 14,
               }}
             >
-              Specialties
+              Specialties / 6 Genres
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {normalized.map((g) => (
                 <span
                   key={g}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    fontSize: 13,
-                    padding: "8px 16px",
+                    fontSize: 12.5,
+                    padding: "7px 14px",
                     border: "1px solid var(--pf-border-2)",
                     borderRadius: 999,
                     fontWeight: 600,
-                    background: "var(--pf-bg-card)",
+                    background: "transparent",
                     color: "var(--pf-ink)",
                     letterSpacing: "-0.01em",
                   }}
@@ -108,34 +110,37 @@ export function AboutSection({ aboutText, genres, members = [] }: AboutSectionPr
 
             <div
               style={{
-                marginTop: 28,
+                marginTop: 24,
                 padding: "18px 20px",
                 background: "var(--pf-bg-card)",
                 border: "1px solid var(--pf-border)",
                 borderRadius: "var(--radius-os)",
-                borderLeft: "3px solid var(--pf-accent)",
+                borderLeft: "2px solid #fff",
               }}
             >
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 10,
-                  letterSpacing: "0.14em",
-                  color: "var(--pf-accent)",
+                  letterSpacing: "0.2em",
+                  color: "var(--pf-ink)",
                   textTransform: "uppercase",
-                  marginBottom: 8,
+                  marginBottom: 10,
+                  fontWeight: 700,
                 }}
               >
                 Why ONESHOT
               </div>
               <div
                 style={{
-                  fontSize: 14,
+                  fontSize: 13.5,
                   lineHeight: 1.65,
                   color: "var(--pf-ink-soft)",
+                  wordBreak: "keep-all",
                 }}
               >
-                K-POP 댄스와 한국무용·현대무용·댄스스포츠를 한 팀에서. <strong style={{ color: "var(--pf-ink)" }}>전공자 기반 창작 안무</strong>로 무대를 설계합니다.
+                K-POP · 한국무용 · 현대무용 · 댄스스포츠 · 힙합 · 브레이킹
+                —  6개 장르를 한 팀에서. 전공자 기반 창작 안무로 무대를 설계합니다.
               </div>
             </div>
           </div>

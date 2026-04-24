@@ -19,10 +19,27 @@ interface HeroSectionProps {
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          color: "rgba(255,255,255,0.5)",
+          marginBottom: 6,
+          textTransform: "uppercase",
+        }}
+      >
         {label}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--pf-hero-fg)", letterSpacing: "-0.01em" }}>
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 800,
+          color: "var(--pf-hero-fg)",
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+        }}
+      >
         {value}
       </div>
     </div>
@@ -34,140 +51,199 @@ export function HeroSection({ title, subtitle, heroMedia, members, mediaMap }: H
   const [videoOpen, setVideoOpen] = useState(false);
 
   const hasMedia = !!heroMedia;
-  const isVideo = heroMedia?.kind === "hero_video";
-  const isImage = heroMedia?.kind === "hero_image";
-
-  const videoId = isVideo && heroMedia?.youtube_url
+  const videoId = heroMedia?.youtube_url
     ? extractYouTubeId(heroMedia.youtube_url)
     : null;
-
-  const thumbnailUrl = videoId
-    ? (heroMedia?.thumbnail_url || youtubeThumbnail(videoId, "hq"))
-    : heroMedia?.image_url || null;
+  const thumbnailUrl = heroMedia?.thumbnail_url
+    || (videoId ? youtubeThumbnail(videoId, "hq") : null)
+    || heroMedia?.image_url
+    || null;
 
   return (
     <>
       <section className="pf-hero-section" id="hero">
+        <span className="pf-hero-vlabel" aria-hidden="true">ONE KILL · SINCE 2023</span>
         <div
+          className="pf-hero-inner"
           style={{
             width: "100%",
             maxWidth: "var(--pf-max-w)",
             margin: "0 auto",
-            padding: "120px 32px 80px",
-            display: "grid",
-            gridTemplateColumns: hasMedia ? "1fr 0.7fr" : "1fr",
-            gap: 48,
-            alignItems: "center",
+            padding: "96px 24px 64px",
+            position: "relative",
+            zIndex: 1,
           }}
         >
-          <div style={{ maxWidth: "var(--pf-max-w-narrow)" }}>
-            <div className="pf-eyebrow" style={{ marginBottom: 20 }}>ONESHOT CREW</div>
-            <h1 className="pf-hero-title" style={{ marginBottom: subtitle ? 20 : 32 }}>
-              {title || "원샷크루"}
-            </h1>
-            {subtitle && (
-              <p style={{ fontSize: 16, color: "var(--pf-hero-muted)", lineHeight: 1.7, marginBottom: 32 }}>
-                {subtitle}
-              </p>
-            )}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button
-                className="btn primary lg"
-                onClick={() => setInquiryOpen(true)}
-                aria-haspopup="dialog"
-                style={{ fontSize: 15, padding: "12px 24px" }}
-              >
-                섭외 문의하기
-              </button>
-              <a
-                href="#performance"
+          <div className="pf-eyebrow">ONESHOT DANCE CREW — KOREA</div>
+
+          <h1 className="pf-hero-title">
+            {(title || "원샷크루").toUpperCase()}
+          </h1>
+
+          {subtitle && (
+            <p className="pf-hero-sub">
+              {subtitle}
+            </p>
+          )}
+
+          <div className="pf-hero-rule" aria-hidden="true" />
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: hasMedia ? "minmax(0, 1.2fr) minmax(0, 1fr)" : "1fr",
+              gap: 40,
+              alignItems: "flex-start",
+            }}
+            className="pf-hero-grid"
+          >
+            <div style={{ minWidth: 0 }}>
+              <p
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
                   fontSize: 15,
-                  padding: "12px 24px",
-                  border: "1px solid rgba(255,255,255,0.25)",
-                  borderRadius: 8,
-                  color: "rgba(255,255,255,0.8)",
-                  textDecoration: "none",
+                  lineHeight: 1.7,
+                  color: "var(--pf-hero-muted)",
+                  margin: "0 0 28px",
+                  maxWidth: 520,
                 }}
               >
-                공연 영상 보기 ↓
-              </a>
+                K-POP · 한국무용 · 현대무용 · 댄스스포츠 · 힙합 · 브레이킹 — 6개 장르를
+                한 팀에서. 전공자 기반 창작 안무와 고퀄리티 퍼포먼스로
+                <br />
+                <strong style={{ color: "var(--pf-hero-fg)", fontWeight: 700 }}>
+                  한 번의 무대(ONE KILL)
+                </strong>
+                를 완성합니다.
+              </p>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  className="btn primary lg"
+                  onClick={() => setInquiryOpen(true)}
+                  aria-haspopup="dialog"
+                  style={{ fontSize: 14, padding: "12px 22px" }}
+                >
+                  섭외 문의하기 →
+                </button>
+                <a
+                  href="#performance"
+                  className="btn lg pf-ghost"
+                  style={{
+                    fontSize: 14,
+                    padding: "12px 22px",
+                    textDecoration: "none",
+                  }}
+                >
+                  공연 영상 보기
+                </a>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 36,
+                  paddingTop: 20,
+                  borderTop: "1px solid rgba(255,255,255,0.14)",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: 20,
+                }}
+              >
+                <HeroStat label="Members" value="50+" />
+                <HeroStat label="Active" value={`${members.length || 16}`} />
+                <HeroStat label="Genres" value="6" />
+              </div>
             </div>
 
-            <div
-              style={{
-                marginTop: 40,
-                paddingTop: 24,
-                borderTop: "1px solid rgba(255,255,255,0.14)",
-                display: "flex",
-                gap: 40,
-                flexWrap: "wrap",
-              }}
-            >
-              <HeroStat label="TOTAL MEMBERS" value="50+" />
-              <HeroStat label="ACTIVE" value={`${members.length || 16}`} />
-              <HeroStat label="GENRES" value="5" />
-            </div>
-          </div>
-
-          {hasMedia && (
-            <div style={{ position: "relative", borderRadius: "var(--radius-os-lg)", overflow: "hidden" }}>
-              {isVideo && videoId ? (
-                <div style={{ position: "relative", aspectRatio: "16/9" }}>
-                  {thumbnailUrl && (
-                    <Image
-                      src={thumbnailUrl}
-                      alt="대표 영상 썸네일"
-                      fill
-                      style={{ objectFit: "cover" }}
-                      priority
-                    />
-                  )}
+            {hasMedia && thumbnailUrl && (
+              <div
+                style={{
+                  position: "relative",
+                  borderRadius: "var(--radius-os-lg)",
+                  overflow: "hidden",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div style={{ position: "relative", aspectRatio: "16/10" }}>
+                  <Image
+                    src={thumbnailUrl}
+                    alt={heroMedia?.title || `${title} 대표 영상 썸네일`}
+                    fill
+                    style={{ objectFit: "cover" }}
+                    priority
+                    sizes="(max-width: 900px) 100vw, 50vw"
+                  />
                   <div
                     style={{
                       position: "absolute",
                       inset: 0,
-                      background: "rgba(0,0,0,0.3)",
+                      background: "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <button
-                      onClick={() => setVideoOpen(true)}
-                      aria-label="대표 영상 재생"
+                    {videoId && (
+                      <button
+                        onClick={() => setVideoOpen(true)}
+                        aria-label="대표 영상 재생"
+                        style={{
+                          background: "rgba(255,255,255,0.96)",
+                          border: "none",
+                          borderRadius: "50%",
+                          width: 64,
+                          height: 64,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "#0B0B0D",
+                          boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        <Play size={26} style={{ marginLeft: 3 }} />
+                      </button>
+                    )}
+                  </div>
+                  {heroMedia?.title && (
+                    <div
                       style={{
-                        background: "rgba(255,255,255,0.9)",
-                        border: "none",
-                        borderRadius: "50%",
-                        width: 64,
-                        height: 64,
+                        position: "absolute",
+                        left: 0, right: 0, bottom: 0,
+                        padding: "14px 16px",
+                        fontSize: 12,
+                        color: "rgba(255,255,255,0.9)",
+                        fontFamily: "var(--font-mono)",
+                        letterSpacing: "0.04em",
                         display: "flex",
+                        gap: 8,
                         alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
                       }}
                     >
-                      <Play size={28} style={{ marginLeft: 4 }} />
-                    </button>
-                  </div>
+                      <span style={{
+                        background: "rgba(255,255,255,0.15)",
+                        padding: "3px 8px",
+                        borderRadius: 4,
+                        fontSize: 10,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                      }}>
+                        Featured
+                      </span>
+                      <span style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        minWidth: 0,
+                        flex: 1,
+                      }}>
+                        {heroMedia.title}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              ) : isImage && thumbnailUrl ? (
-                <div style={{ position: "relative", aspectRatio: "16/9" }}>
-                  <Image
-                    src={thumbnailUrl}
-                    alt={`${title} 팀 사진`}
-                    fill
-                    style={{ objectFit: "cover" }}
-                    priority
-                  />
-                </div>
-              ) : null}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

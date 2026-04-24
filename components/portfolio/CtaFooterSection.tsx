@@ -16,19 +16,35 @@ export function CtaFooterSection({ contactEmail, members, mediaMap }: CtaFooterS
   return (
     <>
       <section id="cta" className="pf-cta-section">
-        <div>
-          <p className="pf-eyebrow" style={{ marginBottom: 16 }}>ONESHOT CREW와 함께하세요</p>
-          <h2 className="pf-cta-title">특별한 순간을 만들어 드립니다</h2>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <p className="pf-eyebrow" style={{ marginBottom: 16 }}>BOOKING / INQUIRY</p>
+          <h2 className="pf-cta-title">
+            Your One<br />Kill Stage.
+          </h2>
+          <p
+            style={{
+              fontSize: 14,
+              color: "var(--pf-hero-muted)",
+              lineHeight: 1.65,
+              margin: "0 auto 28px",
+              maxWidth: 520,
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.04em",
+            }}
+          >
+            공연 · 방송 · 광고 · 워크숍 어떤 무대든,
+            원샷크루가 가장 임팩트 있게 만들어 드립니다.
+          </p>
           <button
             className="btn primary lg"
             onClick={() => setInquiryOpen(true)}
             aria-haspopup="dialog"
-            style={{ background: "#fff", color: "var(--fg)", fontSize: 16, padding: "14px 32px", marginBottom: 16 }}
+            style={{ fontSize: 14, padding: "14px 28px", marginBottom: 14 }}
           >
-            섭외 문의하기
+            섭외 문의하기 →
           </button>
           {contactEmail && (
-            <p style={{ fontSize: 14, color: "var(--pf-hero-muted)" }}>{contactEmail}</p>
+            <p style={{ fontSize: 13, color: "var(--pf-hero-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.04em" }}>{contactEmail}</p>
           )}
         </div>
       </section>

@@ -44,13 +44,7 @@ export function PerformanceVideoSection({ items, members, mediaMap }: Performanc
               <div>공연 영상이 없습니다</div>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 20,
-              }}
-            >
+            <div className="pf-video-grid">
               {items.map((item) => (
                 <PerformanceVideoCard
                   key={item.id}

@@ -88,14 +88,20 @@ export default async function PortfolioPage() {
   const genres = sections["genres"] ? sections["genres"].split(",").map((g) => g.trim()).filter(Boolean) : [];
   const contactEmail = sections["contact_email"] || "";
 
-  // Classify media by kind
+  // Classify media by kind.
+  // Hero/Featured 선택 우선순위:
+  //   1) 명시적 hero_video/hero_image + is_featured
+  //   2) is_featured=true 퍼포먼스/커버 등 어느 kind라도 (대표로 쓸 1개 pick)
   const heroMedia =
     media.find((m) => m.kind === "hero_video" && m.is_featured) ||
     media.find((m) => m.kind === "hero_image" && m.is_featured) ||
+    media.find((m) => m.is_featured && !!m.youtube_url) ||
+    media.find((m) => m.is_featured) ||
     null;
 
+  // featured 추가분(첫 번째 hero 제외 나머지 is_featured)
   const featuredVideos = media.filter(
-    (m) => m.kind === "hero_video" && m.is_featured && m.id !== heroMedia?.id
+    (m) => m.is_featured && !!m.youtube_url && m.id !== heroMedia?.id
   );
 
   const performanceVideos = media.filter((m) => m.kind === "performance");

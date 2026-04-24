@@ -14,26 +14,11 @@ interface PerformanceVideoCardProps {
 export function PerformanceVideoCard({ media, onPlay, onInquire }: PerformanceVideoCardProps) {
   const videoId = media.youtube_url ? extractYouTubeId(media.youtube_url) : null;
   const thumbnail = media.thumbnail_url || (videoId ? youtubeThumbnail(videoId, "hq") : null);
+  const hasMeta = media.event_date || media.venue || media.description;
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-os)",
-        overflow: "hidden",
-        background: "#fff",
-        transition: "transform 150ms, box-shadow 150ms",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-md)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "";
-      }}
-    >
-      <div style={{ position: "relative", aspectRatio: "16/9", background: "var(--muted)" }}>
+    <div className="pf-video-card">
+      <div className="pf-video-thumb">
         {thumbnail ? (
           <Image
             src={thumbnail}
@@ -44,39 +29,55 @@ export function PerformanceVideoCard({ media, onPlay, onInquire }: PerformanceVi
             loading="lazy"
           />
         ) : (
-          <div style={{ width: "100%", height: "100%", background: "var(--muted-2)" }} />
+          <div style={{ width: "100%", height: "100%", background: "#000" }} />
         )}
         <div
+          className="pf-video-thumb-overlay"
           onClick={() => onPlay(media.id)}
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(0,0,0,0)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            transition: "background 150ms",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0.4)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0)"; }}
+          role="button"
+          aria-label={`${media.title || "영상"} 재생`}
         >
-          <div style={{ background: "rgba(255,255,255,0.9)", borderRadius: "50%", width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 150ms" }}
-            className="play-icon"
-          >
-            <Play size={20} style={{ marginLeft: 3 }} />
+          <div className="pf-video-play-icon">
+            <Play size={22} style={{ marginLeft: 3 }} />
           </div>
         </div>
+        {media.is_featured && (
+          <span
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              padding: "3px 7px",
+              background: "rgba(255,255,255,0.95)",
+              color: "#0B0B0D",
+              borderRadius: 3,
+              fontWeight: 700,
+            }}
+          >
+            Featured
+          </span>
+        )}
       </div>
-      <div style={{ padding: "12px 14px" }}>
-        <div style={{ fontWeight: 700, fontSize: 14, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: 6 }}>
+      <div className="pf-video-body">
+        <div className="pf-video-title">
           {media.title || "제목 없음"}
         </div>
-        <div style={{ fontSize: 12, color: "var(--mf)", fontFamily: "var(--font-mono)", marginBottom: 8 }}>
-          {media.event_date} {media.venue && `· ${media.venue}`}
-        </div>
+        {hasMeta && (
+          <div className="pf-video-meta">
+            {media.event_date && <span>{media.event_date.replace(/-/g, ".")}</span>}
+            {media.event_date && media.venue && <span>·</span>}
+            {media.venue && <span>{media.venue}</span>}
+            {!media.event_date && !media.venue && media.description && (
+              <span>{media.description}</span>
+            )}
+          </div>
+        )}
         {media.members && media.members.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
             <div className="av-stack">
               {media.members.slice(0, 4).map((m) => (
                 <div key={m.id} className="av sm" title={m.stage_name || m.name}>
@@ -89,19 +90,19 @@ export function PerformanceVideoCard({ media, onPlay, onInquire }: PerformanceVi
               ))}
             </div>
             {media.members.length > 4 && (
-              <span style={{ fontSize: 11, color: "var(--mf)" }}>+{media.members.length - 4}</span>
+              <span style={{ fontSize: 11, color: "var(--pf-mf)" }}>+{media.members.length - 4}</span>
             )}
           </div>
         )}
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className="btn sm" style={{ flex: 1 }} onClick={() => onPlay(media.id)}>
-            <Play size={12} />
-            재생
-          </button>
-          <button className="btn sm ghost" style={{ flex: 1, fontSize: 11 }} onClick={() => onInquire(media.id)}>
-            이 영상으로 문의
-          </button>
-        </div>
+      </div>
+      <div className="pf-video-footer">
+        <button className="btn sm primary" onClick={() => onPlay(media.id)}>
+          <Play size={12} />
+          재생
+        </button>
+        <button className="btn sm" onClick={() => onInquire(media.id)}>
+          이 영상으로 문의
+        </button>
       </div>
     </div>
   );

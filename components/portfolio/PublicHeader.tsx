@@ -18,7 +18,23 @@ export function PublicHeader({ contactEmail, members, mediaMap }: PublicHeaderPr
     <>
       <header className="pf-header">
         <a href="/portfolio" className="pf-header-brand">
-          <span style={{ fontSize: 15, fontWeight: 700 }}>원샷크루</span>
+          <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.6 }}>ONESHOT</span>
+          <span
+            aria-hidden="true"
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.2em",
+              color: "var(--pf-mf)",
+              textTransform: "uppercase",
+              marginLeft: 8,
+              paddingLeft: 8,
+              borderLeft: "1px solid var(--pf-border-2)",
+            }}
+            className="pc-only"
+          >
+            One Kill
+          </span>
         </a>
         <div style={{ flex: 1 }} />
         {contactEmail && (
@@ -35,6 +51,7 @@ export function PublicHeader({ contactEmail, members, mediaMap }: PublicHeaderPr
           className="btn primary"
           onClick={() => setInquiryOpen(true)}
           aria-haspopup="dialog"
+          style={{ fontSize: 12.5, padding: "0 14px", height: 34 }}
         >
           섭외 문의하기
         </button>

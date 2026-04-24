@@ -52,7 +52,7 @@ export function CareerTimeline({ careers }: CareerTimelineProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             {grouped.map(([year, items]) => (
               <div key={year}>
-                <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{year}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "var(--pf-ink)", letterSpacing: "-0.02em", marginBottom: 16, fontFamily: "var(--font-mono)" }}>{year}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   {items.map((career, i) => (
                     <div
@@ -64,44 +64,48 @@ export function CareerTimeline({ careers }: CareerTimelineProps) {
                         paddingBottom: i < items.length - 1 ? 20 : 0,
                       }}
                     >
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--mf)", paddingTop: 2 }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--pf-mf)", paddingTop: 2 }}>
                         {career.event_date ? career.event_date.replace(/-/g, ".") : ""}
                       </div>
                       <div style={{ position: "relative" }}>
-                        <div style={{ width: 2, background: "var(--border-2)", height: "100%", position: "absolute", left: 0, top: 0 }} />
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fg)", position: "absolute", left: -3, top: 4 }} />
+                        <div style={{ width: 2, background: "var(--pf-border-2)", height: "100%", position: "absolute", left: 0, top: 0 }} />
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", position: "absolute", left: -3, top: 4 }} />
                       </div>
                       <div>
                         {career.category && CATEGORY_STYLES[career.category] && (
                           <span
                             style={{
                               display: "inline-block",
-                              fontSize: 11,
+                              fontSize: 10,
                               padding: "2px 8px",
                               borderRadius: 999,
-                              background: CATEGORY_STYLES[career.category].bg,
-                              color: CATEGORY_STYLES[career.category].fg,
+                              background: "rgba(255,255,255,0.08)",
+                              color: "var(--pf-ink-soft)",
+                              border: "1px solid var(--pf-border)",
                               fontWeight: 600,
+                              fontFamily: "var(--font-mono)",
+                              letterSpacing: "0.06em",
+                              textTransform: "uppercase",
                               marginBottom: 6,
                             }}
                           >
                             {CATEGORY_LABELS[career.category]}
                           </span>
                         )}
-                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{career.title}</div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--pf-ink)", marginBottom: 4, letterSpacing: "-0.01em" }}>{career.title}</div>
                         {career.location && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--mf)", marginBottom: 4 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--pf-mf)", marginBottom: 4 }}>
                             <MapPin size={12} />
                             {career.location}
                           </div>
                         )}
                         {career.description && (
-                          <div style={{ fontSize: 12, color: "var(--mf)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          <div style={{ fontSize: 12, color: "var(--pf-mf)", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                             {career.description}
                           </div>
                         )}
                         {career.link_url && (
-                          <a href={career.link_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--info)", marginTop: 4, display: "inline-block" }}>
+                          <a href={career.link_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--pf-ink-soft)", marginTop: 4, display: "inline-block", textDecoration: "underline", textUnderlineOffset: 3 }}>
                             관련 링크 →
                           </a>
                         )}

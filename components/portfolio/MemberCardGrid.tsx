@@ -36,13 +36,7 @@ export function MemberCardGrid({ members, mediaMap }: MemberCardGridProps) {
               <div>공개된 멤버가 없습니다</div>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 20,
-              }}
-            >
+            <div className="pf-member-grid">
               {members.map((m) => (
                 <MemberCard key={m.id} member={m} onInquire={handleInquire} />
               ))}

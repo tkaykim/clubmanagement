@@ -19,36 +19,67 @@ function VideoMiniCard({ media, onPlay }: { media: PortfolioMediaWithMembers; on
   const thumbnail = media.thumbnail_url || (videoId ? youtubeThumbnail(videoId, "hq") : null);
 
   return (
-    <div
-      style={{ cursor: "pointer" }}
+    <button
+      type="button"
       onClick={() => onPlay(media)}
+      style={{
+        cursor: "pointer",
+        background: "transparent",
+        border: 0,
+        padding: 0,
+        textAlign: "left",
+        color: "inherit",
+        font: "inherit",
+        display: "block",
+        width: "100%",
+      }}
+      aria-label={`${media.title || "영상"} 재생`}
     >
-      <div style={{ position: "relative", aspectRatio: "16/9", borderRadius: 8, overflow: "hidden", background: "var(--muted-2)", marginBottom: 8 }}>
+      <div
+        style={{
+          position: "relative",
+          aspectRatio: "16/9",
+          borderRadius: 10,
+          overflow: "hidden",
+          background: "#000",
+          marginBottom: 8,
+          border: "1px solid var(--pf-border)",
+        }}
+      >
         {thumbnail ? (
-          <Image src={thumbnail} alt={media.title || "영상"} fill style={{ objectFit: "cover" }} loading="lazy" />
+          <Image src={thumbnail} alt={media.title || "영상"} fill style={{ objectFit: "cover" }} loading="lazy" sizes="(max-width:640px) 50vw, (max-width:900px) 33vw, 25vw" />
         ) : (
-          <div style={{ width: "100%", height: "100%", background: "var(--muted-2)" }} />
+          <div style={{ width: "100%", height: "100%", background: "#000" }} />
         )}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: "rgba(0,0,0,0)",
+            background: "linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.55) 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "background 150ms",
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0.4)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0)"; }}
         >
-          <Play size={32} style={{ color: "#fff", opacity: 0.8 }} />
+          <Play size={28} style={{ color: "#fff", opacity: 0.85, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.6))" }} />
         </div>
       </div>
-      <div style={{ fontWeight: 600, fontSize: 13, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+      <div
+        style={{
+          fontWeight: 600,
+          fontSize: 12.5,
+          color: "var(--pf-ink)",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          lineHeight: 1.4,
+          wordBreak: "keep-all",
+        }}
+      >
         {media.title || "제목 없음"}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -91,13 +122,7 @@ export function OtherVideoTabs({ coverItems, otherItems, members, mediaMap }: Ot
               <div>영상이 없습니다</div>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 20,
-              }}
-            >
+            <div className="pf-video-grid">
               {activeItems.map((item) => (
                 <VideoMiniCard key={item.id} media={item} onPlay={setPlayMedia} />
               ))}
