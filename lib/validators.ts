@@ -334,6 +334,10 @@ export type PortfolioCareerInput = z.infer<typeof portfolioCareerInputSchema>;
 
 export const portfolioInquiryInputSchema = z
   .object({
+    title: z
+      .string()
+      .min(1, "제목을 입력해주세요")
+      .max(200, "제목은 200자 이하로 입력해주세요"),
     target_type: z.enum(["team", "member"]),
     target_member_id: z.string().uuid().optional().nullable(),
     reference_media_id: z.string().uuid().optional().nullable(),

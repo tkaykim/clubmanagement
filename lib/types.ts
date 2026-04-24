@@ -387,6 +387,7 @@ export type PortfolioCareer = {
 
 export type PortfolioInquiry = {
   id: string;
+  title: string | null;
   target_type: PortfolioInquiryTargetType;
   target_member_id: string | null;
   reference_media_id: string | null;

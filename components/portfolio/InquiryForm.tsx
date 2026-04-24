@@ -38,6 +38,7 @@ export function InquiryForm({
   const [targetMemberId, setTargetMemberId] = useState<string>(defaultMemberId || "");
   const [referenceMediaId, setReferenceMediaId] = useState<string>(defaultReferenceMediaId || "");
   const [inquiryType, setInquiryType] = useState<string>(defaultInquiryType || "");
+  const [title, setTitle] = useState("");
   const [requesterName, setRequesterName] = useState("");
   const [requesterOrg, setRequesterOrg] = useState("");
   const [requesterEmail, setRequesterEmail] = useState("");
@@ -100,6 +101,8 @@ export function InquiryForm({
 
   const validate = (): boolean => {
     const e: FieldErrors = {};
+    if (!title.trim()) e.title = "제목을 입력해주세요";
+    else if (title.length > 200) e.title = "제목은 200자 이하로 입력해주세요";
     if (targetType === "member" && !targetMemberId) e.targetMemberId = "멤버를 선택해주세요";
     if (!inquiryType) e.inquiryType = "섭외 종류를 선택해주세요";
     if (!requesterName.trim()) e.requesterName = "이름을 입력해주세요";
@@ -129,6 +132,7 @@ export function InquiryForm({
     try {
       const body: Record<string, unknown> = {
         _hp: hp,
+        title: title.trim(),
         target_type: targetType,
         target_member_id: targetType === "member" && targetMemberId ? targetMemberId : null,
         reference_media_id: referenceMediaId || null,
@@ -203,6 +207,19 @@ export function InquiryForm({
         autoComplete="off"
         style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px" }}
       />
+
+      {/* SECTION 0: 문의 제목 */}
+      <div className="field">
+        <label>문의 제목 <span className="req">*</span></label>
+        <input
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="예: 2026 연말 기업행사 공연 섭외 문의"
+          maxLength={200}
+        />
+        {errors.title && <small style={{ color: "var(--danger)", fontSize: 11 }}>{errors.title}</small>}
+      </div>
 
       {/* SECTION 1: 문의 대상 */}
       <div className="field">
@@ -348,14 +365,35 @@ export function InquiryForm({
           ))}
         </div>
         {budgetType === "fixed" && (
-          <input className="input" type="number" min={0} value={budgetAmount} onChange={(e) => setBudgetAmount(e.target.value)} placeholder="금액 (원)" />
+          <input
+            className="input"
+            type="text"
+            inputMode="numeric"
+            value={budgetAmount ? Number(budgetAmount).toLocaleString("ko-KR") : ""}
+            onChange={(e) => setBudgetAmount(e.target.value.replace(/[^0-9]/g, ""))}
+            placeholder="금액 (원)"
+          />
         )}
         {budgetType === "range" && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input className="input" type="number" min={0} value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} placeholder="최소 (원)" />
+              <input
+                className="input"
+                type="text"
+                inputMode="numeric"
+                value={budgetMin ? Number(budgetMin).toLocaleString("ko-KR") : ""}
+                onChange={(e) => setBudgetMin(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="최소 (원)"
+              />
               <span style={{ color: "var(--mf)" }}>~</span>
-              <input className="input" type="number" min={0} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} placeholder="최대 (원)" />
+              <input
+                className="input"
+                type="text"
+                inputMode="numeric"
+                value={budgetMax ? Number(budgetMax).toLocaleString("ko-KR") : ""}
+                onChange={(e) => setBudgetMax(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="최대 (원)"
+              />
             </div>
             {errors.budgetMax && <small style={{ color: "var(--danger)", fontSize: 11 }}>{errors.budgetMax}</small>}
           </>

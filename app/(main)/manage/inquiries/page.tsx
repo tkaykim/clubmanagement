@@ -1,22 +1,25 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { InquiryInbox } from "@/components/portfolio/admin/InquiryInbox";
-import type { PortfolioInquiry } from "@/lib/types";
+import { InquiryInbox, type InquiryWithRefs } from "@/components/portfolio/admin/InquiryInbox";
 
 export const dynamic = "force-dynamic";
 
 export default async function ManageInquiriesPage() {
   const supabase = createServerSupabaseClient();
 
-  let inquiries: PortfolioInquiry[] = [];
+  let inquiries: InquiryWithRefs[] = [];
   let inquiryTotal = 0;
 
   try {
     const { data } = await supabase
       .from("portfolio_inquiries")
-      .select("*")
+      .select(
+        `*,
+         target_member:crew_members!target_member_id(id, stage_name, name),
+         reference_media:portfolio_media!reference_media_id(id, title, youtube_url, thumbnail_url)`
+      )
       .order("created_at", { ascending: false })
       .limit(200);
-    inquiries = (data ?? []) as PortfolioInquiry[];
+    inquiries = (data ?? []) as unknown as InquiryWithRefs[];
     inquiryTotal = inquiries.length;
   } catch {
     // 빈 상태
