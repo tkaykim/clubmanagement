@@ -26,7 +26,8 @@ const STATUS_OPTIONS: { value: PortfolioInquiryStatus; label: string }[] = [
   { value: "new", label: "신규" },
   { value: "in_review", label: "검토중" },
   { value: "contacted", label: "연락완료" },
-  { value: "closed", label: "종료" },
+  { value: "on_hold", label: "보류" },
+  { value: "closed", label: "완료" },
 ];
 
 const INQUIRY_TYPE_LABELS: Record<string, string> = {

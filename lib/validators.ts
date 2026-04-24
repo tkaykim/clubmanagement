@@ -426,7 +426,7 @@ export type PortfolioInquiryInput = z.infer<typeof portfolioInquiryInputSchema>;
 
 /** 관리자 문의 상태 업데이트 */
 export const portfolioInquiryAdminUpdateSchema = z.object({
-  status: z.enum(["new", "in_review", "contacted", "closed"]).optional(),
+  status: z.enum(["new", "in_review", "contacted", "on_hold", "closed"]).optional(),
   admin_memo: z.string().max(2000).optional().nullable(),
 });
 

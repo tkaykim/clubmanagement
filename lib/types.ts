@@ -333,7 +333,7 @@ export type PortfolioInquiryTargetType = "team" | "member";
 
 export type PortfolioInquiryBudgetType = "fixed" | "range" | "tbd";
 
-export type PortfolioInquiryStatus = "new" | "in_review" | "contacted" | "closed";
+export type PortfolioInquiryStatus = "new" | "in_review" | "contacted" | "on_hold" | "closed";
 
 // ============================================================
 // Portfolio DB Row types (1:1 with table columns)

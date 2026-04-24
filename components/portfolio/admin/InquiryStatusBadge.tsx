@@ -9,7 +9,8 @@ const STATUS_CONFIG: Record<PortfolioInquiryStatus, { label: string; bg: string;
   new: { label: "신규", bg: "var(--inq-new-bg)", fg: "var(--inq-new-fg)" },
   in_review: { label: "검토중", bg: "var(--inq-in_review-bg)", fg: "var(--inq-in_review-fg)" },
   contacted: { label: "연락완료", bg: "var(--inq-contacted-bg)", fg: "var(--inq-contacted-fg)" },
-  closed: { label: "종료", bg: "var(--inq-closed-bg)", fg: "var(--inq-closed-fg)" },
+  on_hold: { label: "보류", bg: "var(--inq-on_hold-bg)", fg: "var(--inq-on_hold-fg)" },
+  closed: { label: "완료", bg: "var(--inq-closed-bg)", fg: "var(--inq-closed-fg)" },
 };
 
 export function InquiryStatusBadge({ status, size = "default" }: InquiryStatusBadgeProps) {

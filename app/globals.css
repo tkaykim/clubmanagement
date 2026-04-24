@@ -96,6 +96,8 @@
   --inq-in_review-fg:    #D97706;
   --inq-contacted-bg:    #ECFDF5;
   --inq-contacted-fg:    #059669;
+  --inq-on_hold-bg:      #F5F3FF;
+  --inq-on_hold-fg:      #7C3AED;
   --inq-closed-bg:       #F4F4F5;
   --inq-closed-fg:       #71717A;
 }
@@ -1336,6 +1338,7 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .badge.inq-new        { background: var(--inq-new-bg);        color: var(--inq-new-fg);        border-color: transparent; }
 .badge.inq-in_review  { background: var(--inq-in_review-bg);  color: var(--inq-in_review-fg);  border-color: transparent; }
 .badge.inq-contacted  { background: var(--inq-contacted-bg);  color: var(--inq-contacted-fg);  border-color: transparent; }
+.badge.inq-on_hold    { background: var(--inq-on_hold-bg);    color: var(--inq-on_hold-fg);    border-color: transparent; }
 .badge.inq-closed     { background: var(--inq-closed-bg);     color: var(--inq-closed-fg);     border-color: transparent; }
 
 /* 포토 갤러리 */
