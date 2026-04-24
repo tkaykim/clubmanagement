@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import {
+  createRouteSupabaseClient,
+  createServiceSupabaseClient,
+} from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { portfolioInquiryInputSchema } from "@/lib/validators";
 
@@ -54,22 +57,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createRouteSupabaseClient();
+    // INSERT 는 anon RLS(portfolio_inquiries_anyone_insert)로 허용되지만
+    // RETURNING 을 위한 SELECT 권한은 없다. 서비스 롤이 설정되어 있으면
+    // 서비스 롤로 INSERT+SELECT 하여 id 를 확보하고, 없으면 anon 으로 INSERT 만 수행.
+    const service = createServiceSupabaseClient();
+    const supabase = service ?? createRouteSupabaseClient();
 
-    const { data, error } = await supabase
-      .from("portfolio_inquiries")
-      .insert({
-        ...parsed.data,
-        status: "new",
-      })
-      .select()
-      .single();
+    const insertRow = { ...parsed.data, status: "new" as const };
 
-    if (error || !data) {
-      return NextResponse.json({ error: "문의 제출에 실패했습니다" }, { status: 500 });
+    let insertedId: string | null = null;
+    if (service) {
+      const { data, error } = await service
+        .from("portfolio_inquiries")
+        .insert(insertRow)
+        .select("id")
+        .single();
+      if (error || !data) {
+        console.error("[POST /api/portfolio/inquiries] insert error:", error);
+        return NextResponse.json({ error: "문의 제출에 실패했습니다" }, { status: 500 });
+      }
+      insertedId = data.id as string;
+    } else {
+      const { error } = await supabase
+        .from("portfolio_inquiries")
+        .insert(insertRow);
+      if (error) {
+        console.error("[POST /api/portfolio/inquiries] insert error:", error);
+        return NextResponse.json({ error: "문의 제출에 실패했습니다" }, { status: 500 });
+      }
     }
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({ data: { id: insertedId } }, { status: 201 });
   } catch (err) {
     console.error("[POST /api/portfolio/inquiries] error:", err);
     return NextResponse.json({ error: "서버 오류가 발생했습니다" }, { status: 500 });
