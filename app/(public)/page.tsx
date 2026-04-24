@@ -6,7 +6,7 @@ import { PerformanceVideoSection } from "@/components/portfolio/PerformanceVideo
 import { OtherVideoTabs } from "@/components/portfolio/OtherVideoTabs";
 import { PhotoGallery } from "@/components/portfolio/PhotoGallery";
 import { CareerTimeline } from "@/components/portfolio/CareerTimeline";
-import { MemberCardGrid } from "@/components/portfolio/MemberCardGrid";
+// import { MemberCardGrid } from "@/components/portfolio/MemberCardGrid";
 import { CtaFooterSection } from "@/components/portfolio/CtaFooterSection";
 import type {
   PortfolioSectionKey,
@@ -144,7 +144,7 @@ export default async function PortfolioPage() {
 
       <CareerTimeline careers={careers} />
 
-      <MemberCardGrid members={members} mediaMap={mediaMap} />
+      {/* <MemberCardGrid members={members} mediaMap={mediaMap} /> */}
 
       <CtaFooterSection
         contactEmail={contactEmail}
