@@ -58,11 +58,13 @@ export async function middleware(req: NextRequest) {
 
   if (isAuthPath) return res;
 
-  // 공개 페이지는 통과 (인증 불필요)
-  //   - 루트 "/"        → 공개 포트폴리오 (app/(public)/page.tsx)
-  //   - /apply/*       → 게스트 지원 링크
+  // 공개 페이지/API는 통과 (인증 불필요)
+  //   - 루트 "/"                       → 공개 포트폴리오 (app/(public)/page.tsx)
+  //   - /apply/*                       → 게스트 지원 링크
+  //   - /api/portfolio/inquiries       → 비로그인 섭외 문의 제출 (POST는 RLS + 핸드쉐이크로 공개)
   if (pathname === "/") return res;
   if (pathname.startsWith("/apply/")) return res;
+  if (pathname === "/api/portfolio/inquiries") return res;
 
   // 비인증 상태에서 보호 경로 접근
   if (!authUser) {
