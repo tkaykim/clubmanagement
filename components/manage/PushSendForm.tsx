@@ -18,11 +18,20 @@ export type ProjectOption = {
   status: string;
 };
 
+export type AnnouncementOption = {
+  id: string;
+  title: string;
+  pinned: boolean;
+  created_at: string;
+};
+
 type TargetKind = "all" | "self" | "users" | "role" | "project";
+type LinkKind = "none" | "project" | "announcement" | "url";
 
 interface Props {
   members: MemberOption[];
   projects: ProjectOption[];
+  announcements: AnnouncementOption[];
   subscribedUserIds: string[];
 }
 
@@ -32,16 +41,42 @@ const ROLE_LABELS: Record<string, string> = {
   member: "일반 멤버",
 };
 
-export function PushSendForm({ members, projects, subscribedUserIds }: Props) {
+export function PushSendForm({ members, projects, announcements, subscribedUserIds }: Props) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [url, setUrl] = useState("");
   const [kind, setKind] = useState<TargetKind>("self");
   const [pickedUsers, setPickedUsers] = useState<Set<string>>(new Set());
   const [pickedRole, setPickedRole] = useState<"admin" | "owner" | "member">("member");
   const [pickedProjectId, setPickedProjectId] = useState<string>(projects[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [sending, setSending] = useState(false);
+
+  // 클릭 시 이동 — 프로젝트/공지/직접 URL 중 선택
+  const [linkKind, setLinkKind] = useState<LinkKind>("none");
+  const [linkProjectId, setLinkProjectId] = useState<string>("");
+  const [linkAnnouncementId, setLinkAnnouncementId] = useState<string>("");
+  const [linkUrl, setLinkUrl] = useState<string>("");
+  const [linkProjectQuery, setLinkProjectQuery] = useState<string>("");
+  const [linkAnnouncementQuery, setLinkAnnouncementQuery] = useState<string>("");
+
+  const filteredLinkProjects = useMemo(() => {
+    const q = linkProjectQuery.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter((p) => p.title.toLowerCase().includes(q));
+  }, [projects, linkProjectQuery]);
+
+  const filteredLinkAnnouncements = useMemo(() => {
+    const q = linkAnnouncementQuery.trim().toLowerCase();
+    if (!q) return announcements;
+    return announcements.filter((a) => a.title.toLowerCase().includes(q));
+  }, [announcements, linkAnnouncementQuery]);
+
+  const resolvedUrl = useMemo(() => {
+    if (linkKind === "project" && linkProjectId) return `/projects/${linkProjectId}`;
+    if (linkKind === "announcement" && linkAnnouncementId) return `/announcements/${linkAnnouncementId}`;
+    if (linkKind === "url") return linkUrl.trim();
+    return "";
+  }, [linkKind, linkProjectId, linkAnnouncementId, linkUrl]);
 
   const subscribed = useMemo(() => new Set(subscribedUserIds), [subscribedUserIds]);
 
@@ -103,6 +138,29 @@ export function PushSendForm({ members, projects, subscribedUserIds }: Props) {
       target = { kind: "project", projectId: pickedProjectId };
     } else target = { kind: "all" };
 
+    // 클릭 이동 URL 검증
+    let finalUrl: string | undefined;
+    if (linkKind === "project") {
+      if (!linkProjectId) {
+        toast.error("이동할 프로젝트를 선택하세요 (또는 '없음' 선택)");
+        return;
+      }
+      finalUrl = `/projects/${linkProjectId}`;
+    } else if (linkKind === "announcement") {
+      if (!linkAnnouncementId) {
+        toast.error("이동할 공지를 선택하세요 (또는 '없음' 선택)");
+        return;
+      }
+      finalUrl = `/announcements/${linkAnnouncementId}`;
+    } else if (linkKind === "url") {
+      const trimmed = linkUrl.trim();
+      if (!trimmed) {
+        toast.error("이동할 URL을 입력하세요 (또는 '없음' 선택)");
+        return;
+      }
+      finalUrl = trimmed;
+    }
+
     setSending(true);
     try {
       const res = await fetch("/api/push/send", {
@@ -111,7 +169,7 @@ export function PushSendForm({ members, projects, subscribedUserIds }: Props) {
         body: JSON.stringify({
           title: title.trim(),
           body: body.trim(),
-          url: url.trim() || undefined,
+          url: finalUrl,
           target,
         }),
       });
@@ -158,13 +216,92 @@ export function PushSendForm({ members, projects, subscribedUserIds }: Props) {
           />
 
           <label className="lab text-xs muted mt-12">클릭 시 이동 (선택)</label>
-          <input
-            className="input"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="/projects/abc-123 또는 /dashboard"
-            maxLength={500}
-          />
+          <div className="row gap-4" style={{ flexWrap: "wrap" }}>
+            {(
+              [
+                ["none", "없음"],
+                ["project", "프로젝트"],
+                ["announcement", "공지"],
+                ["url", "직접 URL"],
+              ] as Array<[LinkKind, string]>
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                className={`btn sm ${linkKind === k ? "primary" : ""}`}
+                onClick={() => setLinkKind(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {linkKind === "project" && (
+            <div className="mt-8">
+              <input
+                className="input sm"
+                value={linkProjectQuery}
+                onChange={(e) => setLinkProjectQuery(e.target.value)}
+                placeholder="프로젝트 제목 검색"
+              />
+              <select
+                className="input mt-8"
+                value={linkProjectId}
+                onChange={(e) => setLinkProjectId(e.target.value)}
+                size={Math.min(6, Math.max(3, filteredLinkProjects.length))}
+                style={{ height: "auto" }}
+              >
+                <option value="">— 프로젝트 선택 —</option>
+                {filteredLinkProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    [{p.status}] {p.title}
+                  </option>
+                ))}
+              </select>
+              {linkProjectId && (
+                <div className="mono text-xs muted mt-4">→ /projects/{linkProjectId}</div>
+              )}
+            </div>
+          )}
+
+          {linkKind === "announcement" && (
+            <div className="mt-8">
+              <input
+                className="input sm"
+                value={linkAnnouncementQuery}
+                onChange={(e) => setLinkAnnouncementQuery(e.target.value)}
+                placeholder="공지 제목 검색"
+              />
+              <select
+                className="input mt-8"
+                value={linkAnnouncementId}
+                onChange={(e) => setLinkAnnouncementId(e.target.value)}
+                size={Math.min(6, Math.max(3, filteredLinkAnnouncements.length))}
+                style={{ height: "auto" }}
+              >
+                <option value="">— 공지 선택 —</option>
+                {filteredLinkAnnouncements.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.pinned ? "📌 " : ""}
+                    {a.title}
+                  </option>
+                ))}
+              </select>
+              {linkAnnouncementId && (
+                <div className="mono text-xs muted mt-4">→ /announcements/{linkAnnouncementId}</div>
+              )}
+            </div>
+          )}
+
+          {linkKind === "url" && (
+            <input
+              className="input mt-8"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="/dashboard, /mypage, https://..."
+              maxLength={500}
+            />
+          )}
 
           <h3 style={{ marginTop: 20, marginBottom: 10 }}>대상</h3>
           <div className="row gap-8" style={{ flexWrap: "wrap" }}>
@@ -341,8 +478,8 @@ export function PushSendForm({ members, projects, subscribedUserIds }: Props) {
             <div style={{ fontSize: 13, color: "var(--mf)" }}>
               {body || "본문 내용"}
             </div>
-            {url && (
-              <div className="mono text-xs muted mt-8">→ {url}</div>
+            {resolvedUrl && (
+              <div className="mono text-xs muted mt-8">→ {resolvedUrl}</div>
             )}
           </div>
 

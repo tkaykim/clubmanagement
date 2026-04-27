@@ -1,12 +1,22 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { PushSendForm, type MemberOption, type ProjectOption } from "@/components/manage/PushSendForm";
+import {
+  PushSendForm,
+  type MemberOption,
+  type ProjectOption,
+  type AnnouncementOption,
+} from "@/components/manage/PushSendForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function PushSendPage() {
   const supabase = createServerSupabaseClient();
 
-  const [{ data: members }, { data: projects }, { data: subs }] = await Promise.all([
+  const [
+    { data: members },
+    { data: projects },
+    { data: announcements },
+    { data: subs },
+  ] = await Promise.all([
     supabase
       .from("crew_members")
       .select("id, user_id, name, stage_name, role")
@@ -15,8 +25,14 @@ export default async function PushSendPage() {
     supabase
       .from("projects")
       .select("id, title, status")
-      .in("status", ["recruiting", "selecting", "in_progress"])
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabase
+      .from("announcements")
+      .select("id, title, pinned, created_at")
+      .order("pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(100),
     supabase.from("push_subscriptions").select("user_id"),
   ]);
 
@@ -42,6 +58,15 @@ export default async function PushSendPage() {
     status: string;
   }>).map((p) => ({ id: p.id, title: p.title, status: p.status }));
 
+  const announcementOptions: AnnouncementOption[] = (
+    (announcements ?? []) as Array<{
+      id: string;
+      title: string;
+      pinned: boolean;
+      created_at: string;
+    }>
+  ).map((a) => ({ id: a.id, title: a.title, pinned: a.pinned, created_at: a.created_at }));
+
   const subscribedUserIds = new Set(
     ((subs ?? []) as Array<{ user_id: string }>).map((s) => s.user_id)
   );
@@ -60,6 +85,7 @@ export default async function PushSendPage() {
       <PushSendForm
         members={memberOptions}
         projects={projectOptions}
+        announcements={announcementOptions}
         subscribedUserIds={Array.from(subscribedUserIds)}
       />
     </div>
