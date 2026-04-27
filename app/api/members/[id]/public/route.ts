@@ -51,12 +51,35 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
+    // "" → null 정규화 (URL 등 nullable 컬럼 대비)
+    const normalized: Record<string, unknown> = { ...parsed.data };
+    for (const k of [
+      "youtube_url",
+      "instagram_handle",
+      "phone",
+      "stage_name",
+      "top_size",
+      "bottom_size",
+      "shoe_size",
+      "wardrobe_notes",
+      "birth_date",
+      "profile_image_url",
+      "public_bio",
+      "bank_code",
+      "bank_name",
+      "bank_account",
+      "bank_holder",
+      "gender",
+    ]) {
+      if (normalized[k] === "") normalized[k] = null;
+    }
+
     const { data, error } = await supabase
       .from("crew_members")
-      .update(parsed.data)
+      .update(normalized)
       .eq("id", id)
       .select(
-        "id, stage_name, name, position, profile_image_url, public_bio, specialties, is_public, is_active, joined_month"
+        "id, name, stage_name, phone, position, profile_image_url, public_bio, specialties, is_public, is_active, joined_month, gender, birth_date, youtube_url, instagram_handle, height_cm, top_size, bottom_size, shoe_size, wardrobe_notes, bank_code, bank_name, bank_account, bank_holder"
       )
       .single();
 

@@ -434,12 +434,61 @@ export type PortfolioInquiryAdminUpdateInput = z.infer<
   typeof portfolioInquiryAdminUpdateSchema
 >;
 
-/** 멤버 공개 프로필 업데이트 (owner/admin 또는 본인) */
+/** 멤버 공개 프로필 + 마이페이지 자기 정보 업데이트 (owner/admin 또는 본인) */
 export const memberPublicProfileSchema = z.object({
+  // 기존 공개 프로필
   profile_image_url: z.string().url("올바른 URL을 입력해주세요").optional().nullable(),
   is_public: z.boolean().optional(),
   public_bio: z.string().max(500, "소개는 500자 이하로 입력해주세요").optional().nullable(),
   specialties: z.array(z.string().max(50)).max(10).optional().nullable(),
+
+  // 기본 정보
+  name: z.string().min(1, "이름을 입력해주세요").max(100).optional(),
+  stage_name: z.string().max(100).nullable().optional(),
+  phone: z.string().max(30).nullable().optional(),
+  gender: z.enum(["male", "female", "other"]).nullable().optional(),
+  birth_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식")
+    .nullable()
+    .optional(),
+  youtube_url: z
+    .string()
+    .url("올바른 URL을 입력해주세요")
+    .max(500)
+    .nullable()
+    .optional()
+    .or(z.literal("")),
+  instagram_handle: z
+    .string()
+    .max(60)
+    .regex(/^[a-zA-Z0-9._]*$/, "영문/숫자/마침표/언더스코어만 가능")
+    .nullable()
+    .optional(),
+
+  // 추가 정보 (선택)
+  height_cm: z
+    .number()
+    .int()
+    .min(50)
+    .max(250)
+    .nullable()
+    .optional(),
+  top_size: z.string().max(20).nullable().optional(),
+  bottom_size: z.string().max(20).nullable().optional(),
+  shoe_size: z.string().max(20).nullable().optional(),
+  wardrobe_notes: z.string().max(1000).nullable().optional(),
+
+  // 정산 정보 (선택)
+  bank_code: z.string().max(10).nullable().optional(),
+  bank_name: z.string().max(50).nullable().optional(),
+  bank_account: z
+    .string()
+    .max(40)
+    .regex(/^[0-9-]*$/, "숫자/하이픈만 가능")
+    .nullable()
+    .optional(),
+  bank_holder: z.string().max(60).nullable().optional(),
 });
 
 export type MemberPublicProfileInput = z.infer<typeof memberPublicProfileSchema>;
