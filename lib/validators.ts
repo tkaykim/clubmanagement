@@ -177,7 +177,7 @@ export const createMemberSchema = z.object({
   email: z.string().email("올바른 이메일 주소를 입력해주세요").nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   role: z.enum(["owner", "admin", "member"]).default("member"),
-  contract_type: z.enum(["contract", "non_contract", "guest"]).default("contract"),
+  contract_type: z.enum(["contract", "non_contract", "guest"]).default("non_contract"),
   position: z.string().max(100).nullable().optional(),
   joined_month: z
     .string()

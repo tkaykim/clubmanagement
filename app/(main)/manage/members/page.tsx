@@ -34,7 +34,7 @@ export default function ManageMembersPage() {
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
   const [tab, setTab] = useState<"active" | "pending">(initialTab);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", position: "", contract_type: "contract" });
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", position: "", contract_type: "non_contract" });
   const [submitting, setSubmitting] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -76,7 +76,7 @@ export default function ManageMembersPage() {
       if (json.error) { toast.error(json.error); } else {
         toast.success("멤버가 추가되었습니다");
         setShowForm(false);
-        setFormData({ name: "", email: "", phone: "", position: "", contract_type: "contract" });
+        setFormData({ name: "", email: "", phone: "", position: "", contract_type: "non_contract" });
         fetchMembers();
       }
     } catch { toast.error("오류가 발생했습니다"); } finally { setSubmitting(false); }
