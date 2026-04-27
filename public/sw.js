@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oneshot-v6';
+const CACHE_NAME = 'oneshot-v7';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -12,8 +12,41 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// fetch 핸들러는 등록하지 않는다.
-// - Next.js 의 RSC/prefetch fetch 는 자주 abort 되는데
-//   SW 가 중간에서 가로채면 "AbortError: signal is aborted without reason" 이 재발사되어
-//   콘솔이 지저분해지고 일부 브라우저에서는 네비게이션이 망가진다.
-// - PWA 설치 요건은 매니페스트 + SW 등록 자체로 충족되므로 fetch 가로채기는 불필요.
+// fetch 핸들러는 등록하지 않는다. (RSC abort 이슈)
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_e) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  const title = data.title || '우동';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url: data.url || '/dashboard' },
+    tag: data.tag,
+    requireInteraction: !!data.requireInteraction,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/dashboard';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) {
+        try {
+          const u = new URL(c.url);
+          if (u.pathname === url || c.url.endsWith(url)) {
+            return c.focus();
+          }
+        } catch (_e) {}
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});

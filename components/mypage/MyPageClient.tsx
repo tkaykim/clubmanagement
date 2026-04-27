@@ -10,6 +10,7 @@ import { fmtKRW, memberKindOf } from "@/lib/utils";
 import { LogOut, User, FileText, Calendar, DollarSign, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { PushPrompt } from "@/components/layout/PushPrompt";
 
 interface Member {
   id: string;
@@ -140,6 +141,8 @@ export function MyPageClient({ member, applications, payouts, presets }: MyPageC
               </dl>
             </div>
           </div>
+
+          <PushPrompt />
 
           <button
             className="btn ghost danger"

@@ -443,3 +443,36 @@ export const memberPublicProfileSchema = z.object({
 });
 
 export type MemberPublicProfileInput = z.infer<typeof memberPublicProfileSchema>;
+
+// ============================================================
+// Push notification schemas
+// ============================================================
+
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+  ua: z.string().max(500).optional().nullable(),
+});
+export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
+
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().url(),
+});
+export type PushUnsubscribeInput = z.infer<typeof pushUnsubscribeSchema>;
+
+export const pushSendSchema = z.object({
+  title: z.string().min(1, "제목을 입력하세요").max(120),
+  body: z.string().min(1, "내용을 입력하세요").max(500),
+  url: z.string().max(500).optional().nullable(),
+  target: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("all") }),
+    z.object({ kind: z.literal("self") }),
+    z.object({ kind: z.literal("users"), userIds: z.array(z.string().uuid()).min(1) }),
+    z.object({ kind: z.literal("role"), role: z.enum(["admin", "owner", "member"]) }),
+    z.object({ kind: z.literal("project"), projectId: z.string().uuid() }),
+  ]),
+});
+export type PushSendInput = z.infer<typeof pushSendSchema>;

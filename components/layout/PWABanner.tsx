@@ -42,7 +42,7 @@ export function PWABanner() {
       <img src="/icon-192.png" alt="원샷크루" />
       <div className="body">
         <div className="t">홈 화면에 추가</div>
-        <div className="s">앱처럼 빠르게 이용하세요</div>
+        <div className="s">앱으로 빠르게 이용하세요</div>
       </div>
       <button className="btn primary sm" onClick={handleInstall}>
         설치
