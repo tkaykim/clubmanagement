@@ -333,7 +333,7 @@ export function PushSendForm({ members, projects, subscribedUserIds }: Props) {
                 alt=""
                 style={{ width: 28, height: 28, borderRadius: 6 }}
               />
-              <div className="text-xs muted">우동</div>
+              <div className="text-xs muted">원샷크루</div>
             </div>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
               {title || "제목"}

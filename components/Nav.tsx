@@ -13,7 +13,7 @@ export function Nav() {
     <nav className="border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
         <Link href="/" className="font-semibold text-foreground">
-          우동
+          원샷크루
         </Link>
         <div className="flex gap-4">
           {links.map(({ href, label }) => (
