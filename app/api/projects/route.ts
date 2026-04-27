@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { createProjectSchema } from "@/lib/validators";
+import { logActivity } from "@/lib/activity-log";
 
 /**
  * POST /api/projects — 새 프로젝트 생성 (admin)
@@ -90,6 +91,16 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    await logActivity({
+      actorUserId: admin.user_id,
+      actorName: admin.name,
+      action: "project.create",
+      targetType: "project",
+      targetId: project.id,
+      targetLabel: project.title,
+      meta: { status: project.status, type: project.type },
+    });
 
     return NextResponse.json({ data: project }, { status: 201 });
   } catch (err) {

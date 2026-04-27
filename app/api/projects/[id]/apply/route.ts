@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { getSession } from "@/lib/auth";
 import { applySchema, updateApplySchema, type VoteSubmitInput } from "@/lib/validators";
+import { logActivity } from "@/lib/activity-log";
 
 type VoteEntry = NonNullable<VoteSubmitInput["votes"]>[string];
 
@@ -126,6 +127,23 @@ export async function POST(request: Request, { params }: Params) {
       }
     }
 
+    // 프로젝트 제목 (로그 라벨용) — 실패해도 무시
+    const { data: projForLog } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    await logActivity({
+      actorUserId: session?.userId ?? null,
+      actorName: session ? null : appData.guest_name ?? "게스트",
+      action: "application.create",
+      targetType: "application",
+      targetId: application.id,
+      targetLabel: projForLog?.title ?? null,
+      meta: { projectId, isGuest: !session },
+    });
+
     return NextResponse.json(
       { data: { applicationId: application.id } },
       { status: 201 }
@@ -220,6 +238,21 @@ export async function PATCH(request: Request, { params }: Params) {
         onConflict: "schedule_date_id,user_id",
       });
     }
+
+    const { data: projForLog } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    await logActivity({
+      actorUserId: session.userId,
+      action: "application.update",
+      targetType: "application",
+      targetId: application.id,
+      targetLabel: projForLog?.title ?? null,
+      meta: { projectId },
+    });
 
     return NextResponse.json({ data: application });
   } catch (err) {

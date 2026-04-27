@@ -3,6 +3,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, getSession, isNextResponse } from "@/lib/auth";
 import { pushSendSchema } from "@/lib/validators";
 import { sendPushToSubscriptions, type PushSubscriptionRow } from "@/lib/push";
+import { logActivity } from "@/lib/activity-log";
 
 /**
  * POST /api/push/send — 푸시 알림 발송 (admin)
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     const { title, body: msg, url, target } = parsed.data;
 
     let currentUserId: string | null = null;
+    let actorName: string | null = null;
     if (target.kind === "self") {
       const session = await getSession();
       if (!session) {
@@ -31,6 +33,8 @@ export async function POST(request: Request) {
     } else {
       const adminOrResponse = await requireAdmin();
       if (isNextResponse(adminOrResponse)) return adminOrResponse;
+      currentUserId = adminOrResponse.user_id ?? null;
+      actorName = adminOrResponse.name ?? null;
     }
 
     const supabase = createRouteSupabaseClient();
@@ -93,6 +97,24 @@ export async function POST(request: Request) {
       body: msg,
       url: url ?? undefined,
     });
+
+    // self(테스트)는 로그 남기지 않음 — 운영자 본인 행동이라 잡음 큼
+    if (target.kind !== "self") {
+      await logActivity({
+        actorUserId: currentUserId,
+        actorName,
+        action: "push.send",
+        targetType: "push",
+        targetLabel: title,
+        meta: {
+          target,
+          sent: result.sent,
+          failed: result.failed,
+          total: result.total,
+          url: url ?? null,
+        },
+      });
+    }
 
     return NextResponse.json({ data: result });
   } catch (err) {
