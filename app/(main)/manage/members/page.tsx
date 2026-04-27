@@ -124,6 +124,29 @@ export default function ManageMembersPage() {
     setActionLoading(null);
   };
 
+  const handleToggleContract = async (m: MemberRow) => {
+    if (m.role !== "member") {
+      toast.error("admin/owner 멤버는 변경할 수 없습니다");
+      return;
+    }
+    if (m.contract_type === "guest") {
+      toast.error("게스트 → 일반/계약 전환은 멤버 정보 수정에서 진행하세요");
+      return;
+    }
+    const next = m.contract_type === "contract" ? "non_contract" : "contract";
+    setActionLoading(m.id);
+    const res = await fetch(`/api/members/${m.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contract_type: next }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success(next === "contract" ? "계약멤버로 변경" : "일반멤버로 변경");
+    await fetchMembers();
+    setActionLoading(null);
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠어요?")) return;
     setActionLoading(id);
@@ -189,8 +212,8 @@ export default function ManageMembersPage() {
               <div className="field">
                 <label>계약 유형</label>
                 <select className="select" value={formData.contract_type} onChange={e => setFormData(d => ({ ...d, contract_type: e.target.value }))}>
-                  <option value="contract">계약</option>
-                  <option value="non_contract">비계약</option>
+                  <option value="contract">계약멤버</option>
+                  <option value="non_contract">일반멤버</option>
                   <option value="guest">게스트</option>
                 </select>
               </div>
@@ -240,7 +263,21 @@ export default function ManageMembersPage() {
                       </div>
                     </div>
                   </td>
-                  <td data-label="구분"><StatusBadge status={memberKindOf(m.role, m.contract_type)} /></td>
+                  <td data-label="구분">
+                    {isAdmin && m.role === "member" && m.contract_type !== "guest" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleContract(m)}
+                        disabled={actionLoading === m.id}
+                        title="클릭해서 일반/계약멤버 전환"
+                        style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}
+                      >
+                        <StatusBadge status={memberKindOf(m.role, m.contract_type)} />
+                      </button>
+                    ) : (
+                      <StatusBadge status={memberKindOf(m.role, m.contract_type)} />
+                    )}
+                  </td>
                   <td data-label="포지션"><span style={{ fontSize: 13 }}>{m.position ?? "—"}</span></td>
                   <td data-label="합류" className="mono text-xs muted">{m.joined_month ?? "—"}</td>
                   {isAdmin && m.role !== "owner" && (

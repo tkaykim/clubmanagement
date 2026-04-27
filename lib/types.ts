@@ -15,7 +15,7 @@ export type ProjectStatus =
 
 export type ProjectType = "paid_gig" | "practice" | "audition" | "workshop" | "shooting";
 
-export type ProjectVisibility = "public" | "admin" | "private";
+export type ProjectVisibility = "public" | "admin" | "contract" | "private";
 
 export type ProjectPayType = "pay" | "fee" | "free" | "tbd";
 

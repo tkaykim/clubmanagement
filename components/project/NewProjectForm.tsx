@@ -24,12 +24,13 @@ const PROJECT_STATUSES = [
 
 const VISIBILITY_OPTIONS = [
   { value: "public", label: "전체공개", hint: "활성 멤버 누구나" },
+  { value: "contract", label: "계약멤버만", hint: "운영진 + 계약멤버 (일반/게스트 제외)" },
   { value: "admin", label: "운영진만", hint: "owner · admin" },
   { value: "private", label: "비공개", hint: "등록자와 owner만" },
 ] as const;
 
 type ProjectType = "paid_gig" | "practice" | "audition" | "workshop" | "shooting";
-type Visibility = "public" | "admin" | "private";
+type Visibility = "public" | "admin" | "contract" | "private";
 type Kind = "event" | "practice";
 type AddMode = "range" | "single";
 

@@ -56,8 +56,8 @@ export const PROJECT_TYPE_LABELS: Record<string, string> = {
 // ============================================================
 
 export const CONTRACT_LABELS: Record<string, string> = {
-  contract: "계약",
-  non_contract: "비계약",
+  contract: "계약멤버",
+  non_contract: "일반멤버",
   guest: "게스트",
 } as const;
 
