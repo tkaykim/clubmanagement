@@ -7,10 +7,12 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
 import { fmtKRW, memberKindOf } from "@/lib/utils";
-import { LogOut, User, FileText, Calendar, DollarSign, Loader2 } from "lucide-react";
+import { LogOut, User, FileText, Calendar, DollarSign, Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { PushPrompt } from "@/components/layout/PushPrompt";
+import { KOREAN_BANKS } from "@/lib/banks";
+import { useMemo } from "react";
 
 interface Member {
   id: string;
@@ -22,6 +24,20 @@ interface Member {
   position: string | null;
   contract_type: string;
   joined_month: string | null;
+  profile_image_url: string | null;
+  gender: string | null;
+  birth_date: string | null;
+  youtube_url: string | null;
+  instagram_handle: string | null;
+  height_cm: number | null;
+  top_size: string | null;
+  bottom_size: string | null;
+  shoe_size: string | null;
+  wardrobe_notes: string | null;
+  bank_code: string | null;
+  bank_name: string | null;
+  bank_account: string | null;
+  bank_holder: string | null;
 }
 
 interface Application {
@@ -111,36 +127,15 @@ export function MyPageClient({ member, applications, payouts, presets }: MyPageC
                   <div className="row gap-6 mt-8">
                     <StatusBadge status={memberKindOf(member?.role, member?.contract_type)} />
                   </div>
+                  {member?.email && (
+                    <div className="text-xs muted mt-8">{member.email}</div>
+                  )}
                 </div>
               </div>
-              <dl className="kv">
-                {member?.email && (
-                  <>
-                    <dt>이메일</dt>
-                    <dd>{member.email}</dd>
-                  </>
-                )}
-                {member?.phone && (
-                  <>
-                    <dt>연락처</dt>
-                    <dd>{member.phone}</dd>
-                  </>
-                )}
-                {member?.position && (
-                  <>
-                    <dt>포지션</dt>
-                    <dd>{member.position}</dd>
-                  </>
-                )}
-                {member?.joined_month && (
-                  <>
-                    <dt>합류</dt>
-                    <dd className="mono text-xs">{member.joined_month}</dd>
-                  </>
-                )}
-              </dl>
             </div>
           </div>
+
+          {member && <ProfileEditor member={member} />}
 
           <PushPrompt />
 
@@ -274,6 +269,406 @@ export function MyPageClient({ member, applications, payouts, presets }: MyPageC
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// ProfileEditor — 마이페이지 본인 정보 편집 (기본 / 추가 / 정산)
+// ============================================================
+
+interface ProfileEditorProps {
+  member: Member;
+}
+
+type FormState = {
+  name: string;
+  stage_name: string;
+  phone: string;
+  gender: string;
+  birth_date: string;
+  youtube_url: string;
+  instagram_handle: string;
+  height_cm: string;
+  top_size: string;
+  bottom_size: string;
+  shoe_size: string;
+  wardrobe_notes: string;
+  bank_code: string;
+  bank_account: string;
+  bank_holder: string;
+};
+
+function buildInitial(m: Member): FormState {
+  return {
+    name: m.name ?? "",
+    stage_name: m.stage_name ?? "",
+    phone: m.phone ?? "",
+    gender: m.gender ?? "",
+    birth_date: m.birth_date ?? "",
+    youtube_url: m.youtube_url ?? "",
+    instagram_handle: m.instagram_handle ?? "",
+    height_cm: m.height_cm != null ? String(m.height_cm) : "",
+    top_size: m.top_size ?? "",
+    bottom_size: m.bottom_size ?? "",
+    shoe_size: m.shoe_size ?? "",
+    wardrobe_notes: m.wardrobe_notes ?? "",
+    bank_code: m.bank_code ?? "",
+    bank_account: m.bank_account ?? "",
+    bank_holder: m.bank_holder ?? "",
+  };
+}
+
+function ProfileEditor({ member }: ProfileEditorProps) {
+  const [form, setForm] = useState<FormState>(() => buildInitial(member));
+  const [saving, setSaving] = useState(false);
+  const [showExtra, setShowExtra] = useState(false);
+  const [showPayout, setShowPayout] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
+
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const filteredBanks = useMemo(() => {
+    const q = bankSearch.trim().toLowerCase();
+    if (!q) return KOREAN_BANKS;
+    return KOREAN_BANKS.filter(
+      (b) => b.name.toLowerCase().includes(q) || b.code.includes(q)
+    );
+  }, [bankSearch]);
+
+  const selectedBank = KOREAN_BANKS.find((b) => b.code === form.bank_code);
+
+  async function save() {
+    if (!form.name.trim()) {
+      toast.error("이름을 입력하세요");
+      return;
+    }
+    if (!form.gender) {
+      toast.error("성별을 선택하세요");
+      return;
+    }
+    if (!form.phone.trim()) {
+      toast.error("연락처를 입력하세요");
+      return;
+    }
+    if (form.height_cm && (isNaN(Number(form.height_cm)) || Number(form.height_cm) < 50)) {
+      toast.error("키는 50 이상의 숫자로 입력");
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      name: form.name.trim(),
+      stage_name: form.stage_name.trim() || null,
+      phone: form.phone.trim(),
+      gender: form.gender,
+      birth_date: form.birth_date || null,
+      youtube_url: form.youtube_url.trim() || null,
+      instagram_handle: form.instagram_handle.trim() || null,
+      height_cm: form.height_cm ? Number(form.height_cm) : null,
+      top_size: form.top_size.trim() || null,
+      bottom_size: form.bottom_size.trim() || null,
+      shoe_size: form.shoe_size.trim() || null,
+      wardrobe_notes: form.wardrobe_notes.trim() || null,
+      bank_code: form.bank_code || null,
+      bank_name: selectedBank?.name ?? null,
+      bank_account: form.bank_account.trim() || null,
+      bank_holder: form.bank_holder.trim() || null,
+    };
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/members/${member.id}/public`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "저장 실패");
+        return;
+      }
+      toast.success("저장되었습니다");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div style={{ padding: 20 }}>
+        {/* 기본 정보 */}
+        <h3 style={{ marginBottom: 14 }}>기본 정보</h3>
+        <div className="text-xs muted mb-12">
+          이름 · 성별 · 연락처 는 필수 항목입니다.
+        </div>
+
+        <div className="os-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Field label="이름 *">
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+              maxLength={100}
+            />
+          </Field>
+          <Field label="활동명">
+            <input
+              className="input"
+              value={form.stage_name}
+              onChange={(e) => update("stage_name", e.target.value)}
+              maxLength={100}
+              placeholder="예: 베리"
+            />
+          </Field>
+
+          <Field label="성별 *">
+            <select
+              className="input"
+              value={form.gender}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">선택</option>
+              <option value="male">남성</option>
+              <option value="female">여성</option>
+              <option value="other">기타/비공개</option>
+            </select>
+          </Field>
+          <Field label="생년월일">
+            <input
+              type="date"
+              className="input"
+              value={form.birth_date}
+              onChange={(e) => update("birth_date", e.target.value)}
+            />
+          </Field>
+
+          <Field label="연락처 *">
+            <input
+              className="input"
+              value={form.phone}
+              onChange={(e) => update("phone", e.target.value)}
+              placeholder="010-0000-0000"
+              maxLength={30}
+            />
+          </Field>
+          <Field label="유튜브 채널">
+            <input
+              className="input"
+              value={form.youtube_url}
+              onChange={(e) => update("youtube_url", e.target.value)}
+              placeholder="https://youtube.com/@..."
+              maxLength={500}
+            />
+          </Field>
+
+          <Field label="인스타그램 ID" full>
+            <div className="row" style={{ alignItems: "stretch" }}>
+              <span
+                className="text-xs muted"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 10px",
+                  border: "1px solid var(--border)",
+                  borderRight: 0,
+                  borderRadius: "8px 0 0 8px",
+                  background: "var(--soft, #f5f5f5)",
+                }}
+              >
+                instagram.com/
+              </span>
+              <input
+                className="input"
+                style={{ borderRadius: "0 8px 8px 0" }}
+                value={form.instagram_handle}
+                onChange={(e) => update("instagram_handle", e.target.value.replace(/^@/, ""))}
+                placeholder="아이디만"
+                maxLength={60}
+              />
+            </div>
+          </Field>
+        </div>
+
+        {/* 추가 정보 (접힘) */}
+        <div className="mt-20">
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => setShowExtra((v) => !v)}
+            style={{ width: "100%", justifyContent: "space-between" }}
+          >
+            <span>
+              <strong>추가 정보</strong>
+              <span className="text-xs muted" style={{ marginLeft: 8 }}>
+                섭외/의상 준비용 (선택)
+              </span>
+            </span>
+            {showExtra ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {showExtra && (
+            <div
+              className="os-grid mt-12"
+              style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}
+            >
+              <Field label="키 (cm)">
+                <input
+                  className="input"
+                  type="number"
+                  min={50}
+                  max={250}
+                  value={form.height_cm}
+                  onChange={(e) => update("height_cm", e.target.value)}
+                  placeholder="예: 170"
+                />
+              </Field>
+              <Field label="신발 사이즈">
+                <input
+                  className="input"
+                  value={form.shoe_size}
+                  onChange={(e) => update("shoe_size", e.target.value)}
+                  placeholder="예: 250"
+                  maxLength={20}
+                />
+              </Field>
+              <Field label="상의 사이즈">
+                <input
+                  className="input"
+                  value={form.top_size}
+                  onChange={(e) => update("top_size", e.target.value)}
+                  placeholder="예: M, 95"
+                  maxLength={20}
+                />
+              </Field>
+              <Field label="하의 사이즈">
+                <input
+                  className="input"
+                  value={form.bottom_size}
+                  onChange={(e) => update("bottom_size", e.target.value)}
+                  placeholder="예: 28, M"
+                  maxLength={20}
+                />
+              </Field>
+              <Field label="의상 관련 특이사항" full>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={form.wardrobe_notes}
+                  onChange={(e) => update("wardrobe_notes", e.target.value)}
+                  placeholder="자유 서술"
+                  maxLength={1000}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        {/* 정산 정보 (접힘) */}
+        <div className="mt-12">
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => setShowPayout((v) => !v)}
+            style={{ width: "100%", justifyContent: "space-between" }}
+          >
+            <span>
+              <strong>정산 정보</strong>
+              <span className="text-xs muted" style={{ marginLeft: 8 }}>
+                은행/계좌/예금주 (선택)
+              </span>
+            </span>
+            {showPayout ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {showPayout && (
+            <div className="mt-12">
+              <Field label="은행">
+                <input
+                  className="input sm"
+                  value={bankSearch}
+                  onChange={(e) => setBankSearch(e.target.value)}
+                  placeholder="은행명 검색"
+                />
+                <select
+                  className="input mt-8"
+                  value={form.bank_code}
+                  onChange={(e) => update("bank_code", e.target.value)}
+                  size={Math.min(6, Math.max(3, filteredBanks.length))}
+                  style={{ height: "auto" }}
+                >
+                  <option value="">— 선택 —</option>
+                  {filteredBanks.map((b) => (
+                    <option key={b.code} value={b.code}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div
+                className="os-grid mt-12"
+                style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}
+              >
+                <Field label="계좌번호">
+                  <input
+                    className="input"
+                    value={form.bank_account}
+                    onChange={(e) =>
+                      update("bank_account", e.target.value.replace(/[^0-9-]/g, ""))
+                    }
+                    placeholder="숫자/하이픈"
+                    maxLength={40}
+                  />
+                </Field>
+                <Field label="예금주명">
+                  <input
+                    className="input"
+                    value={form.bank_holder}
+                    onChange={(e) => update("bank_holder", e.target.value)}
+                    placeholder="홍길동"
+                    maxLength={60}
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="row mt-20" style={{ justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Save size={14} strokeWidth={2} />
+            )}
+            저장
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  full,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
+  return (
+    <div style={full ? { gridColumn: "1 / -1" } : undefined}>
+      <label className="lab text-xs muted" style={{ display: "block", marginBottom: 4 }}>
+        {label}
+      </label>
+      {children}
     </div>
   );
 }

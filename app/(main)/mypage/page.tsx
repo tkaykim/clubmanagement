@@ -11,6 +11,20 @@ export default async function MyPage() {
     id: string; name: string; stage_name: string | null; email: string | null;
     phone: string | null; role: string; position: string | null; contract_type: string;
     joined_month: string | null;
+    profile_image_url: string | null;
+    gender: string | null;
+    birth_date: string | null;
+    youtube_url: string | null;
+    instagram_handle: string | null;
+    height_cm: number | null;
+    top_size: string | null;
+    bottom_size: string | null;
+    shoe_size: string | null;
+    wardrobe_notes: string | null;
+    bank_code: string | null;
+    bank_name: string | null;
+    bank_account: string | null;
+    bank_holder: string | null;
   } | null = null;
   let applications: Array<{
     id: string; project_id: string; status: string; created_at: string;
@@ -29,7 +43,7 @@ export default async function MyPage() {
       const [memberRes, appRes, payRes, presetRes] = await Promise.all([
         supabase
           .from("crew_members")
-          .select("id, name, stage_name, email, phone, role, position, contract_type, joined_month")
+          .select("id, name, stage_name, email, phone, role, position, contract_type, joined_month, profile_image_url, gender, birth_date, youtube_url, instagram_handle, height_cm, top_size, bottom_size, shoe_size, wardrobe_notes, bank_code, bank_name, bank_account, bank_holder")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase
