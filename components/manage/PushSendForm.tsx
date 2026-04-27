@@ -58,6 +58,14 @@ export function PushSendForm({ members, projects, announcements, subscribedUserI
   const [linkUrl, setLinkUrl] = useState<string>("");
   const [linkProjectQuery, setLinkProjectQuery] = useState<string>("");
   const [linkAnnouncementQuery, setLinkAnnouncementQuery] = useState<string>("");
+  // 대상이 'project'일 때의 검색
+  const [targetProjectQuery, setTargetProjectQuery] = useState<string>("");
+
+  const filteredTargetProjects = useMemo(() => {
+    const q = targetProjectQuery.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter((p) => p.title.toLowerCase().includes(q));
+  }, [projects, targetProjectQuery]);
 
   const filteredLinkProjects = useMemo(() => {
     const q = linkProjectQuery.trim().toLowerCase();
@@ -407,17 +415,31 @@ export function PushSendForm({ members, projects, announcements, subscribedUserI
 
           {kind === "project" && (
             <div className="mt-12">
+              <input
+                className="input sm"
+                value={targetProjectQuery}
+                onChange={(e) => setTargetProjectQuery(e.target.value)}
+                placeholder="프로젝트 제목 검색"
+              />
               <select
-                className="input"
+                className="input mt-8"
                 value={pickedProjectId}
                 onChange={(e) => setPickedProjectId(e.target.value)}
+                size={Math.min(6, Math.max(3, filteredTargetProjects.length))}
+                style={{ height: "auto" }}
               >
-                {projects.length === 0 && <option value="">활성 프로젝트 없음</option>}
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title} ({p.status})
+                <option value="">— 프로젝트 선택 —</option>
+                {filteredTargetProjects.length === 0 ? (
+                  <option value="" disabled>
+                    검색 결과가 없어요
                   </option>
-                ))}
+                ) : (
+                  filteredTargetProjects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      [{p.status}] {p.title}
+                    </option>
+                  ))
+                )}
               </select>
               <div className="text-xs muted mt-8">
                 해당 프로젝트의 승인된(approved) 참여자에게 전송됩니다.
