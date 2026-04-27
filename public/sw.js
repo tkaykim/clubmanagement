@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oneshot-v8';
+const CACHE_NAME = 'oneshot-v9';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -25,6 +25,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
     data: { url: data.url || '/dashboard' },
     tag: data.tag,
     requireInteraction: !!data.requireInteraction,
