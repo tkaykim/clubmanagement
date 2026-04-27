@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oneshot-v7';
+const CACHE_NAME = 'oneshot-v8';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -21,11 +21,10 @@ self.addEventListener('push', (event) => {
   } catch (_e) {
     data = { body: event.data ? event.data.text() : '' };
   }
-  const title = data.title || '우동';
+  const title = data.title || '원샷크루';
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
-    badge: '/icon-192.png',
     data: { url: data.url || '/dashboard' },
     tag: data.tag,
     requireInteraction: !!data.requireInteraction,

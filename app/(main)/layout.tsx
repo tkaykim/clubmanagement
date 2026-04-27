@@ -4,64 +4,31 @@ import { ActiveGuard } from "@/components/auth/ActiveGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import type { CrewMember } from "@/lib/types";
 
-// 레이아웃에서 cookies 기반 세션을 읽고 crew_members.role 로 관리자 여부를 결정한다.
-// 로그인/권한 변경 직후에도 즉시 반영되어야 하므로 정적/ISR 캐시를 금지.
+// 인증/권한 1차 판정만 수행. 사이드바/네비 카운트는 클라이언트에서 /api/me/counts로 fetch.
+// (이전: 매 nav마다 6개 Supabase 쿼리 실행 → PWA 탭 전환 체감 지연의 주범)
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = createServerSupabaseClient();
 
-  // 현재 유저 확인
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  if (!user) {
-    redirect("/login");
-  }
+  const { data: memberData } = await supabase
+    .from("crew_members")
+    .select("id, user_id, name, stage_name, role, contract_type, is_active")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  // crew_member + counts 5개 쿼리 전부 병렬 실행 — 모바일 탭 전환 레이턴시 최소화
-  const [memberRes, projResult, annResult, pendingResult, inquiryResult] = await Promise.all([
-    supabase
-      .from("crew_members")
-      .select("id, user_id, name, stage_name, role, contract_type, is_active")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("projects")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["recruiting", "in_progress"]),
-    supabase
-      .from("announcements")
-      .select("id", { count: "exact", head: true })
-      .eq("pinned", true),
-    supabase
-      .from("project_applications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "pending"),
-    supabase
-      .from("portfolio_inquiries")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new"),
-  ]);
-
-  const me = memberRes.data as CrewMember | null;
+  const me = memberData as CrewMember | null;
   const isAdmin = me?.role === "admin" || me?.role === "owner";
-  // admin/owner 는 is_active 플래그와 무관하게 활성 처리 (관리자 잠금 방지)
-  const initialStatus: "active" | "inactive" = isAdmin || me?.is_active ? "active" : "inactive";
-
-  const projectCount = projResult.count ?? 0;
-  const unreadAnn = annResult.count ?? 0;
-  const myPending = pendingResult.count ?? 0;
-  const newInquiry = inquiryResult.count ?? 0;
+  const initialStatus: "active" | "inactive" =
+    isAdmin || me?.is_active ? "active" : "inactive";
 
   return (
     <ActiveGuard initialStatus={initialStatus}>
-      <AppShell
-        me={me}
-        isAdmin={isAdmin}
-        counts={{ projects: projectCount, unreadAnn, myPending, newInquiry }}
-      >
+      <AppShell me={me} isAdmin={isAdmin}>
         {children}
       </AppShell>
     </ActiveGuard>
