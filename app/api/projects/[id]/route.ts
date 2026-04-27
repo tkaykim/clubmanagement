@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
-import { requireAdmin, requireOwner, isNextResponse } from "@/lib/auth";
+import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { updateProjectSchema } from "@/lib/validators";
+import { logActivity } from "@/lib/activity-log";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,6 +14,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const { id } = await params;
     const adminOrResponse = await requireAdmin();
     if (isNextResponse(adminOrResponse)) return adminOrResponse;
+    const admin = adminOrResponse;
 
     const body = await request.json();
     const parsed = updateProjectSchema.safeParse(body);
@@ -72,6 +74,16 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
+    await logActivity({
+      actorUserId: admin.user_id,
+      actorName: admin.name,
+      action: "project.update",
+      targetType: "project",
+      targetId: id,
+      targetLabel: data?.title ?? null,
+      meta: { changedFields: Object.keys(updateData) },
+    });
+
     return NextResponse.json({ data });
   } catch (err) {
     console.error("[PATCH /api/projects/[id]] error:", err);
@@ -83,15 +95,24 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 /**
- * DELETE /api/projects/[id] — 프로젝트 삭제 (owner)
+ * DELETE /api/projects/[id] — 프로젝트 삭제 (admin/owner)
  */
 export async function DELETE(_request: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const ownerOrResponse = await requireOwner();
-    if (isNextResponse(ownerOrResponse)) return ownerOrResponse;
+    const adminOrResponse = await requireAdmin();
+    if (isNextResponse(adminOrResponse)) return adminOrResponse;
+    const admin = adminOrResponse;
 
     const supabase = createRouteSupabaseClient();
+
+    // 삭제 전 제목 스냅샷 (로그용)
+    const { data: existing } = await supabase
+      .from("projects")
+      .select("title, status")
+      .eq("id", id)
+      .maybeSingle();
+
     const { error } = await supabase.from("projects").delete().eq("id", id);
 
     if (error) {
@@ -100,6 +121,16 @@ export async function DELETE(_request: Request, { params }: Params) {
         { status: 500 }
       );
     }
+
+    await logActivity({
+      actorUserId: admin.user_id,
+      actorName: admin.name,
+      action: "project.delete",
+      targetType: "project",
+      targetId: id,
+      targetLabel: existing?.title ?? null,
+      meta: { lastStatus: existing?.status ?? null },
+    });
 
     return NextResponse.json({ data: { ok: true } });
   } catch (err) {

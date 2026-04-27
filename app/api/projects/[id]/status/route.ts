@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { projectStatusSchema } from "@/lib/validators";
+import { logActivity } from "@/lib/activity-log";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,6 +14,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const { id } = await params;
     const adminOrResponse = await requireAdmin();
     if (isNextResponse(adminOrResponse)) return adminOrResponse;
+    const admin = adminOrResponse;
 
     const body = await request.json();
     const parsed = projectStatusSchema.safeParse(body);
@@ -24,11 +26,19 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     const supabase = createRouteSupabaseClient();
+
+    // 변경 전 상태 + 제목 스냅샷
+    const { data: before } = await supabase
+      .from("projects")
+      .select("status, title")
+      .eq("id", id)
+      .maybeSingle();
+
     const { data, error } = await supabase
       .from("projects")
       .update({ status: parsed.data.status })
       .eq("id", id)
-      .select("id, status")
+      .select("id, status, title")
       .single();
 
     if (error) {
@@ -43,6 +53,16 @@ export async function PATCH(request: Request, { params }: Params) {
         { status: 500 }
       );
     }
+
+    await logActivity({
+      actorUserId: admin.user_id,
+      actorName: admin.name,
+      action: "project.status_change",
+      targetType: "project",
+      targetId: id,
+      targetLabel: data.title ?? before?.title ?? null,
+      meta: { from: before?.status ?? null, to: data.status },
+    });
 
     return NextResponse.json({ data });
   } catch (err) {
