@@ -11,6 +11,7 @@ import {
   Bug,
   ImageIcon,
   Inbox,
+  Bell,
 } from "lucide-react";
 import { NavItem } from "./NavItem";
 import { initials, memberKindOf } from "@/lib/utils";
@@ -79,6 +80,7 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
           <NavItem href="/manage/inquiries" icon={Inbox} count={counts.newInquiry} onClick={onNavClick}>섭외 문의</NavItem>
           <NavItem href="/manage/settlements" icon={DollarSign} onClick={onNavClick}>정산 리포트</NavItem>
           <NavItem href="/manage/members" icon={Users} onClick={onNavClick}>멤버 관리</NavItem>
+          <NavItem href="/manage/push" icon={Bell} onClick={onNavClick}>푸시 알림</NavItem>
           <NavItem href="/manage/bugs" icon={Bug} onClick={onNavClick}>버그 리포트</NavItem>
         </>
       )}

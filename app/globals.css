@@ -913,7 +913,7 @@ table.tbl { width: 100%; border-collapse: collapse; }
 
 /* PWA install banner */
 .pwa-banner {
-  position: fixed; left: 14px; right: 14px; bottom: 82px; z-index: 25;
+  position: fixed; left: 14px; right: 14px; bottom: 150px; z-index: 25;
   background: var(--fg); color: #fff;
   border-radius: 14px;
   padding: 14px 16px;
