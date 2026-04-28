@@ -1,0 +1,49 @@
+name: cron / notify-recruit-soon
+
+# Vercel Hobby 플랜이 분 단위 cron을 허용하지 않아서
+# GitHub Actions 의 schedule trigger 로 대체.
+#
+# - schedule: 매 10분마다 prod 의 /api/cron/notify-recruit-soon 호출
+# - workflow_dispatch: 수동 실행도 가능
+#
+# 사전 준비 (Repo → Settings → Secrets and variables → Actions):
+#   - CRON_SECRET: Vercel 프로젝트의 환경변수와 동일한 값
+#
+# Vercel 프로덕션 도메인: oneshotcrew.grigoent.co.kr
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+# 동일 워크플로우의 이전 실행이 끝나기 전에 새 실행이 트리거되면
+# 이전 실행을 취소하지 않고 그냥 직렬화 (중복 방지).
+concurrency:
+  group: cron-notify-recruit-soon
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Trigger /api/cron/notify-recruit-soon
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          URL="https://oneshotcrew.grigoent.co.kr/api/cron/notify-recruit-soon"
+          if [ -n "${CRON_SECRET:-}" ]; then
+            HTTP_CODE=$(curl -sS -o /tmp/body.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "${URL}")
+          else
+            HTTP_CODE=$(curl -sS -o /tmp/body.json -w "%{http_code}" "${URL}")
+          fi
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/body.json || true
+          echo
+          # 2xx 가 아니면 실패 처리
+          if [ "${HTTP_CODE:0:1}" != "2" ]; then
+            exit 1
+          fi
