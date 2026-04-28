@@ -84,21 +84,74 @@ function localInputToISO(v: string): string | null {
   return d.toISOString();
 }
 
-export function NewProjectForm() {
+// ISO 문자열 → datetime-local 입력값 ("YYYY-MM-DDTHH:MM")
+function isoToLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return toLocalInputValue(d);
+}
+
+export interface InitialProjectData {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  visibility: string;
+  description: string | null;
+  pay_type: string | null;
+  fee: number;
+  venue: string | null;
+  address: string | null;
+  recruitment_start_at: string | null;
+  recruitment_end_at: string | null;
+  max_participants: number | null;
+  schedule_dates: Array<{ date: string; kind: string; label: string | null }>;
+}
+
+interface NewProjectFormProps {
+  /** 'edit' 모드일 때 initialProject 필수. 미지정 시 'create'. */
+  mode?: "create" | "edit";
+  initialProject?: InitialProjectData;
+}
+
+export function NewProjectForm({ mode = "create", initialProject }: NewProjectFormProps = {}) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<ProjectType>("paid_gig");
-  const [status, setStatus] = useState("recruiting");
-  const [visibility, setVisibility] = useState<Visibility>("public");
-  const [description, setDescription] = useState("");
-  const [payType, setPayType] = useState<PayType>("pay");
-  const [fee, setFee] = useState(0);
-  const [venue, setVenue] = useState("");
-  const [address, setAddress] = useState("");
-  const [recruitmentStartAt, setRecruitmentStartAt] = useState<string>(defaultRecruitmentStart);
-  const [recruitmentEndAt, setRecruitmentEndAt] = useState<string>(defaultRecruitmentEnd);
-  const [maxParticipants, setMaxParticipants] = useState("");
-  const [scheduleDates, setScheduleDates] = useState<ScheduleDateItem[]>([]);
+  const isEdit = mode === "edit" && !!initialProject;
+
+  const [title, setTitle] = useState(initialProject?.title ?? "");
+  const [type, setType] = useState<ProjectType>(
+    (initialProject?.type as ProjectType) ?? "paid_gig"
+  );
+  const [status, setStatus] = useState(initialProject?.status ?? "recruiting");
+  const [visibility, setVisibility] = useState<Visibility>(
+    (initialProject?.visibility as Visibility) ?? "public"
+  );
+  const [description, setDescription] = useState(initialProject?.description ?? "");
+  const [payType, setPayType] = useState<PayType>(
+    (initialProject?.pay_type as PayType) ?? "pay"
+  );
+  const [fee, setFee] = useState(initialProject?.fee ?? 0);
+  const [venue, setVenue] = useState(initialProject?.venue ?? "");
+  const [address, setAddress] = useState(initialProject?.address ?? "");
+  const [recruitmentStartAt, setRecruitmentStartAt] = useState<string>(
+    initialProject ? isoToLocalInput(initialProject.recruitment_start_at) : defaultRecruitmentStart()
+  );
+  const [recruitmentEndAt, setRecruitmentEndAt] = useState<string>(
+    initialProject ? isoToLocalInput(initialProject.recruitment_end_at) : defaultRecruitmentEnd()
+  );
+  const [maxParticipants, setMaxParticipants] = useState(
+    initialProject?.max_participants != null ? String(initialProject.max_participants) : ""
+  );
+  const [scheduleDates, setScheduleDates] = useState<ScheduleDateItem[]>(
+    initialProject?.schedule_dates
+      ? initialProject.schedule_dates.map((d) => ({
+          date: d.date,
+          kind: (d.kind === "practice" ? "practice" : "event") as Kind,
+          label: d.label ?? "",
+        }))
+      : []
+  );
   const [submitting, setSubmitting] = useState(false);
 
   // 추가 모드 토글
@@ -210,49 +263,59 @@ export function NewProjectForm() {
         return;
       }
 
-      const res = await fetch("/api/projects", {
-        method: "POST",
+      const url = isEdit
+        ? `/api/projects/${initialProject!.id}`
+        : "/api/projects";
+      const method = isEdit ? "PATCH" : "POST";
+      const payload: Record<string, unknown> = {
+        title: title.trim(),
+        type,
+        status,
+        visibility,
+        description: description.trim() || null,
+        pay_type: payType,
+        fee: payType === "pay" || payType === "fee" ? (fee || 0) : 0,
+        venue: venue.trim() || null,
+        address: address.trim() || null,
+        recruitment_start_at: startISO,
+        recruitment_end_at: endISO,
+        max_participants: maxParticipants ? parseInt(maxParticipants) : null,
+        dates: scheduleDates
+          .filter((d) => d.kind === "event")
+          .map((d) => ({ date: d.date, label: d.label || null, kind: "event" as const })),
+        practiceDates: scheduleDates
+          .filter((d) => d.kind === "practice")
+          .map((d) => ({ date: d.date, label: d.label || null })),
+      };
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          type,
-          status,
-          visibility,
-          description: description.trim() || null,
-          pay_type: payType,
-          fee: payType === "pay" || payType === "fee" ? (fee || 0) : 0,
-          venue: venue.trim() || null,
-          address: address.trim() || null,
-          recruitment_start_at: startISO,
-          recruitment_end_at: endISO,
-          max_participants: maxParticipants ? parseInt(maxParticipants) : null,
-          dates: scheduleDates
-            .filter((d) => d.kind === "event")
-            .map((d) => ({ date: d.date, label: d.label || null, kind: "event" as const })),
-          practiceDates: scheduleDates
-            .filter((d) => d.kind === "practice")
-            .map((d) => ({ date: d.date, label: d.label || null })),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || json.error) {
-        // Zod 검증 실패: 첫 번째 필드 오류 노출
         if (Array.isArray(json.details) && json.details.length > 0) {
           const first = json.details[0];
           const path = Array.isArray(first.path) && first.path.length > 0 ? `[${first.path.join(".")}] ` : "";
           toast.error(`${path}${first.message ?? "입력값 오류"}`);
         } else {
-          toast.error(json.error ?? `생성 실패 (HTTP ${res.status})`);
+          toast.error(json.error ?? `${isEdit ? "수정" : "생성"} 실패 (HTTP ${res.status})`);
         }
-        // 디버깅을 위해 전체 응답을 콘솔에 출력
-        console.error("[NewProjectForm] create failed:", res.status, json);
+        console.error("[NewProjectForm] submit failed:", res.status, json);
         return;
       }
 
-      toast.success("프로젝트가 생성되었습니다");
-      router.push(`/manage/projects/${json.data?.id ?? ""}?tab=applications`);
+      if (isEdit) {
+        toast.success("프로젝트가 수정되었습니다");
+        router.push(`/manage/projects/${initialProject!.id}?tab=applications`);
+        router.refresh();
+      } else {
+        toast.success("프로젝트가 생성되었습니다");
+        router.push(`/manage/projects/${json.data?.id ?? ""}?tab=applications`);
+      }
     } catch (err) {
       console.error("[NewProjectForm] network error:", err);
       toast.error(err instanceof Error ? `네트워크 오류: ${err.message}` : "네트워크 오류가 발생했습니다");
