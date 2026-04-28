@@ -1,41 +1,10 @@
-import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Folder, Calendar, MapPin } from "lucide-react";
-import { AvatarStack } from "@/components/ui/OsAvatar";
-import { fmtPay, payTypeChipTone } from "@/lib/utils";
+import { ProjectsList, type ProjectRow } from "./ProjectsList";
 
 export const dynamic = "force-dynamic";
 
-type TabKey = "all" | "active" | "past" | "cancelled";
-const TABS: Array<{ key: TabKey; label: string }> = [
-  { key: "all", label: "전체" },
-  { key: "active", label: "진행중" },
-  { key: "past", label: "지난 프로젝트" },
-  { key: "cancelled", label: "취소된 프로젝트" },
-];
-const ACTIVE_STATUSES = new Set(["recruiting", "selecting", "in_progress"]);
-
-function resolveTab(v: unknown): TabKey {
-  const s = typeof v === "string" ? v : Array.isArray(v) ? v[0] : "";
-  return (TABS.find(t => t.key === s)?.key ?? "all") as TabKey;
-}
-
-type Props = {
-  searchParams: Promise<{ tab?: string }>;
-};
-
-export default async function ProjectsPage({ searchParams }: Props) {
-  const { tab: tabRaw } = await searchParams;
-  const tab = resolveTab(tabRaw);
+export default async function ProjectsPage() {
   const supabase = createServerSupabaseClient();
-
-  type ProjectRow = {
-    id: string; title: string; status: string; type: string;
-    poster_url: string | null; start_date: string | null;
-    pay_type: string | null; fee: number;
-    venue: string | null; max_participants: number | null;
-  };
 
   // 1차: projects_with_range 뷰 (pay_type 포함).
   // 2차: projects 테이블 (pay_type 포함).
@@ -46,23 +15,28 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
   const viewQuery = await supabase
     .from("projects_with_range")
-    .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue, max_participants")
+    .select(
+      "id, title, status, type, poster_url, start_date, pay_type, fee, venue, max_participants"
+    )
     .order("created_at", { ascending: false });
 
   if (!viewQuery.error) {
     rows = (viewQuery.data ?? []) as Raw[];
   } else {
-    console.error("[projects] view query failed, falling back to projects table:", viewQuery.error);
+    console.error(
+      "[projects] view query failed, falling back to projects table:",
+      viewQuery.error
+    );
 
     // 2차: projects + schedule_dates 병렬 (pay_type 포함)
     const [projResA, datesRes] = await Promise.all([
       supabase
         .from("projects")
-        .select("id, title, status, type, poster_url, pay_type, fee, venue, max_participants, created_at")
+        .select(
+          "id, title, status, type, poster_url, pay_type, fee, venue, max_participants, created_at"
+        )
         .order("created_at", { ascending: false }),
-      supabase
-        .from("schedule_dates")
-        .select("project_id, date"),
+      supabase.from("schedule_dates").select("project_id, date"),
     ]);
 
     type ProjRow = Omit<ProjectRow, "start_date"> & { created_at?: string };
@@ -70,10 +44,15 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
     // 3차: pay_type 컬럼이 없는 환경에서는 재시도 (pay_type 없이)
     if (projResA.error) {
-      console.error("[projects] fallback with pay_type failed, retrying without pay_type:", projResA.error);
+      console.error(
+        "[projects] fallback with pay_type failed, retrying without pay_type:",
+        projResA.error
+      );
       const retry = await supabase
         .from("projects")
-        .select("id, title, status, type, poster_url, fee, venue, max_participants, created_at")
+        .select(
+          "id, title, status, type, poster_url, fee, venue, max_participants, created_at"
+        )
         .order("created_at", { ascending: false });
       if (retry.error) {
         console.error("[projects] final fallback failed:", retry.error);
@@ -85,17 +64,20 @@ export default async function ProjectsPage({ searchParams }: Props) {
     }
 
     const minDateByProject = new Map<string, string>();
-    for (const d of (datesRes.data ?? []) as { project_id: string; date: string }[]) {
+    for (const d of (datesRes.data ?? []) as {
+      project_id: string;
+      date: string;
+    }[]) {
       const prev = minDateByProject.get(d.project_id);
       if (!prev || d.date < prev) minDateByProject.set(d.project_id, d.date);
     }
-    rows = projData.map((p) => ({
+    rows = projData.map(p => ({
       ...p,
       start_date: minDateByProject.get(p.id) ?? null,
     }));
   }
 
-  const all: ProjectRow[] = rows.map((r) => ({
+  const all: ProjectRow[] = rows.map(r => ({
     id: r.id,
     title: r.title,
     status: r.status,
@@ -108,24 +90,6 @@ export default async function ProjectsPage({ searchParams }: Props) {
     max_participants: r.max_participants,
   }));
 
-  const counts = {
-    all: all.length,
-    active: all.filter(p => ACTIVE_STATUSES.has(p.status)).length,
-    past: all.filter(p => p.status === "completed").length,
-    cancelled: all.filter(p => p.status === "cancelled").length,
-  };
-
-  const projects =
-    tab === "active"
-      ? all.filter(p => ACTIVE_STATUSES.has(p.status))
-      : tab === "past"
-        ? all.filter(p => p.status === "completed")
-        : tab === "cancelled"
-          ? all.filter(p => p.status === "cancelled")
-          : all;
-
-  const activeLabel = TABS.find(t => t.key === tab)?.label ?? "전체";
-
   return (
     <div className="page">
       <div className="page-head">
@@ -134,89 +98,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
             <span className="serif-tag">All</span>
             프로젝트
           </h1>
-          <div className="sub">{activeLabel} · {projects.length}건</div>
+          <div className="sub">전체 {all.length}건</div>
         </div>
       </div>
 
-      <nav className="tabs" style={{ marginBottom: 20 }}>
-        {TABS.map(t => (
-          <Link
-            key={t.key}
-            href={t.key === "all" ? "/projects" : `/projects?tab=${t.key}`}
-            className={`tab ${tab === t.key ? "on" : ""}`}
-          >
-            {t.label} <span className="count">{counts[t.key]}</span>
-          </Link>
-        ))}
-      </nav>
-
-      {projects.length === 0 ? (
-        <div className="card">
-          <div className="empty">
-            <Folder className="ico" strokeWidth={1.5} />
-            <div>
-              {tab === "active" && "진행중인 프로젝트가 없어요"}
-              {tab === "past" && "지난 프로젝트가 없어요"}
-              {tab === "cancelled" && "취소된 프로젝트가 없어요"}
-              {tab === "all" && "아직 프로젝트가 없어요"}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="os-grid grid-3">
-          {projects.map(p => (
-            <Link
-              key={p.id}
-              href={`/projects/${p.id}`}
-              className="card flush"
-              style={{ cursor: "pointer", textDecoration: "none", transition: "border-color 150ms" }}
-            >
-              {p.poster_url ? (
-                <img
-                  src={p.poster_url}
-                  alt={p.title}
-                  style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderBottom: "1px solid var(--border)" }}
-                />
-              ) : (
-                <div className="poster thumb" style={{ borderRadius: 0, border: "none", borderBottom: "1px solid var(--border)" }}>
-                  NO POSTER
-                </div>
-              )}
-              <div style={{ padding: 16 }}>
-                <div className="row gap-6 mb-8">
-                  <StatusBadge status={p.type} />
-                  <StatusBadge status={p.status} />
-                  <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
-                    {fmtPay(p.pay_type, p.fee)}
-                  </span>
-                </div>
-                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3, marginBottom: 10 }}>
-                  {p.title}
-                </div>
-                <dl className="kv" style={{ gap: "4px 12px" }}>
-                  {p.start_date && (
-                    <>
-                      <dt><Calendar size={10} strokeWidth={2} /></dt>
-                      <dd className="mono text-xs">{p.start_date}</dd>
-                    </>
-                  )}
-                  {p.venue && (
-                    <>
-                      <dt><MapPin size={10} strokeWidth={2} /></dt>
-                      <dd className="text-xs">{p.venue}</dd>
-                    </>
-                  )}
-                </dl>
-                <div className="divider" style={{ margin: "10px 0" }} />
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <AvatarStack members={[]} max={5} />
-                  <span className="btn sm">자세히</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <ProjectsList projects={all} />
     </div>
   );
 }
