@@ -467,6 +467,7 @@ input, textarea, select { font-family: inherit; color: inherit; }
   padding: 3px 7px; border-radius: 4px;
   background: var(--muted); color: var(--fg-soft);
   border: 1px solid transparent;
+  white-space: nowrap;
 }
 .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .badge.solid { background: var(--fg); color: #fff; }
@@ -745,6 +746,74 @@ table.tbl { width: 100%; border-collapse: collapse; }
 @media (max-width: 900px) {
   .project-card-body { padding: 12px; }
   .project-card-title { font-size: 13.5px; margin-bottom: 8px; }
+}
+
+/* Project card poster + type overlay (좌상단) */
+.project-poster {
+  position: relative;
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.project-poster-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.project-poster-empty {
+  border-radius: 0 !important;
+  border: none !important;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+.project-type-overlay {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 1;
+  pointer-events: none;
+}
+.project-type-overlay .badge {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+/* outline kind 는 포스터 위에서 가독성 약하니 흰 배경으로 강제 */
+.project-type-overlay .badge.outline {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--fg);
+  border-color: transparent;
+}
+
+/* 본문 메타 줄: 상태 + 페이 한 줄, 절대 안 깨지게 */
+.project-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.project-card-meta > .badge { flex-shrink: 0; }
+.project-card-meta > .badge:last-child {
+  /* 페이 칩이 너무 길면 ... 으로 잘림 (그래도 통상 1열엔 다 들어감) */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+@media (max-width: 900px) {
+  .project-type-overlay { top: 6px; left: 6px; }
+  .project-type-overlay .badge {
+    font-size: 9.5px;
+    padding: 2px 5px;
+    letter-spacing: 0.04em;
+  }
+  .project-card-meta { gap: 4px; margin-bottom: 8px; }
+  .project-card-meta .badge {
+    font-size: 9.5px;
+    padding: 2px 5px;
+    letter-spacing: 0.04em;
+  }
 }
 
 /* ============ Schedule availability ============ */

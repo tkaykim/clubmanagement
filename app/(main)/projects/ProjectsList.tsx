@@ -121,32 +121,26 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                 transition: "border-color 150ms",
               }}
             >
-              {p.poster_url ? (
-                <img
-                  src={p.poster_url}
-                  alt={p.title}
-                  style={{
-                    width: "100%",
-                    aspectRatio: "4/3",
-                    objectFit: "cover",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                />
-              ) : (
-                <div
-                  className="poster thumb"
-                  style={{
-                    borderRadius: 0,
-                    border: "none",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
-                  NO POSTER
-                </div>
-              )}
+              <div className="project-poster">
+                {p.poster_url ? (
+                  <img
+                    src={p.poster_url}
+                    alt={p.title}
+                    className="project-poster-img"
+                  />
+                ) : (
+                  <div className="poster thumb project-poster-empty">
+                    NO POSTER
+                  </div>
+                )}
+                {p.type && (
+                  <div className="project-type-overlay">
+                    <StatusBadge status={p.type} />
+                  </div>
+                )}
+              </div>
               <div className="project-card-body">
-                <div className="row gap-6 mb-8">
-                  <StatusBadge status={p.type} />
+                <div className="project-card-meta">
                   <StatusBadge status={p.status} />
                   <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
                     {fmtPay(p.pay_type, p.fee)}
