@@ -1,5 +1,8 @@
 import webpush from "web-push";
-import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import {
+  createRouteSupabaseClient,
+  createServiceSupabaseClient,
+} from "@/lib/supabase-server";
 
 let configured = false;
 
@@ -40,7 +43,8 @@ export async function sendPushToSubscriptions(
   payload: PushPayload
 ): Promise<{ sent: number; failed: number; total: number }> {
   configure();
-  const supabase = createRouteSupabaseClient();
+  // 만료 endpoint 삭제는 anon 컨텍스트(섭외 문의 등)에서도 작동해야 하므로 service_role 우선
+  const supabase = createServiceSupabaseClient() ?? createRouteSupabaseClient();
   const json = JSON.stringify(payload);
 
   let sent = 0;

@@ -1,11 +1,23 @@
 // 도메인 이벤트 → 푸시 알림 발송 헬퍼.
 // 모든 함수는 실패해도 호출자 응답에 영향 안 주도록 try/catch + console.error.
-// admin_route 컨텍스트에서 호출 → RLS는 admin SELECT 정책으로 우회.
+//
+// service_role 우선 사용:
+//   - 익명 사용자가 트리거하는 이벤트(섭외 문의 등)에서도 admin/owner 구독 조회가 가능해야 함
+//   - createRouteSupabaseClient(쿠키 기반)만 쓰면 anon 컨텍스트에서 RLS 가 막아 0건 반환
+//   - service_role 키가 없는 환경에선 route client 로 폴백 (인증된 admin 라우트만 동작)
 
-import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import {
+  createRouteSupabaseClient,
+  createServiceSupabaseClient,
+} from "@/lib/supabase-server";
 import { sendPushToSubscriptions, type PushPayload, type PushSubscriptionRow } from "@/lib/push";
 
 type SupaClient = ReturnType<typeof createRouteSupabaseClient>;
+
+function getSupa(): SupaClient {
+  const service = createServiceSupabaseClient();
+  return (service ?? createRouteSupabaseClient()) as SupaClient;
+}
 
 async function fetchSubsByUserIds(
   supabase: SupaClient,
@@ -41,7 +53,7 @@ async function send(subs: PushSubscriptionRow[], payload: PushPayload) {
 
 export async function notifyAdmins(payload: PushPayload): Promise<void> {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = getSupa();
     const { data: members } = await supabase
       .from("crew_members")
       .select("user_id")
@@ -58,7 +70,7 @@ export async function notifyAdmins(payload: PushPayload): Promise<void> {
 export async function notifyUsers(userIds: string[], payload: PushPayload): Promise<void> {
   if (userIds.length === 0) return;
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = getSupa();
     const subs = await fetchSubsByUserIds(supabase, userIds);
     await send(subs, payload);
   } catch (err) {
@@ -68,7 +80,7 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
 
 export async function notifyAllActive(payload: PushPayload): Promise<void> {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = getSupa();
     const subs = await fetchAllSubs(supabase);
     await send(subs, payload);
   } catch (err) {
@@ -88,7 +100,7 @@ export async function notifyVisibility(
   payload: PushPayload
 ): Promise<void> {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = getSupa();
     let userIds: string[] = [];
 
     if (project.visibility === "public") {
@@ -142,7 +154,7 @@ export async function notifyApprovedParticipants(
   options: { includeOwner?: boolean; includePending?: boolean } = {}
 ): Promise<void> {
   try {
-    const supabase = createRouteSupabaseClient();
+    const supabase = getSupa();
     const statuses = options.includePending ? ["approved", "pending"] : ["approved"];
     const { data } = await supabase
       .from("project_applications")
@@ -177,7 +189,7 @@ export async function notifyAnnouncementScope(
 ): Promise<void> {
   try {
     if (scope === "all" || !scope) {
-      const supabase = createRouteSupabaseClient();
+      const supabase = getSupa();
       const { data } = await supabase
         .from("crew_members")
         .select("user_id")
