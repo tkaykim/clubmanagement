@@ -3,6 +3,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { createProjectSchema } from "@/lib/validators";
 import { logActivity } from "@/lib/activity-log";
+import { notifyVisibility } from "@/lib/notifications";
 
 /**
  * POST /api/projects — 새 프로젝트 생성 (admin)
@@ -101,6 +102,17 @@ export async function POST(request: Request) {
       targetLabel: project.title,
       meta: { status: project.status, type: project.type },
     });
+
+    // P1 #7-A: 신규 프로젝트 등록 알림
+    await notifyVisibility(
+      { id: project.id, visibility: project.visibility, owner_id: project.owner_id },
+      {
+        title: "새 프로젝트가 등록되었어요",
+        body: project.title,
+        url: `/projects/${project.id}`,
+        tag: `project-create-${project.id}`,
+      }
+    );
 
     return NextResponse.json({ data: project }, { status: 201 });
   } catch (err) {

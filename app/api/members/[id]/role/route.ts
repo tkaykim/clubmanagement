@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireOwner, isNextResponse } from "@/lib/auth";
 import { memberRoleSchema } from "@/lib/validators";
+import { notifyUsers } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -46,6 +47,21 @@ export async function PATCH(request: Request, { params }: Params) {
         .from("users")
         .update({ role: parsed.data.role })
         .eq("id", cm.user_id);
+    }
+
+    // P1 #12: 역할 변경 알림 (본인)
+    if (cm.user_id) {
+      const labels: Record<string, string> = {
+        owner: "오너",
+        admin: "운영진",
+        member: "일반 멤버",
+      };
+      await notifyUsers([cm.user_id], {
+        title: "역할이 변경되었어요",
+        body: `${labels[cm.role] ?? cm.role} (으)로 변경되었습니다`,
+        url: "/mypage",
+        tag: `member-role-${id}`,
+      });
     }
 
     return NextResponse.json({ data: { role: cm.role } });

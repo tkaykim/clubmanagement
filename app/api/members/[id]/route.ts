@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, requireOwner, isNextResponse } from "@/lib/auth";
 import { updateMemberSchema } from "@/lib/validators";
+import { notifyUsers } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -51,6 +52,17 @@ export async function PATCH(request: Request, { params }: Params) {
           { status: 500 }
         );
       }
+
+      // P0 #2: 가입 승인 시 본인 알림
+      const member = data as { user_id: string | null };
+      if ((action === "approve" || action === "activate") && member.user_id) {
+        await notifyUsers([member.user_id], {
+          title: "가입이 승인되었어요",
+          body: "원샷크루에 오신 것을 환영합니다 🎉",
+          url: "/dashboard",
+          tag: `member-approved-${id}`,
+        });
+      }
       return NextResponse.json({ data });
     }
 
@@ -64,6 +76,14 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     const supabase = createRouteSupabaseClient();
+
+    // 변경 전 contract_type 스냅샷
+    const { data: before } = await supabase
+      .from("crew_members")
+      .select("contract_type, user_id")
+      .eq("id", id)
+      .maybeSingle();
+
     const { data, error } = await supabase
       .from("crew_members")
       .update(parsed.data)
@@ -82,6 +102,27 @@ export async function PATCH(request: Request, { params }: Params) {
         { error: "멤버 수정에 실패했습니다" },
         { status: 500 }
       );
+    }
+
+    // P1 #13: 계약유형 변경 시 본인 알림
+    const memberRow = data as { user_id: string | null; contract_type: string };
+    const beforeRow = before as { contract_type: string; user_id: string | null } | null;
+    if (
+      memberRow.user_id &&
+      parsed.data.contract_type &&
+      beforeRow?.contract_type !== memberRow.contract_type
+    ) {
+      const labels: Record<string, string> = {
+        contract: "계약멤버",
+        non_contract: "일반멤버",
+        guest: "게스트",
+      };
+      await notifyUsers([memberRow.user_id], {
+        title: "멤버 구분이 변경되었어요",
+        body: `${labels[memberRow.contract_type] ?? memberRow.contract_type} 로 변경되었습니다`,
+        url: "/mypage",
+        tag: `member-contract-${id}`,
+      });
     }
 
     return NextResponse.json({ data });

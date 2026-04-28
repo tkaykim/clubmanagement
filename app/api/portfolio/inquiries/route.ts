@@ -5,6 +5,7 @@ import {
 } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { portfolioInquiryInputSchema } from "@/lib/validators";
+import { notifyAdmins } from "@/lib/notifications";
 
 // IP 기반 인메모리 쿨다운 (프로덕션은 Upstash/KV 권장)
 // 모듈 수명 동안 유지되며, 서버리스 환경에서는 인스턴스별로 독립 동작
@@ -86,6 +87,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "문의 제출에 실패했습니다" }, { status: 500 });
       }
     }
+
+    // P0 #5: 새 섭외 문의 알림 (admin/owner)
+    const inq = parsed.data as { title?: string | null; requester_name?: string | null };
+    await notifyAdmins({
+      title: "새 섭외 문의",
+      body: `${inq.title ?? "(제목 없음)"} · ${inq.requester_name ?? "익명"}`,
+      url: "/manage/inquiries",
+      tag: insertedId ? `inquiry-${insertedId}` : undefined,
+    });
 
     return NextResponse.json({ data: { id: insertedId } }, { status: 201 });
   } catch (err) {
