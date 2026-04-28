@@ -3,6 +3,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { getSession } from "@/lib/auth";
 import { applySchema, updateApplySchema, type VoteSubmitInput } from "@/lib/validators";
 import { logActivity } from "@/lib/activity-log";
+import { notifyAdmins, notifyUsers } from "@/lib/notifications";
 
 type VoteEntry = NonNullable<VoteSubmitInput["votes"]>[string];
 
@@ -127,10 +128,10 @@ export async function POST(request: Request, { params }: Params) {
       }
     }
 
-    // 프로젝트 제목 (로그 라벨용) — 실패해도 무시
+    // 프로젝트 제목 + owner_id (로그/알림용)
     const { data: projForLog } = await supabase
       .from("projects")
-      .select("title")
+      .select("title, owner_id")
       .eq("id", projectId)
       .maybeSingle();
 
@@ -143,6 +144,37 @@ export async function POST(request: Request, { params }: Params) {
       targetLabel: projForLog?.title ?? null,
       meta: { projectId, isGuest: !session },
     });
+
+    // 지원자 이름 (멤버명 또는 게스트명)
+    let applicantName = appData.guest_name ?? "게스트";
+    if (session) {
+      const { data: cm } = await supabase
+        .from("crew_members")
+        .select("name, stage_name")
+        .eq("user_id", session.userId)
+        .maybeSingle();
+      const cmRow = cm as { name: string; stage_name: string | null } | null;
+      applicantName = cmRow?.stage_name ?? cmRow?.name ?? "멤버";
+    }
+
+    // P0 #3: admin/owner + 프로젝트 등록자에게 알림
+    const projForNotify = projForLog as { title: string; owner_id: string | null } | null;
+    const ownerId = projForNotify?.owner_id ?? null;
+    const ntitle = projForNotify?.title ?? "프로젝트";
+    await notifyAdmins({
+      title: "새 지원자",
+      body: `${applicantName}님이 [${ntitle}]에 지원했어요`,
+      url: `/manage/projects/${projectId}/applicants`,
+      tag: `apply-${application.id}`,
+    });
+    if (ownerId) {
+      await notifyUsers([ownerId], {
+        title: "내 프로젝트에 새 지원자",
+        body: `${applicantName}님이 [${ntitle}]에 지원했어요`,
+        url: `/manage/projects/${projectId}/applicants`,
+        tag: `apply-owner-${application.id}`,
+      });
+    }
 
     return NextResponse.json(
       { data: { applicationId: application.id } },

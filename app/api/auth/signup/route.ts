@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { signupSchema } from "@/lib/validators";
+import { notifyAdmins } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -32,7 +33,15 @@ export async function POST(request: Request) {
     }
 
     // public.users + public.crew_members 레코드는 auth.users 트리거(on_auth_user_created)가
-    // 자동 생성한다 (crew_members 는 is_active=false 로 승인 대기). 여기서는 추가 작업 없음.
+    // 자동 생성한다 (crew_members 는 is_active=false 로 승인 대기).
+
+    // P0 #1: 새 가입 신청 알림 (admin/owner)
+    await notifyAdmins({
+      title: "새 가입 신청",
+      body: `${name}(${email}) 님이 가입을 신청했어요`,
+      url: "/manage/members?tab=pending",
+      tag: data.user?.id ? `signup-${data.user.id}` : undefined,
+    });
 
     return NextResponse.json({ data: { user: data.user } });
   } catch {

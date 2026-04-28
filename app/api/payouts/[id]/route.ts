@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { updatePayoutSchema } from "@/lib/validators";
+import { notifyUsers } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -64,6 +65,47 @@ export async function PATCH(request: Request, { params }: Params) {
         { error: "정산 수정에 실패했습니다" },
         { status: 500 }
       );
+    }
+
+    // 알림: status가 paid 또는 scheduled 로 전환 시
+    const payoutRow = data as {
+      id: string;
+      status: string;
+      amount: number;
+      scheduled_at: string | null;
+      paid_at: string | null;
+      user_id: string | null;
+      project_id: string | null;
+    };
+    if (
+      payoutRow.user_id &&
+      parsed.data.status &&
+      parsed.data.status !== existing.status
+    ) {
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("title")
+        .eq("id", payoutRow.project_id ?? "")
+        .maybeSingle();
+      const projTitle = (proj as { title: string } | null)?.title ?? "프로젝트";
+      const amount = payoutRow.amount.toLocaleString("ko-KR");
+      if (parsed.data.status === "paid") {
+        await notifyUsers([payoutRow.user_id], {
+          title: "정산이 지급되었어요",
+          body: `${projTitle} · ₩${amount}`,
+          url: "/mypage?tab=payouts",
+          tag: `payout-paid-${payoutRow.id}`,
+        });
+      } else if (parsed.data.status === "scheduled") {
+        await notifyUsers([payoutRow.user_id], {
+          title: "지급 예정일 안내",
+          body: `${projTitle} · ₩${amount}${
+            payoutRow.scheduled_at ? ` · ${payoutRow.scheduled_at}` : ""
+          }`,
+          url: "/mypage?tab=payouts",
+          tag: `payout-sched-${payoutRow.id}`,
+        });
+      }
     }
 
     return NextResponse.json({ data });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
+import { notifyUsers } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -92,6 +93,26 @@ export async function POST(_request: Request, { params }: Params) {
         { error: "정산 생성에 실패했습니다" },
         { status: 500 }
       );
+    }
+
+    // 정산 등록 알림 (각 user_id 에게)
+    const { data: projForTitle } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .maybeSingle();
+    const projTitle = (projForTitle as { title: string } | null)?.title ?? "프로젝트";
+    const recipientUserIds = ((created ?? []) as Array<{ user_id: string | null }>)
+      .map((r) => r.user_id)
+      .filter((v): v is string => !!v);
+    if (recipientUserIds.length > 0) {
+      const amount = Math.abs((project as { fee: number }).fee).toLocaleString("ko-KR");
+      await notifyUsers(recipientUserIds, {
+        title: "정산이 등록되었어요",
+        body: `${projTitle} · ₩${amount}`,
+        url: "/mypage?tab=payouts",
+        tag: `payout-create-${projectId}`,
+      });
     }
 
     return NextResponse.json({ data: { created: (created ?? []).length } });

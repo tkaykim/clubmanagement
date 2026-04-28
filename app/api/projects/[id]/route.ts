@@ -3,6 +3,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { updateProjectSchema } from "@/lib/validators";
 import { logActivity } from "@/lib/activity-log";
+import { notifyApprovedParticipants } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -83,6 +84,16 @@ export async function PATCH(request: Request, { params }: Params) {
       targetLabel: data?.title ?? null,
       meta: { changedFields: Object.keys(updateData) },
     });
+
+    // 일정 변경 시 approved 참여자에게 알림
+    if (dates !== undefined || practiceDates !== undefined) {
+      await notifyApprovedParticipants(id, {
+        title: "프로젝트 일정이 변경되었어요",
+        body: data?.title ?? "프로젝트",
+        url: `/projects/${id}`,
+        tag: `project-schedule-${id}`,
+      });
+    }
 
     return NextResponse.json({ data });
   } catch (err) {

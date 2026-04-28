@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { createAnnouncementSchema } from "@/lib/validators";
+import { notifyAnnouncementScope } from "@/lib/notifications";
 
 /**
  * POST /api/announcements — 공지 작성 (admin)
@@ -58,6 +59,15 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // P1 #10/#11: 새 공지 알림
+    const ann = data as { id: string; title: string; scope: string; project_id: string | null; pinned: boolean };
+    await notifyAnnouncementScope(ann.scope, ann.project_id, {
+      title: ann.pinned ? "📌 공지" : "새 공지",
+      body: ann.title,
+      url: `/announcements/${ann.id}`,
+      tag: `ann-${ann.id}`,
+    });
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (err) {

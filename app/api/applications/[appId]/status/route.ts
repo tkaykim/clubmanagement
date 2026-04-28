@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { applicationStatusSchema } from "@/lib/validators";
+import { logActivity } from "@/lib/activity-log";
+import { notifyUsers } from "@/lib/notifications";
 
 type Params = { params: Promise<{ appId: string }> };
 
@@ -89,6 +91,40 @@ export async function PATCH(request: Request, { params }: Params) {
           },
           { onConflict: "application_id" }
         );
+      }
+    }
+
+    // 프로젝트 제목 + 알림 + 로그
+    const { data: proj } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", existing.project_id)
+      .maybeSingle();
+    const projTitle = (proj as { title: string } | null)?.title ?? "프로젝트";
+
+    await logActivity({
+      actorUserId: admin.user_id,
+      actorName: admin.name,
+      action: "application.status_change",
+      targetType: "application",
+      targetId: appId,
+      targetLabel: projTitle,
+      meta: { from: existing.status, to: parsed.data.status, projectId: existing.project_id },
+    });
+
+    // P0 #4: 지원 결과 알림 (지원자 본인)
+    if (existing.user_id && parsed.data.status !== existing.status) {
+      const isApproved = parsed.data.status === "approved";
+      const isRejected = parsed.data.status === "rejected";
+      if (isApproved || isRejected) {
+        await notifyUsers([existing.user_id], {
+          title: isApproved ? "프로젝트 합류 확정" : "지원 결과 안내",
+          body: isApproved
+            ? `${projTitle} 합류가 확정되었어요 🎉`
+            : `${projTitle} 지원 결과를 확인해주세요`,
+          url: `/projects/${existing.project_id}`,
+          tag: `app-result-${appId}`,
+        });
       }
     }
 

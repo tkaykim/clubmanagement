@@ -3,6 +3,7 @@ import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { projectStatusSchema } from "@/lib/validators";
 import { logActivity } from "@/lib/activity-log";
+import { notifyVisibility, notifyApprovedParticipants } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,10 +28,10 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const supabase = createRouteSupabaseClient();
 
-    // 변경 전 상태 + 제목 스냅샷
+    // 변경 전 상태 + 제목 + visibility + owner 스냅샷
     const { data: before } = await supabase
       .from("projects")
-      .select("status, title")
+      .select("status, title, visibility, owner_id")
       .eq("id", id)
       .maybeSingle();
 
@@ -63,6 +64,41 @@ export async function PATCH(request: Request, { params }: Params) {
       targetLabel: data.title ?? before?.title ?? null,
       meta: { from: before?.status ?? null, to: data.status },
     });
+
+    // 알림 분기
+    const title = data.title ?? before?.title ?? "프로젝트";
+    const beforeRow = before as
+      | { status: string; title: string; visibility: string; owner_id: string | null }
+      | null;
+    if (data.status === "recruiting" && beforeRow?.status !== "recruiting") {
+      await notifyVisibility(
+        { id, visibility: beforeRow?.visibility ?? "public", owner_id: beforeRow?.owner_id ?? null },
+        {
+          title: "모집이 시작되었어요",
+          body: title,
+          url: `/projects/${id}`,
+          tag: `project-recruit-${id}`,
+        }
+      );
+    } else if (data.status === "cancelled") {
+      await notifyApprovedParticipants(
+        id,
+        {
+          title: "프로젝트가 취소되었습니다",
+          body: title,
+          url: `/projects/${id}`,
+          tag: `project-cancel-${id}`,
+        },
+        { includePending: true }
+      );
+    } else if (data.status === "completed" && beforeRow?.status !== "completed") {
+      await notifyApprovedParticipants(id, {
+        title: "프로젝트가 완료되었어요",
+        body: `${title} · 정산을 확인해보세요`,
+        url: `/mypage?tab=payouts`,
+        tag: `project-complete-${id}`,
+      });
+    }
 
     return NextResponse.json({ data });
   } catch (err) {
