@@ -2,11 +2,12 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, initials } from "@/lib/utils";
 import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
-import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil } from "lucide-react";
+import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
 import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/components/project/VoteScheduleEditor";
@@ -118,6 +119,8 @@ export function ManageProjectClient({
   const [payType, setPayType] = useState<PayType>((project.pay_type ?? "free") as PayType);
   const [feeAmount, setFeeAmount] = useState<number>(project.fee ?? 0);
   const [savingPay, setSavingPay] = useState(false);
+  const [projectStatus, setProjectStatus] = useState<string>(project.status ?? "recruiting");
+  const [savingStatus, setSavingStatus] = useState(false);
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
   const [aggView, setAggView] = useState<"timetable" | "by-date" | "heatmap">("timetable");
   const [poolFilter, setPoolFilter] = useState<"all" | "pending" | "approved">("all");
@@ -152,6 +155,36 @@ export function ManageProjectClient({
       toast.error("네트워크 오류");
     } finally {
       setSavingVisibility(false);
+    }
+  };
+
+  const handleStatusChange = async (next: string) => {
+    if (next === projectStatus) return;
+    const prev = projectStatus;
+    if (next === "cancelled" && !confirm("프로젝트를 '취소' 상태로 변경할까요? 지원자/참여자에게 알림이 발송됩니다.")) {
+      return;
+    }
+    setProjectStatus(next);
+    setSavingStatus(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        setProjectStatus(prev);
+        toast.error(json.error ?? "상태 변경 실패");
+      } else {
+        toast.success("상태가 변경되었습니다");
+        router.refresh();
+      }
+    } catch {
+      setProjectStatus(prev);
+      toast.error("네트워크 오류");
+    } finally {
+      setSavingStatus(false);
     }
   };
 
@@ -854,6 +887,58 @@ export function ManageProjectClient({
       {/* 설정 탭 */}
       {tab === "settings" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 기본 정보 편집 진입 */}
+          <div className="card">
+            <div style={{ padding: 24 }}>
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h3 style={{ marginBottom: 6 }}>기본 정보</h3>
+                  <div className="mono text-xs muted">
+                    제목 · 종류 · 설명 · 일정 · 모집 기간 · 장소 · 최대 인원 등
+                  </div>
+                </div>
+                <Link
+                  href={`/manage/projects/${project.id}/edit`}
+                  className="btn primary sm"
+                >
+                  <Pencil size={13} strokeWidth={2} />
+                  편집
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* 상태 변경 */}
+          <div className="card">
+            <div style={{ padding: 24 }}>
+              <h3 style={{ marginBottom: 8 }}>프로젝트 상태</h3>
+              <div className="mono text-xs muted" style={{ marginBottom: 16 }}>
+                현재 진행 단계 — 변경 시 대상자에게 알림이 발송됩니다.
+              </div>
+              <div
+                className="seg full"
+                style={{ opacity: savingStatus ? 0.6 : 1, pointerEvents: savingStatus ? "none" : "auto", flexWrap: "wrap" }}
+              >
+                {[
+                  { value: "recruiting", label: "모집중" },
+                  { value: "selecting", label: "선별중" },
+                  { value: "in_progress", label: "진행중" },
+                  { value: "completed", label: "완료" },
+                  { value: "cancelled", label: "취소" },
+                ].map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    className={cn(projectStatus === s.value && "on")}
+                    onClick={() => handleStatusChange(s.value)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="card">
             <div style={{ padding: 24 }}>
               <h3 style={{ marginBottom: 8 }}>열람권한</h3>
