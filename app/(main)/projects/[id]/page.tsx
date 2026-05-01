@@ -50,6 +50,10 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   const isRecruiting = project.status === "recruiting";
   const canApply = isRecruiting && !myApp;
+  const canEditOrWithdrawApplication =
+    isRecruiting &&
+    myApp &&
+    myApp.status !== "approved";
 
   return (
     <div className="page">
@@ -85,6 +89,11 @@ export default async function ProjectDetailPage({ params }: Props) {
           <Link href={`/projects/${projectId}/apply`} className="btn primary lg">
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 16 }}>✦</span>
             지원하기
+          </Link>
+        )}
+        {canEditOrWithdrawApplication && (
+          <Link href={`/projects/${projectId}/apply`} className="btn primary lg">
+            지원 수정·취소
           </Link>
         )}
         {myApp && (
@@ -163,6 +172,13 @@ export default async function ProjectDetailPage({ params }: Props) {
                 <div style={{ marginTop: 16 }}>
                   <Link href={`/projects/${projectId}/apply`} className="btn primary" style={{ width: "100%", justifyContent: "center" }}>
                     지원하기
+                  </Link>
+                </div>
+              )}
+              {canEditOrWithdrawApplication && (
+                <div style={{ marginTop: 16 }}>
+                  <Link href={`/projects/${projectId}/apply`} className="btn primary" style={{ width: "100%", justifyContent: "center" }}>
+                    지원 수정·취소
                   </Link>
                 </div>
               )}

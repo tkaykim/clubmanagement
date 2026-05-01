@@ -212,7 +212,8 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    const { votes, ...updateData } = parsed.data;
+    const { votes, submitted_at, motivation, fee_agreement, answers_note, answers } =
+      parsed.data;
     const supabase = createRouteSupabaseClient();
 
     // 기존 지원 확인
@@ -237,19 +238,45 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    // 지원 업데이트
-    const { data: application, error } = await supabase
-      .from("project_applications")
-      .update(updateData)
-      .eq("id", existing.id)
-      .select()
-      .single();
+    const row: Record<string, unknown> = {};
+    if (motivation !== undefined) row.motivation = motivation;
+    if (fee_agreement !== undefined) row.fee_agreement = fee_agreement;
+    if (answers_note !== undefined) row.answers_note = answers_note;
+    if (answers !== undefined) row.answers = answers;
+    if (submitted_at !== undefined) {
+      row.created_at = new Date(submitted_at).toISOString();
+    }
 
-    if (error) {
-      return NextResponse.json(
-        { error: "지원 수정에 실패했습니다" },
-        { status: 500 }
-      );
+    let application;
+
+    if (Object.keys(row).length > 0) {
+      const { data, error } = await supabase
+        .from("project_applications")
+        .update(row)
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json(
+          { error: "지원 수정에 실패했습니다" },
+          { status: 500 }
+        );
+      }
+      application = data;
+    } else {
+      const { data, error } = await supabase
+        .from("project_applications")
+        .select("*")
+        .eq("id", existing.id)
+        .single();
+      if (error || !data) {
+        return NextResponse.json(
+          { error: "지원 수정에 실패했습니다" },
+          { status: 500 }
+        );
+      }
+      application = data;
     }
 
     // 가용성 업데이트
@@ -289,6 +316,94 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ data: application });
   } catch (err) {
     console.error("[PATCH /api/projects/[id]/apply] error:", err);
+    return NextResponse.json(
+      { error: "서버 오류가 발생했습니다" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/projects/[id]/apply — 지원 취소(본인, pending·rejected 만)
+ */
+export async function DELETE(_request: Request, { params }: Params) {
+  try {
+    const { id: projectId } = await params;
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "인증이 필요합니다" },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createRouteSupabaseClient();
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from("project_applications")
+      .select("id, status")
+      .eq("project_id", projectId)
+      .eq("user_id", session.userId)
+      .maybeSingle();
+
+    if (fetchErr || !existing) {
+      return NextResponse.json(
+        { error: "지원 내역이 없습니다" },
+        { status: 404 }
+      );
+    }
+
+    if (existing.status === "approved") {
+      return NextResponse.json(
+        { error: "확정된 지원은 취소할 수 없습니다" },
+        { status: 400 }
+      );
+    }
+
+    const { data: dateRows } = await supabase
+      .from("schedule_dates")
+      .select("id")
+      .eq("project_id", projectId);
+    const dateIds = (dateRows ?? []).map((r: { id: string }) => r.id);
+    if (dateIds.length > 0) {
+      await supabase
+        .from("schedule_votes")
+        .delete()
+        .in("schedule_date_id", dateIds)
+        .eq("user_id", session.userId);
+    }
+
+    const { error: delErr } = await supabase
+      .from("project_applications")
+      .delete()
+      .eq("id", existing.id);
+
+    if (delErr) {
+      console.error("[DELETE /api/projects/[id]/apply] error:", delErr);
+      return NextResponse.json(
+        { error: "지원 취소에 실패했습니다" },
+        { status: 500 }
+      );
+    }
+
+    const { data: projForLog } = await supabase
+      .from("projects")
+      .select("title")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    await logActivity({
+      actorUserId: session.userId,
+      action: "application.withdraw",
+      targetType: "application",
+      targetId: existing.id,
+      targetLabel: projForLog?.title ?? null,
+      meta: { projectId },
+    });
+
+    return NextResponse.json({ data: { ok: true } });
+  } catch (err) {
+    console.error("[DELETE /api/projects/[id]/apply] error:", err);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다" },
       { status: 500 }

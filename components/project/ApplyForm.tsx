@@ -23,6 +23,21 @@ export interface ApplyFormInitial {
   motivation: string;
   fee_agreement: "yes" | "partial";
   answers_note: string;
+  /** DB created_at (ISO), 제출 일시 수정용 */
+  submitted_at: string;
+}
+
+function isoToDatetimeLocal(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function datetimeLocalToISO(local: string): string {
+  const d = new Date(local);
+  return d.toISOString();
 }
 
 interface ApplyFormProps {
@@ -55,6 +70,11 @@ export function ApplyForm({
     initialApplication?.fee_agreement ?? "yes"
   );
   const [answersNote, setAnswersNote] = useState(initialApplication?.answers_note ?? "");
+  const [submittedAtLocal, setSubmittedAtLocal] = useState(() =>
+    isEdit && initialApplication?.submitted_at
+      ? isoToDatetimeLocal(initialApplication.submitted_at)
+      : ""
+  );
   const [loading, setLoading] = useState(false);
 
   const [votes, setVotes] = useState<VotesMap>(
@@ -75,15 +95,20 @@ export function ApplyForm({
 
     setLoading(true);
     try {
+      const payload: Record<string, unknown> = {
+        motivation,
+        fee_agreement: feeAgreement,
+        answers_note: answersNote,
+        votes,
+      };
+      if (isEdit && submittedAtLocal) {
+        payload.submitted_at = datetimeLocalToISO(submittedAtLocal);
+      }
+
       const res = await fetch(`/api/projects/${projectId}/apply`, {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          motivation,
-          fee_agreement: feeAgreement,
-          answers_note: answersNote,
-          votes,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -102,6 +127,36 @@ export function ApplyForm({
       setLoading(false);
     }
   };
+
+  async function handleWithdraw() {
+    if (
+      !confirm(
+        "지원을 취소하면 이 프로젝트에 남긴 가능 일정 투표도 함께 삭제됩니다. 계속할까요?"
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/apply`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || (json as { error?: string }).error) {
+        toast.error(
+          (json as { error?: string }).error ?? "지원 취소에 실패했습니다"
+        );
+        return;
+      }
+      toast.success("지원을 취소했습니다");
+      router.push(`/projects/${projectId}`);
+      router.refresh();
+    } catch {
+      toast.error("네트워크 오류가 발생했습니다");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <form onSubmit={handleSubmit}>
@@ -195,6 +250,22 @@ export function ApplyForm({
         />
       </div>
 
+      {isEdit && (
+        <div className="field">
+          <label htmlFor="submittedAt">
+            제출 일시
+            <span className="hint">신청 순서·표시용 시각을 직접 바로잡을 수 있습니다</span>
+          </label>
+          <input
+            id="submittedAt"
+            type="datetime-local"
+            className="input"
+            value={submittedAtLocal}
+            onChange={(e) => setSubmittedAtLocal(e.target.value)}
+          />
+        </div>
+      )}
+
       {scheduleDates.length > 0 && (
         <div className="field">
           <label>가능 일정 <span className="req">*</span></label>
@@ -206,21 +277,36 @@ export function ApplyForm({
         </div>
       )}
 
-      <div className="row" style={{ justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-        <button
-          type="button"
-          className="btn ghost"
-          onClick={() => router.back()}
-          disabled={loading}
-        >
-          취소
-        </button>
-        <button type="submit" className="btn primary" disabled={loading}>
-          {loading && <Loader2 size={14} className="animate-spin" />}
-          {loading
-            ? (isEdit ? "저장 중…" : "제출 중…")
-            : (isEdit ? "변경사항 저장" : "지원서 제출")}
-        </button>
+      <div className="row" style={{ justifyContent: "space-between", gap: 8, marginTop: 20, flexWrap: "wrap" }}>
+        {isEdit ? (
+          <button
+            type="button"
+            className="btn ghost"
+            style={{ color: "var(--destructive, #b91c1c)" }}
+            onClick={handleWithdraw}
+            disabled={loading}
+          >
+            지원 취소
+          </button>
+        ) : (
+          <span />
+        )}
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => router.back()}
+            disabled={loading}
+          >
+            닫기
+          </button>
+          <button type="submit" className="btn primary" disabled={loading}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading
+              ? (isEdit ? "저장 중…" : "제출 중…")
+              : (isEdit ? "변경사항 저장" : "지원서 제출")}
+          </button>
+        </div>
       </div>
     </form>
   );

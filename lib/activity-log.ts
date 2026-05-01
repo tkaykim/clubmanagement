@@ -7,6 +7,7 @@ export type ActivityAction =
   | "project.status_change"
   | "application.create"
   | "application.update"
+  | "application.withdraw"
   | "application.status_change"
   | "push.send";
 
@@ -53,6 +54,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "project.status_change": "프로젝트 상태 변경",
   "application.create": "지원 제출",
   "application.update": "지원 수정",
+  "application.withdraw": "지원 취소",
   "application.status_change": "지원 상태 변경",
   "push.send": "푸시 알림 발송",
 };

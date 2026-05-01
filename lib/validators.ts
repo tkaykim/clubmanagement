@@ -95,7 +95,13 @@ export const applySchema = z.object({
 
 export type ApplyInput = z.infer<typeof applySchema>;
 
-export const updateApplySchema = applySchema.partial();
+export const updateApplySchema = applySchema.partial().extend({
+  /** 지원 제출 시각 보정(ISO 8601 또는 datetime-local에서 온 파싱 가능 문자열) */
+  submitted_at: z
+    .string()
+    .refine((s) => !Number.isNaN(Date.parse(s)), "올바른 날짜·시각이 아닙니다")
+    .optional(),
+});
 
 export type UpdateApplyInput = z.infer<typeof updateApplySchema>;
 

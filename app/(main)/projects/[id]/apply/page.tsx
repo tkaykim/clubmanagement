@@ -31,7 +31,7 @@ export default async function ApplyPage({ params }: Props) {
   // 이미 지원했는지 확인 — 있으면 수정 모드로 진입
   const { data: existing } = await supabase
     .from("project_applications")
-    .select("id, status, motivation, fee_agreement, answers_note")
+    .select("id, status, motivation, fee_agreement, answers_note, created_at")
     .eq("project_id", projectId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -86,6 +86,7 @@ export default async function ApplyPage({ params }: Props) {
         fee_agreement:
           existing.fee_agreement === "partial" ? "partial" : "yes",
         answers_note: existing.answers_note ?? "",
+        submitted_at: existing.created_at ?? "",
       }
     : undefined;
 
