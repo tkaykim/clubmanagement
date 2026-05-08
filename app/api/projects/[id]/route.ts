@@ -124,12 +124,39 @@ export async function DELETE(_request: Request, { params }: Params) {
       .eq("id", id)
       .maybeSingle();
 
-    const { error } = await supabase.from("projects").delete().eq("id", id);
+    // RLS 가 막으면 supabase-js 는 error 없이 0 rows 만 반환한다 — silently 실패 방지를 위해
+    // .select() 를 함께 호출해 실제 삭제된 row 를 확인.
+    const { data: deletedRows, error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", id)
+      .select("id");
 
     if (error) {
+      console.error("[DELETE /api/projects/[id]] error:", error);
       return NextResponse.json(
-        { error: "프로젝트 삭제에 실패했습니다" },
+        { error: `프로젝트 삭제에 실패했습니다: ${error.message}` },
         { status: 500 }
+      );
+    }
+
+    if (!deletedRows || deletedRows.length === 0) {
+      // 존재하지 않거나 RLS 차단
+      const { data: stillExists } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("id", id)
+        .maybeSingle();
+      if (stillExists) {
+        console.error("[DELETE /api/projects/[id]] silent RLS block — project still exists:", id);
+        return NextResponse.json(
+          { error: "삭제 권한이 없거나 RLS 정책에 의해 차단되었습니다" },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json(
+        { error: "프로젝트를 찾을 수 없습니다" },
+        { status: 404 }
       );
     }
 
