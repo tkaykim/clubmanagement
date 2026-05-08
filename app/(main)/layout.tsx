@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ActiveGuard } from "@/components/auth/ActiveGuard";
+import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { AppShell } from "@/components/layout/AppShell";
 import type { CrewMember } from "@/lib/types";
 
@@ -28,6 +29,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   return (
     <ActiveGuard initialStatus={initialStatus}>
+      <SessionRefresher />
       <AppShell me={me} isAdmin={isAdmin}>
         {children}
       </AppShell>

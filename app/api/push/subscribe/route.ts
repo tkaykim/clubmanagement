@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = createRouteSupabaseClient();
-    const { endpoint, keys, ua } = parsed.data;
+    const { endpoint, keys, ua, oldEndpoint } = parsed.data;
 
     const { error } = await supabase
       .from("push_subscriptions")
@@ -41,6 +41,15 @@ export async function POST(request: Request) {
     if (error) {
       console.error("[POST /api/push/subscribe] db error:", error);
       return NextResponse.json({ error: "저장에 실패했습니다" }, { status: 500 });
+    }
+
+    // 회전(rotate)된 구버전 endpoint 가 같이 넘어오면 같은 user 의 stale row 제거.
+    if (oldEndpoint && oldEndpoint !== endpoint) {
+      await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("endpoint", oldEndpoint);
     }
 
     return NextResponse.json({ data: { ok: true } });

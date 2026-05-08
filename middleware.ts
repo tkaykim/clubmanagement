@@ -78,9 +78,18 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  // PWA cold start race 완화:
+  //  - 앱이 백그라운드에 들어갔다 돌아오면 다수 요청이 동시에 도착하고,
+  //    각자 같은 만료 access_token + refresh_token 으로 갱신 시도 → "Refresh Token Already Used"
+  //    race. 첫 시도가 실패해도 짧게 대기 후 1회 재시도하면, 같은 reuse-interval 안에서는
+  //    Supabase 가 동일한 새 토큰을 다시 돌려주거나 다른 요청이 갱신한 새 쿠키를 클라가
+  //    이미 받아둔 상태일 가능성이 높다.
+  //  - 그래도 실패하면 그때 /login 으로 보낸다 (refresh_token 자체가 무효).
+  let authUser = (await supabase.auth.getUser()).data.user;
+  if (!authUser) {
+    await new Promise((r) => setTimeout(r, 250));
+    authUser = (await supabase.auth.getUser()).data.user;
+  }
 
   if (!authUser) {
     if (pathname.startsWith("/api/")) {

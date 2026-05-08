@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { MobileHeader } from "./MobileHeader";
@@ -67,14 +68,30 @@ export function AppShell({ children, me, isAdmin, crumb, initialCounts }: AppShe
       setCounts(cached);
     }
 
-    fetch("/api/me/counts", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
+    // PWA cold start 직후엔 access_token 만료로 첫 호출이 401 일 수 있다.
+    // 그 경우 refreshSession() 1회 후 재시도 → race 한 번에 무너지지 않도록 한다.
+    async function loadCounts() {
+      try {
+        let res = await fetch("/api/me/counts", { credentials: "include" });
+        if (res.status === 401) {
+          try {
+            await supabase.auth.refreshSession();
+          } catch {
+            // 영구 실패면 재시도해도 401. 그냥 무시.
+          }
+          if (aborted) return;
+          res = await fetch("/api/me/counts", { credentials: "include" });
+        }
+        if (!res.ok) return;
+        const json = await res.json();
         if (aborted || !json?.data) return;
         setCounts(json.data);
         writeCachedCounts(json.data);
-      })
-      .catch(() => {});
+      } catch {
+        // 네트워크 오류는 무시.
+      }
+    }
+    void loadCounts();
 
     return () => {
       aborted = true;

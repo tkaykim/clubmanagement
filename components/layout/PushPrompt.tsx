@@ -88,7 +88,45 @@ export function PushPrompt() {
       setState("denied");
       return;
     }
+    // 권한은 이미 granted 인데 구독이 사라진 경우(OS/브라우저가 endpoint 회수, SW 재등록, 데이터 정리 등):
+    // 사용자가 다시 버튼을 누르지 않아도 같은 VAPID 로 silently 재구독한다.
+    // 실패 시에는 default 로 돌아가 사용자에게 다시 권한 요청 UI 를 보여준다.
+    if (Notification.permission === "granted") {
+      const ok = await silentResubscribe(reg);
+      if (ok) return;
+    }
     setState("default");
+  }
+
+  async function silentResubscribe(reg: ServiceWorkerRegistration): Promise<boolean> {
+    try {
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!publicKey) return false;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToBuffer(publicKey),
+      });
+      const json = sub.toJSON();
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          endpoint: json.endpoint,
+          keys: json.keys,
+          ua: navigator.userAgent.slice(0, 500),
+        }),
+      });
+      if (!res.ok) {
+        // 인증이 일시적으로 비어 있을 수 있다(쿠키 race). 다음 visibilitychange 에 재시도된다.
+        return res.status === 401 ? true : false;
+      }
+      setState("subscribed");
+      return true;
+    } catch (err) {
+      console.warn("[PushPrompt] silent resubscribe failed:", err);
+      return false;
+    }
   }
 
   async function enable() {

@@ -510,6 +510,8 @@ export const pushSubscribeSchema = z.object({
     auth: z.string().min(1),
   }),
   ua: z.string().max(500).optional().nullable(),
+  // SW pushsubscriptionchange 에서 회전된 구버전 endpoint. 같은 user 의 stale row 정리용.
+  oldEndpoint: z.string().url().optional().nullable(),
 });
 export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
 
