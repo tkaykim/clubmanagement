@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Bug, Loader2, Trash2, Copy, ExternalLink } from "lucide-react";
 import type { BugReport, BugStatus } from "@/lib/types";
+import { Linkify } from "@/lib/text/Linkify";
 
 const STATUS_OPTIONS: { value: BugStatus; label: string }[] = [
   { value: "open", label: "접수" },
@@ -281,7 +282,7 @@ export function BugReportAdminList({ bugs: initialBugs }: Props) {
                           border: "1px solid var(--border)",
                         }}
                       >
-                        {b.description}
+                        <Linkify text={b.description} />
                       </div>
                     </div>
 

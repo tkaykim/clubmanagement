@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { ChevronLeft, Pin } from "lucide-react";
+import { Linkify } from "@/lib/text/Linkify";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function AnnouncementDetailPage({ params }: Props) {
         </div>
         <div style={{ padding: "20px 24px" }}>
           <p style={{ fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap", color: "var(--fg-soft)" }}>
-            {ann.body}
+            <Linkify text={ann.body} />
           </p>
         </div>
       </div>

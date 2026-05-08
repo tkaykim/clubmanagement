@@ -5,6 +5,7 @@ import { Loader2, Copy, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { InquiryStatusBadge } from "./InquiryStatusBadge";
+import { Linkify } from "@/lib/text/Linkify";
 import type { PortfolioInquiry, PortfolioInquiryStatus } from "@/lib/types";
 
 export type InquiryWithRefs = PortfolioInquiry & {
@@ -449,7 +450,7 @@ export function InquiryInbox({ initialInquiries }: InquiryInboxProps) {
                       wordBreak: "break-word",
                     }}
                   >
-                    {selectedInquiry.message}
+                    <Linkify text={selectedInquiry.message} />
                   </blockquote>
                 </div>
 

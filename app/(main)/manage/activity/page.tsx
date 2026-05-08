@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ACTION_LABELS } from "@/lib/activity-log";
 import { History } from "lucide-react";
+import { PushSendRow } from "@/components/activity/PushSendRow";
 
 export const dynamic = "force-dynamic";
 
@@ -42,12 +43,6 @@ function describeMeta(action: string, meta: Record<string, unknown> | null): str
   if (action === "project.update" && Array.isArray(meta.changedFields)) {
     return `필드: ${(meta.changedFields as string[]).join(", ")}`;
   }
-  if (action === "push.send") {
-    const t = meta.target as { kind?: string } | undefined;
-    const sent = meta.sent ?? 0;
-    const total = meta.total ?? 0;
-    return `대상: ${t?.kind ?? "?"} · 발송 ${sent}/${total}`;
-  }
   if (action === "application.create" && meta.isGuest) {
     return "게스트 지원";
   }
@@ -71,14 +66,16 @@ export default async function ActivityLogPage({ searchParams }: Props) {
   const { data: logs, error } = await query;
   const rows: LogRow[] = error ? [] : ((logs ?? []) as LogRow[]);
 
-  // actor 이름 보완 — actor_name이 비어 있으면 crew_members에서 lookup
-  const userIds = Array.from(
-    new Set(
-      rows
-        .filter((r) => !r.actor_name && r.actor_user_id)
-        .map((r) => r.actor_user_id as string)
-    )
-  );
+  // actor + push.send 수신자 user_id 합집합으로 한 번에 lookup.
+  const idSet = new Set<string>();
+  for (const r of rows) {
+    if (!r.actor_name && r.actor_user_id) idSet.add(r.actor_user_id);
+    if (r.action === "push.send" && r.meta) {
+      const ids = (r.meta as { recipientUserIds?: string[] | null }).recipientUserIds;
+      if (Array.isArray(ids)) for (const id of ids) idSet.add(id);
+    }
+  }
+  const userIds = Array.from(idSet);
   const nameMap = new Map<string, string>();
   if (userIds.length > 0) {
     const { data: members } = await supabase
@@ -152,12 +149,43 @@ export default async function ActivityLogPage({ searchParams }: Props) {
                   r.actor_name ??
                   (r.actor_user_id ? nameMap.get(r.actor_user_id) : null) ??
                   (r.actor_user_id ? "—" : "게스트");
+                const time = formatDate(r.created_at);
+                const actionLabel = ACTION_LABELS[r.action] ?? r.action;
+
+                if (r.action === "push.send") {
+                  const meta = (r.meta ?? {}) as {
+                    target?: Parameters<typeof PushSendRow>[0]["meta"]["target"];
+                    sent?: number;
+                    failed?: number;
+                    total?: number;
+                    url?: string | null;
+                    recipientCount?: number | null;
+                    recipientUserIds?: string[] | null;
+                    auto?: boolean;
+                  };
+                  const ids = meta.recipientUserIds ?? [];
+                  const recipientNames = ids
+                    .map((id) => nameMap.get(id) ?? "—")
+                    .filter((n): n is string => !!n);
+                  return (
+                    <PushSendRow
+                      key={r.id}
+                      time={time}
+                      actor={actor}
+                      actionLabel={actionLabel}
+                      targetLabel={r.target_label}
+                      meta={meta}
+                      recipientNames={recipientNames}
+                    />
+                  );
+                }
+
                 return (
                   <tr key={r.id}>
-                    <td className="mono text-xs muted">{formatDate(r.created_at)}</td>
+                    <td className="mono text-xs muted">{time}</td>
                     <td>{actor}</td>
                     <td>
-                      <span className="badge">{ACTION_LABELS[r.action] ?? r.action}</span>
+                      <span className="badge">{actionLabel}</span>
                     </td>
                     <td>{r.target_label ?? "—"}</td>
                     <td className="text-xs muted">{describeMeta(r.action, r.meta)}</td>

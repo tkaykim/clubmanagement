@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtPay, payTypeChipTone } from "@/lib/utils";
 import { ChevronLeft, Calendar, MapPin, Users, DollarSign } from "lucide-react";
+import { Linkify } from "@/lib/text/Linkify";
 
 export const dynamic = "force-dynamic";
 
@@ -207,7 +208,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               </div>
               <div style={{ padding: 18 }}>
                 <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--fg-soft)", whiteSpace: "pre-wrap" }}>
-                  {project.description}
+                  <Linkify text={project.description} />
                 </p>
               </div>
             </div>

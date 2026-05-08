@@ -10,6 +10,7 @@ import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
 import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
+import { Linkify } from "@/lib/text/Linkify";
 import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/components/project/VoteScheduleEditor";
 
 const TABS = [
@@ -876,7 +877,9 @@ export function ManageProjectClient({
                     <b style={{ fontSize: 14 }}>{a.title}</b>
                     <div className="mono text-xs muted">{new Date(a.created_at).toLocaleDateString("ko-KR")}</div>
                   </div>
-                  <p style={{ fontSize: 13, color: "var(--mf)", lineHeight: 1.6 }}>{a.body}</p>
+                  <p style={{ fontSize: 13, color: "var(--mf)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    <Linkify text={a.body} />
+                  </p>
                 </div>
               ))}
             </div>
@@ -1760,7 +1763,7 @@ function ApplicantDetail({ application: a, scheduleDates, userVotes }: Applicant
       {hasMemo && (
         <div className="card" style={{ padding: 12 }}>
           <div className="lab" style={{ fontSize: 11, marginBottom: 6 }}>관리자 메모</div>
-          <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{a.memo}</div>
+          <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}><Linkify text={a.memo} /></div>
         </div>
       )}
 

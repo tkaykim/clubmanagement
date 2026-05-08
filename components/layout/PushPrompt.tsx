@@ -37,7 +37,33 @@ export function PushPrompt() {
 
   useEffect(() => {
     void check();
+    // 탭이 다시 포커스될 때(다른 기기에서 상태 변경 가능) DB sync 재시도.
+    const onVis = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
+
+  // 클라이언트 PushManager에는 endpoint가 있는데 DB upsert가 누락되는 케이스를 보정.
+  // POST /api/push/subscribe는 endpoint 기준 onConflict upsert이므로 호출이 idempotent.
+  async function ensureServerSync(sub: PushSubscription) {
+    try {
+      const json = sub.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return;
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: json.endpoint,
+          keys: json.keys,
+          ua: navigator.userAgent.slice(0, 500),
+        }),
+      });
+    } catch (err) {
+      console.warn("[PushPrompt] sync failed:", err);
+    }
+  }
 
   async function check() {
     if (typeof window === "undefined") return;
@@ -54,6 +80,8 @@ export function PushPrompt() {
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
       setState("subscribed");
+      // 다른 사용자/세션에서 DB row가 사라졌을 수 있으니 매 진입마다 동기화.
+      void ensureServerSync(sub);
       return;
     }
     if (Notification.permission === "denied") {

@@ -100,6 +100,13 @@ export async function POST(request: Request) {
 
     // self(테스트)는 로그 남기지 않음 — 운영자 본인 행동이라 잡음 큼
     if (target.kind !== "self") {
+      // 수신자 user_id 목록을 메타에 저장 (100명 초과면 카운트만)
+      const RECIPIENT_LOG_LIMIT = 100;
+      const resolvedUserIds = userIds ?? Array.from(new Set(subs.map((s) => s.user_id)));
+      const recipientCount = resolvedUserIds.length;
+      const recipientUserIds =
+        recipientCount <= RECIPIENT_LOG_LIMIT ? resolvedUserIds : null;
+
       await logActivity({
         actorUserId: currentUserId,
         actorName,
@@ -112,6 +119,8 @@ export async function POST(request: Request) {
           failed: result.failed,
           total: result.total,
           url: url ?? null,
+          recipientCount,
+          recipientUserIds,
         },
       });
     }

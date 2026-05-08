@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -88,6 +89,30 @@ export default function LoginPage() {
               required
             />
           </div>
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 14,
+              fontSize: 13,
+              color: "var(--mf)",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={{ accentColor: "var(--fg)" }}
+            />
+            <span>자동 로그인 유지</span>
+            <span className="text-xs muted" style={{ marginLeft: 4 }}>
+              30일 동안 이 기기를 기억해요
+            </span>
+          </label>
 
           {error && (
             <div className="banner" style={{ marginBottom: 14, background: "var(--danger-bg)", border: "1px solid #FCA5A5", color: "var(--danger)" }}>

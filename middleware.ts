@@ -3,14 +3,19 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 
 /**
- * 인증 미들웨어 (성능 최적화 버전)
+ * 인증 미들웨어
  *
- * - 인증 여부 1차 판단은 Supabase 인증 쿠키 존재 여부로 빠르게 처리한다.
- *   (RSC prefetch 포함 모든 nav 요청에 미들웨어가 실행되므로 매번 Auth API 왕복은
- *    탭 전환 지연의 주범이다 — getUser 는 보호 페이지/서버 핸들러에서 수행.)
- * - /manage/* 진입 시에만 Supabase 호출로 admin/owner role 을 확인한다.
- * - 페이지/Route Handler 가 자체적으로 requireAuth/requireAdmin 으로 한 번 더
- *   재검증하므로 미들웨어의 1차 판단이 잘못되어도 보안 사고로 이어지지 않는다.
+ * 흐름:
+ *   1) 쿠키 존재 여부로 1차 차단 (Auth API 왕복 없이 빠르게 미인증 차단).
+ *   2) 보호 경로에 한해 supabase.auth.getUser() 를 호출 — JWT 검증과 동시에
+ *      만료 access_token 을 refresh_token 으로 자동 갱신, 새 쿠키를 응답에 set.
+ *      (이 단계가 없으면 1시간 만료 후 보호 페이지에서 server component 가
+ *       토큰을 갱신해도 응답 쿠키에 반영되지 않아 로그아웃처럼 보이는 현상이
+ *       PWA 환경에서 빈번하게 발생한다.)
+ *   3) /manage/* 만 추가로 role 검사.
+ *
+ * trade-off: nav 마다 Auth API 1회 호출 → 자동 로그아웃 빈도 큰 폭 감소,
+ *            응답 지연 ~수십~100ms.
  */
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
@@ -57,31 +62,37 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // /manage/* 만 role 체크. 그 외엔 페이지/핸들러가 자체 검증.
-  if (pathname.startsWith("/manage")) {
-    const supabase = createServerClient(url, anonKey, {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            res.cookies.set({ name, value, ...options });
-          });
-        },
+  // 토큰 갱신 패스 — 모든 보호 경로에서 1회 getUser().
+  // Supabase ssr 클라이언트는 access_token 만료 시 refresh_token 으로 새 토큰을
+  // 발급하고 setAll 콜백을 통해 res 쿠키에 반영한다. 이게 자동 로그아웃 방지의 핵심.
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
       },
-    });
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          res.cookies.set({ name, value, ...options });
+        });
+      },
+    },
+  });
 
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-    if (!authUser) {
-      const loginUrl = new URL("/login", req.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+  if (!authUser) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
     }
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
+  // /manage/* 만 추가로 role 검사.
+  if (pathname.startsWith("/manage")) {
     const { data: member } = await supabase
       .from("crew_members")
       .select("role")

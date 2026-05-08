@@ -11,8 +11,48 @@ import {
   createServiceSupabaseClient,
 } from "@/lib/supabase-server";
 import { sendPushToSubscriptions, type PushPayload, type PushSubscriptionRow } from "@/lib/push";
+import { logActivity } from "@/lib/activity-log";
 
 type SupaClient = ReturnType<typeof createRouteSupabaseClient>;
+
+const RECIPIENT_LOG_LIMIT = 100;
+
+type LogTarget =
+  | { kind: "all" }
+  | { kind: "users"; userIds: string[] }
+  | { kind: "role"; role: string }
+  | { kind: "project"; projectId: string }
+  | { kind: "announcement-scope"; scope: string; projectId: string | null }
+  | { kind: "visibility"; visibility: string; projectId: string };
+
+async function logAutoPush(args: {
+  title: string;
+  url?: string;
+  target: LogTarget;
+  userIds: string[];
+  result: { sent: number; failed: number; total: number };
+}) {
+  const { userIds } = args;
+  const recipientCount = userIds.length;
+  const recipientUserIds = recipientCount <= RECIPIENT_LOG_LIMIT ? userIds : null;
+  await logActivity({
+    actorUserId: null,
+    actorName: "system",
+    action: "push.send",
+    targetType: "push",
+    targetLabel: args.title,
+    meta: {
+      target: args.target,
+      sent: args.result.sent,
+      failed: args.result.failed,
+      total: args.result.total,
+      url: args.url ?? null,
+      recipientCount,
+      recipientUserIds,
+      auto: true,
+    },
+  });
+}
 
 function getSupa(): SupaClient {
   const service = createServiceSupabaseClient();
@@ -38,12 +78,16 @@ async function fetchAllSubs(supabase: SupaClient): Promise<PushSubscriptionRow[]
   return ((data ?? []) as PushSubscriptionRow[]);
 }
 
-async function send(subs: PushSubscriptionRow[], payload: PushPayload) {
-  if (subs.length === 0) return;
+async function send(
+  subs: PushSubscriptionRow[],
+  payload: PushPayload
+): Promise<{ sent: number; failed: number; total: number }> {
+  if (subs.length === 0) return { sent: 0, failed: 0, total: 0 };
   try {
-    await sendPushToSubscriptions(subs, payload);
+    return await sendPushToSubscriptions(subs, payload);
   } catch (err) {
     console.error("[notifications] send failed:", err);
+    return { sent: 0, failed: subs.length, total: subs.length };
   }
 }
 
@@ -61,7 +105,14 @@ export async function notifyAdmins(payload: PushPayload): Promise<void> {
       .not("user_id", "is", null);
     const userIds = ((members ?? []) as Array<{ user_id: string }>).map((m) => m.user_id);
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    await send(subs, payload);
+    const result = await send(subs, payload);
+    await logAutoPush({
+      title: payload.title,
+      url: payload.url,
+      target: { kind: "role", role: "admin" },
+      userIds,
+      result,
+    });
   } catch (err) {
     console.error("[notifyAdmins] error:", err);
   }
@@ -72,7 +123,14 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
   try {
     const supabase = getSupa();
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    await send(subs, payload);
+    const result = await send(subs, payload);
+    await logAutoPush({
+      title: payload.title,
+      url: payload.url,
+      target: { kind: "users", userIds },
+      userIds,
+      result,
+    });
   } catch (err) {
     console.error("[notifyUsers] error:", err);
   }
@@ -82,7 +140,15 @@ export async function notifyAllActive(payload: PushPayload): Promise<void> {
   try {
     const supabase = getSupa();
     const subs = await fetchAllSubs(supabase);
-    await send(subs, payload);
+    const userIds = subs.map((s) => s.user_id);
+    const result = await send(subs, payload);
+    await logAutoPush({
+      title: payload.title,
+      url: payload.url,
+      target: { kind: "all" },
+      userIds,
+      result,
+    });
   } catch (err) {
     console.error("[notifyAllActive] error:", err);
   }
@@ -141,7 +207,14 @@ export async function notifyVisibility(
     }
 
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    await send(subs, payload);
+    const result = await send(subs, payload);
+    await logAutoPush({
+      title: payload.title,
+      url: payload.url,
+      target: { kind: "visibility", visibility: project.visibility, projectId: project.id },
+      userIds,
+      result,
+    });
   } catch (err) {
     console.error("[notifyVisibility] error:", err);
   }
@@ -175,7 +248,14 @@ export async function notifyApprovedParticipants(
     }
 
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    await send(subs, payload);
+    const result = await send(subs, payload);
+    await logAutoPush({
+      title: payload.title,
+      url: payload.url,
+      target: { kind: "project", projectId },
+      userIds,
+      result,
+    });
   } catch (err) {
     console.error("[notifyApprovedParticipants] error:", err);
   }
