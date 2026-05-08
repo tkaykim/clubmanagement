@@ -953,11 +953,13 @@ table.tbl { width: 100%; border-collapse: collapse; }
 
 /* calendar */
 .cal {
-  display: grid; grid-template-columns: repeat(7, 1fr);
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
   border-radius: var(--radius-os);
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 .cal-dow {
   padding: 10px 12px;
@@ -966,6 +968,10 @@ table.tbl { width: 100%; border-collapse: collapse; }
   background: var(--muted);
   font-size: 10.5px; font-family: var(--font-mono);
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--mf);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cal-cell {
   min-height: 96px; padding: 8px 10px;
@@ -975,6 +981,8 @@ table.tbl { width: 100%; border-collapse: collapse; }
   display: flex; flex-direction: column; gap: 4px;
   position: relative;
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
 }
 .cal-cell.other { background: var(--muted); }
 .cal-cell.today .d { background: var(--fg); color: #fff; border-radius: 4px; padding: 0 5px; }
@@ -986,14 +994,22 @@ table.tbl { width: 100%; border-collapse: collapse; }
   border-left: 2px solid var(--fg);
   border-radius: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
 }
 .cal-cell .evt.ok   { border-color: var(--ok);   color: var(--ok);   background: var(--ok-bg); }
 .cal-cell .evt.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
 .cal-cell .evt.off  { background: #fff; color: var(--mf); border-color: var(--mf-2); }
 @media (max-width: 900px) {
-  .cal-cell { min-height: 66px; padding: 4px 6px; }
-  .cal-cell .evt { font-size: 9.5px; padding: 1px 4px; }
-  .cal-dow { padding: 6px 4px; font-size: 9px; }
+  .cal-cell { min-height: 66px; padding: 4px 4px; }
+  .cal-cell .evt { font-size: 9.5px; padding: 1px 3px; }
+  .cal-cell .d { font-size: 11px; }
+  .cal-dow { padding: 6px 2px; font-size: 9px; letter-spacing: 0.04em; text-align: center; }
+}
+@media (max-width: 480px) {
+  .cal-cell { padding: 3px 3px; }
+  .cal-cell .evt { font-size: 9px; padding: 1px 3px; }
+  .cal-dow { padding: 5px 1px; font-size: 8.5px; letter-spacing: 0; }
 }
 
 /* PWA install banner */
