@@ -546,8 +546,17 @@ export function ManageProjectClient({
         <div>
           {scheduleDates.length === 0 ? (
             <div className="card">
-              <div className="empty">
-                일정 날짜가 등록되지 않았어요
+              <div className="empty" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                <div>일정 날짜가 등록되지 않았어요</div>
+                <Link
+                  href={`/manage/projects/${project.id}/schedule`}
+                  className="btn sm primary"
+                >
+                  일정 후보 추가하기
+                </Link>
+                <div style={{ fontSize: 12, color: "var(--mf)" }}>
+                  나중에 투표로 결정하기로 했다면, 여기서 후보 날짜를 추가하고 알림을 보낼 수 있어요.
+                </div>
               </div>
             </div>
           ) : analysisPool.length === 0 ? (

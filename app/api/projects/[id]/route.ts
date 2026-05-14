@@ -87,12 +87,16 @@ export async function PATCH(request: Request, { params }: Params) {
 
     // 일정 변경 시 approved 참여자에게 알림
     if (dates !== undefined || practiceDates !== undefined) {
-      await notifyApprovedParticipants(id, {
-        title: "프로젝트 일정이 변경되었어요",
-        body: data?.title ?? "프로젝트",
-        url: `/projects/${id}`,
-        tag: `project-schedule-${id}`,
-      });
+      await notifyApprovedParticipants(
+        id,
+        {
+          title: "프로젝트 일정이 변경되었어요",
+          body: data?.title ?? "프로젝트",
+          url: `/projects/${id}`,
+          tag: `project-schedule-${id}`,
+        },
+        { includePending: true }
+      );
     }
 
     return NextResponse.json({ data });

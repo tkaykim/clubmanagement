@@ -154,6 +154,9 @@ export function NewProjectForm({ mode = "create", initialProject }: NewProjectFo
   );
   const [submitting, setSubmitting] = useState(false);
 
+  // 날짜 미정 — 나중에 투표로 결정 (create 모드 전용)
+  const [datesTbd, setDatesTbd] = useState(false);
+
   // 추가 모드 토글
   const [addMode, setAddMode] = useState<AddMode>("range");
 
@@ -482,10 +485,40 @@ export function NewProjectForm({ mode = "create", initialProject }: NewProjectFo
             <div className="card-head">
               <h3>프로젝트 일정</h3>
               <div style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--mf)" }}>
-                {scheduleDates.length > 0 ? `${scheduleDates.length}개` : "투표 대상 날짜 0개"}
+                {datesTbd
+                  ? "날짜 미정"
+                  : scheduleDates.length > 0
+                    ? `${scheduleDates.length}개`
+                    : "투표 대상 날짜 0개"}
               </div>
             </div>
-            <div style={{ padding: 18 }}>
+            {!isEdit && (
+              <div style={{ padding: "12px 18px 0 18px" }}>
+                <label
+                  className="row gap-6"
+                  style={{ fontSize: 13, color: "var(--mf)", cursor: "pointer" }}
+                >
+                  <button
+                    type="button"
+                    className={cn("cbx", datesTbd && "on")}
+                    onClick={() => {
+                      setDatesTbd((v) => {
+                        const next = !v;
+                        if (next) setScheduleDates([]);
+                        return next;
+                      });
+                    }}
+                    role="checkbox"
+                    aria-checked={datesTbd}
+                  />
+                  날짜는 나중에 투표로 결정
+                </label>
+                <div style={{ fontSize: 12, color: "var(--mf)", marginTop: 6, opacity: 0.8 }}>
+                  비워두면 프로젝트 생성 후 일정을 추가하고 날짜 투표를 받을 수 있어요.
+                </div>
+              </div>
+            )}
+            <div style={{ padding: 18, opacity: datesTbd ? 0.4 : 1, pointerEvents: datesTbd ? "none" : "auto" }} aria-disabled={datesTbd}>
               {/* 모드 토글 */}
               <div className="seg full" style={{ marginBottom: 14 }}>
                 <button

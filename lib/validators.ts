@@ -67,6 +67,28 @@ export const projectStatusSchema = z.object({
 });
 
 // ============================================================
+// Schedule date (incremental) schemas
+// ============================================================
+
+export const scheduleDateCreateSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
+  label: z.string().max(200).nullable().optional(),
+  kind: z.enum(["event", "practice"]).default("event"),
+  sort_order: z.number().int().optional(),
+});
+
+export type ScheduleDateCreateInput = z.infer<typeof scheduleDateCreateSchema>;
+
+export const scheduleDatePatchSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다").optional(),
+  label: z.string().max(200).nullable().optional(),
+  kind: z.enum(["event", "practice"]).optional(),
+  sort_order: z.number().int().optional(),
+});
+
+export type ScheduleDatePatchInput = z.infer<typeof scheduleDatePatchSchema>;
+
+// ============================================================
 // Application schemas
 // ============================================================
 
