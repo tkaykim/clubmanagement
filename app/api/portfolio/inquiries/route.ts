@@ -4,8 +4,9 @@ import {
   createServiceSupabaseClient,
 } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
-import { portfolioInquiryInputSchema } from "@/lib/validators";
+import { portfolioInquiryInputSchema, type PortfolioInquiryInput } from "@/lib/validators";
 import { notifyAdmins } from "@/lib/notifications";
+import { sendInquiryNotificationEmail } from "@/lib/email";
 
 // IP 기반 인메모리 쿨다운 (프로덕션은 Upstash/KV 권장)
 // 모듈 수명 동안 유지되며, 서버리스 환경에서는 인스턴스별로 독립 동작
@@ -88,14 +89,35 @@ export async function POST(request: Request) {
       }
     }
 
-    // P0 #5: 새 섭외 문의 알림 (admin/owner)
-    const inq = parsed.data as { title?: string | null; requester_name?: string | null };
-    await notifyAdmins({
-      title: "새 섭외 문의",
-      body: `${inq.title ?? "(제목 없음)"} · ${inq.requester_name ?? "익명"}`,
-      url: "/manage/inquiries",
-      tag: insertedId ? `inquiry-${insertedId}` : undefined,
-    });
+    // 알림: 푸시 + 이메일 (병렬 처리, 실패해도 응답에 영향 없음)
+    const inq = parsed.data as PortfolioInquiryInput;
+    await Promise.allSettled([
+      // P0 #5: 새 섭외 문의 푸시 알림 (admin/owner)
+      notifyAdmins({
+        title: "새 섭외 문의",
+        body: `${inq.title ?? "(제목 없음)"} · ${inq.requester_name ?? "익명"}`,
+        url: "/manage/inquiries",
+        tag: insertedId ? `inquiry-${insertedId}` : undefined,
+      }),
+      // 이메일 알림 (contact@grigoent.co.kr)
+      sendInquiryNotificationEmail({
+        title: inq.title,
+        requester_name: inq.requester_name,
+        requester_email: inq.requester_email,
+        requester_phone: inq.requester_phone,
+        requester_organization: inq.requester_organization,
+        inquiry_type: inq.inquiry_type,
+        target_type: inq.target_type,
+        event_date_start: inq.event_date_start,
+        event_date_end: inq.event_date_end,
+        budget_type: inq.budget_type,
+        budget_amount: inq.budget_amount,
+        budget_min: inq.budget_min,
+        budget_max: inq.budget_max,
+        message: inq.message,
+        region: inq.region,
+      }),
+    ]);
 
     return NextResponse.json({ data: { id: insertedId } }, { status: 201 });
   } catch (err) {
