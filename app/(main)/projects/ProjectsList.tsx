@@ -22,7 +22,13 @@ export type ProjectRow = {
 
 const ACTIVE_STATUSES = new Set(["recruiting", "selecting", "in_progress"]);
 
-export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
+interface ProjectsListProps {
+  projects: ProjectRow[];
+  /** 현재 사용자가 지원한 프로젝트별 미투표 일정 수 */
+  unvotedByProject?: Record<string, number>;
+}
+
+export function ProjectsList({ projects, unvotedByProject }: ProjectsListProps) {
   const router = useRouter();
   const sp = useSearchParams();
   const [query, setQuery] = useState("");
@@ -110,7 +116,9 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
         </div>
       ) : (
         <div className="os-grid grid-projects">
-          {filtered.map(p => (
+          {filtered.map(p => {
+            const unvoted = unvotedByProject?.[p.id] ?? 0;
+            return (
             <Link
               key={p.id}
               href={`/projects/${p.id}`}
@@ -119,8 +127,29 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                 cursor: "pointer",
                 textDecoration: "none",
                 transition: "border-color 150ms",
+                position: "relative",
               }}
             >
+              {unvoted > 0 && (
+                <span
+                  aria-label={`투표 필요 ${unvoted}개`}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    zIndex: 2,
+                    background: "#ef4444",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "3px 7px",
+                    borderRadius: 10,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  투표 필요 {unvoted}
+                </span>
+              )}
               <div className="project-poster">
                 {p.poster_url ? (
                   <img
@@ -172,7 +201,8 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                 </div>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </>

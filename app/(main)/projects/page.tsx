@@ -90,6 +90,45 @@ export default async function ProjectsPage() {
     max_participants: r.max_participants,
   }));
 
+  // 현재 사용자가 지원한 프로젝트별 미투표 일정 수 계산
+  const unvotedByProject: Record<string, number> = {};
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: myApps } = await supabase
+      .from("project_applications")
+      .select("project_id, status")
+      .eq("user_id", user.id)
+      .neq("status", "rejected");
+
+    const myProjectIds = ((myApps ?? []) as Array<{ project_id: string }>)
+      .map(a => a.project_id);
+
+    if (myProjectIds.length > 0) {
+      const { data: dateRows } = await supabase
+        .from("schedule_dates")
+        .select("id, project_id")
+        .in("project_id", myProjectIds);
+
+      const dateIds = ((dateRows ?? []) as Array<{ id: string }>).map(d => d.id);
+      const votedSet = new Set<string>();
+      if (dateIds.length > 0) {
+        const { data: voteRows } = await supabase
+          .from("schedule_votes")
+          .select("schedule_date_id")
+          .eq("user_id", user.id)
+          .in("schedule_date_id", dateIds);
+        for (const v of (voteRows ?? []) as Array<{ schedule_date_id: string }>) {
+          votedSet.add(v.schedule_date_id);
+        }
+      }
+      for (const d of (dateRows ?? []) as Array<{ id: string; project_id: string }>) {
+        if (!votedSet.has(d.id)) {
+          unvotedByProject[d.project_id] = (unvotedByProject[d.project_id] ?? 0) + 1;
+        }
+      }
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-head">
@@ -102,7 +141,7 @@ export default async function ProjectsPage() {
         </div>
       </div>
 
-      <ProjectsList projects={all} />
+      <ProjectsList projects={all} unvotedByProject={unvotedByProject} />
     </div>
   );
 }

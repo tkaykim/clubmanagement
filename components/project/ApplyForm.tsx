@@ -246,6 +246,7 @@ export function ApplyForm({
         </div>
       )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label>이름</label>
         <input
@@ -255,7 +256,9 @@ export function ApplyForm({
           style={{ background: "var(--muted)", color: "var(--mf)" }}
         />
       </div>
+      )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label>연락처</label>
         <input
@@ -265,7 +268,9 @@ export function ApplyForm({
           style={{ background: "var(--muted)", color: "var(--mf)" }}
         />
       </div>
+      )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label htmlFor="motivation">지원 동기</label>
         <textarea
@@ -279,8 +284,9 @@ export function ApplyForm({
           style={appReadonly ? { background: "var(--muted)", color: "var(--mf)" } : undefined}
         />
       </div>
+      )}
 
-      {fee > 0 && (
+      {!isVoteOnly && fee > 0 && (
         <div className="field">
           <label>출연료 동의 <span className="req">*</span></label>
           <div className="seg full">
@@ -302,6 +308,7 @@ export function ApplyForm({
         </div>
       )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label htmlFor="answersNote">
           메모 / 특이사항
@@ -318,8 +325,9 @@ export function ApplyForm({
           style={appReadonly ? { background: "var(--muted)", color: "var(--mf)" } : undefined}
         />
       </div>
+      )}
 
-      {isEdit && (
+      {!isVoteOnly && isEdit && (
         <div className="field">
           <label htmlFor="submittedAt">
             제출 일시

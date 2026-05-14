@@ -97,6 +97,38 @@ export default async function DashboardPage() {
   const pinnedAnn = announcements.filter(a => a.pinned);
   const unpaidAmount = myPayouts.reduce((sum, p) => sum + (p.amount ?? 0), 0);
 
+  // 미투표 일정 — 본인이 지원한 (rejected 제외) 프로젝트 중 schedule_vote 없는 schedule_date 카운트
+  const myUnvotedByProject = new Map<string, number>();
+  let myUnvotedTotal = 0;
+  if (user) {
+    const myProjIds = myApplications.map(a => a.project_id);
+    if (myProjIds.length > 0) {
+      const { data: dateRows } = await supabase
+        .from("schedule_dates")
+        .select("id, project_id")
+        .in("project_id", myProjIds);
+      const dateIds = ((dateRows ?? []) as Array<{ id: string }>).map(d => d.id);
+      const votedSet = new Set<string>();
+      if (dateIds.length > 0) {
+        const { data: voteRows } = await supabase
+          .from("schedule_votes")
+          .select("schedule_date_id")
+          .eq("user_id", user.id)
+          .in("schedule_date_id", dateIds);
+        for (const v of (voteRows ?? []) as Array<{ schedule_date_id: string }>) {
+          votedSet.add(v.schedule_date_id);
+        }
+      }
+      for (const d of (dateRows ?? []) as Array<{ id: string; project_id: string }>) {
+        if (!votedSet.has(d.id)) {
+          myUnvotedByProject.set(d.project_id, (myUnvotedByProject.get(d.project_id) ?? 0) + 1);
+          myUnvotedTotal++;
+        }
+      }
+    }
+  }
+  const myUnvotedProjects = projects.filter(p => myUnvotedByProject.has(p.id));
+
   return (
     <div className="page">
       {/* 페이지 헤더 */}
@@ -119,6 +151,52 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* 본인 미투표 일정 알림 */}
+      {myUnvotedTotal > 0 && (
+        <div
+          className="card mb-16"
+          style={{
+            padding: 16,
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            background: "rgba(239, 68, 68, 0.04)",
+          }}
+        >
+          <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--danger, #b91c1c)", marginBottom: 4 }}>
+                투표 필요한 일정 {myUnvotedTotal}개
+              </div>
+              <div style={{ fontSize: 13, color: "var(--mf)" }}>
+                {myUnvotedProjects.length}개 프로젝트에서 가능 여부를 표시해주세요
+              </div>
+            </div>
+            <div className="row gap-6" style={{ flexWrap: "wrap" }}>
+              {myUnvotedProjects.slice(0, 3).map(p => (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}/apply`}
+                  className="btn sm"
+                  style={{
+                    background: "#ef4444",
+                    color: "#fff",
+                    border: "1px solid #ef4444",
+                  }}
+                >
+                  {p.title.length > 12 ? p.title.slice(0, 12) + "…" : p.title}
+                  {" · "}
+                  {myUnvotedByProject.get(p.id)}
+                </Link>
+              ))}
+              {myUnvotedProjects.length > 3 && (
+                <Link href="/projects" className="btn sm">
+                  전체 보기
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 관리자 알림: 승인 대기 멤버 — 기본 banner(다크)를 그대로 사용해 가시성 확보 */}
       {isAdmin && pendingMemberCount > 0 && (

@@ -286,7 +286,7 @@ export function VoteScheduleEditor({
                     <button
                       key={o.value}
                       type="button"
-                      className={cn(v.status === o.value && "on")}
+                      className={cn(!isUnvoted && v.status === o.value && "on")}
                       onClick={() => updateVote(d.id, { status: o.value })}
                       title={o.description}
                     >
@@ -295,7 +295,7 @@ export function VoteScheduleEditor({
                   ))}
                 </div>
 
-                {v.status !== "unavailable" && (
+                {!isUnvoted && v.status !== "unavailable" && (
                   <div className="timeslots">
                     {v.time_slots.map((slot, i) => {
                       const unavail = slot.kind === "unavailable";
@@ -344,7 +344,7 @@ export function VoteScheduleEditor({
                   </div>
                 )}
 
-                {v.status === "adjustable" && (
+                {!isUnvoted && v.status === "adjustable" && (
                   <div style={{ marginTop: 6 }}>
                     <input
                       type="text"
