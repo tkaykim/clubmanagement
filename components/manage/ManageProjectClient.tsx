@@ -10,6 +10,7 @@ import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
 import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
+import { ProjectScheduleManager, type ScheduleDateRow } from "@/components/project/ProjectScheduleManager";
 import { Linkify } from "@/lib/text/Linkify";
 import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/components/project/VoteScheduleEditor";
 
@@ -543,11 +544,25 @@ export function ManageProjectClient({
 
       {/* 가용성 탭 */}
       {tab === "availability" && (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 일정 후보 관리 — 일정 유무와 무관하게 항상 노출 (admin 인라인 CRUD) */}
+          <ProjectScheduleManager
+            projectId={project.id}
+            initialDates={scheduleDates.map((d) => ({
+              id: d.id,
+              project_id: project.id,
+              date: d.date,
+              label: d.label,
+              kind: d.kind === "practice" ? "practice" : "event",
+              sort_order: d.sort_order,
+            })) as ScheduleDateRow[]}
+            onMutated={() => router.refresh()}
+          />
+
           {scheduleDates.length === 0 ? (
             <div className="card">
-              <div className="empty">
-                일정 날짜가 등록되지 않았어요
+              <div className="empty" style={{ fontSize: 13 }}>
+                위에서 일정 후보를 추가하면, 지원자들이 가능 일정을 투표하고 여기서 집계 결과를 볼 수 있어요.
               </div>
             </div>
           ) : analysisPool.length === 0 ? (

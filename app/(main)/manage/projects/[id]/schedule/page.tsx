@@ -1,4 +1,6 @@
 import { ScheduleAggregationView } from "@/components/project/ScheduleAggregationView";
+import { ProjectScheduleManager, type ScheduleDateRow } from "@/components/project/ProjectScheduleManager";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -10,6 +12,14 @@ export default async function ScheduleManagePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const supabase = createServerSupabaseClient();
+  const { data: scheduleDates } = await supabase
+    .from("schedule_dates")
+    .select("id, project_id, date, label, kind, sort_order")
+    .eq("project_id", id)
+    .order("sort_order", { ascending: true })
+    .order("date", { ascending: true });
+
   return (
     <div className="page">
       <div className="page-head">
@@ -19,10 +29,16 @@ export default async function ScheduleManagePage({
             돌아가기
           </Link>
           <h1>연습 일정 관리</h1>
-          <div className="sub">가능 일정 집계 · 일정 확정</div>
+          <div className="sub">일정 후보 추가/수정/삭제 · 가능 일정 집계 · 일정 확정</div>
         </div>
       </div>
-      <ScheduleAggregationView projectId={id} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <ProjectScheduleManager
+          projectId={id}
+          initialDates={(scheduleDates ?? []) as ScheduleDateRow[]}
+        />
+        <ScheduleAggregationView projectId={id} />
+      </div>
     </div>
   );
 }

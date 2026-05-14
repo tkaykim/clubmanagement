@@ -111,7 +111,6 @@ export function AppShell({ children, me, isAdmin, crumb, initialCounts }: AppShe
       {/* 모바일 헤더 */}
       <MobileHeader
         title={crumb ?? "원샷크루"}
-        unread={counts.unreadAnn}
         onMenuClick={() => setDrawerOpen(true)}
       />
 

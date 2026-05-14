@@ -47,9 +47,11 @@ interface ApplyFormProps {
   scheduleDates: ScheduleDate[];
   defaultName: string;
   defaultPhone: string;
-  mode?: "create" | "edit";
+  mode?: "create" | "edit" | "vote-only";
   initialApplication?: ApplyFormInitial;
   initialVotes?: VotesMap;
+  /** 사용자가 아직 명시적으로 투표하지 않은 schedule_date id 들 */
+  initialUnvotedIds?: string[];
 }
 
 export function ApplyForm({
@@ -61,9 +63,12 @@ export function ApplyForm({
   mode = "create",
   initialApplication,
   initialVotes,
+  initialUnvotedIds,
 }: ApplyFormProps) {
   const router = useRouter();
-  const isEdit = mode === "edit";
+  const isVoteOnly = mode === "vote-only";
+  const isEdit = mode === "edit" || isVoteOnly;
+  const appReadonly = isVoteOnly;
 
   const [motivation, setMotivation] = useState(initialApplication?.motivation ?? "");
   const [feeAgreement, setFeeAgreement] = useState<"yes" | "partial">(
@@ -80,12 +85,16 @@ export function ApplyForm({
   const [votes, setVotes] = useState<VotesMap>(
     () => initialVotes ?? initialVotesFromSchedule(scheduleDates)
   );
+  const [unvotedIds, setUnvotedIds] = useState<Set<string>>(
+    () => new Set(initialUnvotedIds ?? [])
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 클라이언트 사전 검증: 부분가능인데 시간대 비어있는 경우
     for (const d of scheduleDates) {
+      if (unvotedIds.has(d.id)) continue;
       const v = votes[d.id];
       if (v?.status === "partial" && v.time_slots.length === 0) {
         toast.error("부분가능으로 표시한 날짜는 시간대를 1개 이상 지정해주세요");
@@ -93,13 +102,41 @@ export function ApplyForm({
       }
     }
 
+    // 미투표 날짜는 votes 페이로드에서 제외 — 서버에서 upsert되지 않음
+    const filteredVotes: VotesMap = {};
+    for (const [dateId, v] of Object.entries(votes)) {
+      if (!unvotedIds.has(dateId)) filteredVotes[dateId] = v;
+    }
+
     setLoading(true);
     try {
+      // vote-only: 투표 API만 호출 (지원 정보는 잠금)
+      if (isVoteOnly) {
+        const res = await fetch(`/api/projects/${projectId}/votes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ votes: filteredVotes }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || (json as { error?: string }).error) {
+          toast.error((json as { error?: string }).error ?? "투표 저장에 실패했습니다");
+          return;
+        }
+        if (unvotedIds.size > 0) {
+          toast.success(`투표를 저장했어요 — 아직 ${unvotedIds.size}개 일정은 미투표`);
+        } else {
+          toast.success("투표를 저장했어요");
+        }
+        router.push(`/projects/${projectId}`);
+        router.refresh();
+        return;
+      }
+
       const payload: Record<string, unknown> = {
         motivation,
         fee_agreement: feeAgreement,
         answers_note: answersNote,
-        votes,
+        votes: filteredVotes,
       };
       if (isEdit && submittedAtLocal) {
         payload.submitted_at = datetimeLocalToISO(submittedAtLocal);
@@ -118,7 +155,14 @@ export function ApplyForm({
         return;
       }
 
-      toast.success(isEdit ? "지원 내용을 수정했습니다" : "지원이 접수되었습니다");
+      if (unvotedIds.size > 0) {
+        toast.success(
+          (isEdit ? "지원 내용을 수정했습니다" : "지원이 접수되었습니다") +
+            ` — 아직 ${unvotedIds.size}개 일정은 미투표`
+        );
+      } else {
+        toast.success(isEdit ? "지원 내용을 수정했습니다" : "지원이 접수되었습니다");
+      }
       router.push(`/projects/${projectId}`);
       router.refresh();
     } catch {
@@ -160,7 +204,27 @@ export function ApplyForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      {isEdit && (
+      {isVoteOnly ? (
+        <div
+          className="row gap-8"
+          style={{
+            alignItems: "flex-start",
+            padding: "10px 12px",
+            marginBottom: 16,
+            background: "var(--accent-soft, #dbeafe)",
+            color: "var(--accent, #1d4ed8)",
+            border: "1px solid var(--accent, #1d4ed8)",
+            borderRadius: 8,
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          <Info size={14} strokeWidth={2} style={{ marginTop: 2, flexShrink: 0 }} />
+          <div>
+            확정된 지원입니다 — 일정 투표만 수정할 수 있어요. 지원 정보 변경이 필요하면 운영진에게 문의해주세요.
+          </div>
+        </div>
+      ) : isEdit && (
         <div
           className="row gap-8"
           style={{
@@ -182,6 +246,7 @@ export function ApplyForm({
         </div>
       )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label>이름</label>
         <input
@@ -191,7 +256,9 @@ export function ApplyForm({
           style={{ background: "var(--muted)", color: "var(--mf)" }}
         />
       </div>
+      )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label>연락처</label>
         <input
@@ -201,7 +268,9 @@ export function ApplyForm({
           style={{ background: "var(--muted)", color: "var(--mf)" }}
         />
       </div>
+      )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label htmlFor="motivation">지원 동기</label>
         <textarea
@@ -211,10 +280,13 @@ export function ApplyForm({
           value={motivation}
           onChange={(e) => setMotivation(e.target.value)}
           rows={4}
+          readOnly={appReadonly}
+          style={appReadonly ? { background: "var(--muted)", color: "var(--mf)" } : undefined}
         />
       </div>
+      )}
 
-      {fee > 0 && (
+      {!isVoteOnly && fee > 0 && (
         <div className="field">
           <label>출연료 동의 <span className="req">*</span></label>
           <div className="seg full">
@@ -226,7 +298,8 @@ export function ApplyForm({
                 key={o.value}
                 type="button"
                 className={cn(feeAgreement === o.value && "on")}
-                onClick={() => setFeeAgreement(o.value as "yes" | "partial")}
+                onClick={() => !appReadonly && setFeeAgreement(o.value as "yes" | "partial")}
+                disabled={appReadonly}
               >
                 {o.label}
               </button>
@@ -235,6 +308,7 @@ export function ApplyForm({
         </div>
       )}
 
+      {!isVoteOnly && (
       <div className="field">
         <label htmlFor="answersNote">
           메모 / 특이사항
@@ -247,10 +321,13 @@ export function ApplyForm({
           value={answersNote}
           onChange={(e) => setAnswersNote(e.target.value)}
           rows={2}
+          readOnly={appReadonly}
+          style={appReadonly ? { background: "var(--muted)", color: "var(--mf)" } : undefined}
         />
       </div>
+      )}
 
-      {isEdit && (
+      {!isVoteOnly && isEdit && (
         <div className="field">
           <label htmlFor="submittedAt">
             제출 일시
@@ -273,12 +350,14 @@ export function ApplyForm({
             scheduleDates={scheduleDates}
             value={votes}
             onChange={setVotes}
+            unvotedIds={unvotedIds}
+            onUnvotedChange={setUnvotedIds}
           />
         </div>
       )}
 
       <div className="row" style={{ justifyContent: "space-between", gap: 8, marginTop: 20, flexWrap: "wrap" }}>
-        {isEdit ? (
+        {isEdit && !isVoteOnly ? (
           <button
             type="button"
             className="btn ghost"
@@ -303,8 +382,8 @@ export function ApplyForm({
           <button type="submit" className="btn primary" disabled={loading}>
             {loading && <Loader2 size={14} className="animate-spin" />}
             {loading
-              ? (isEdit ? "저장 중…" : "제출 중…")
-              : (isEdit ? "변경사항 저장" : "지원서 제출")}
+              ? (isVoteOnly ? "저장 중…" : isEdit ? "저장 중…" : "제출 중…")
+              : (isVoteOnly ? "투표 저장" : isEdit ? "변경사항 저장" : "지원서 제출")}
           </button>
         </div>
       </div>

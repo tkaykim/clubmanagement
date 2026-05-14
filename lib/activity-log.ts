@@ -9,6 +9,9 @@ export type ActivityAction =
   | "application.update"
   | "application.withdraw"
   | "application.status_change"
+  | "schedule_date.create"
+  | "schedule_date.update"
+  | "schedule_date.delete"
   | "push.send";
 
 export type ActivityTargetType = "project" | "application" | "push" | null;

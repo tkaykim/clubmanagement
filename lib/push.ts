@@ -24,6 +24,9 @@ export type PushPayload = {
   url?: string;
   tag?: string;
   icon?: string;
+  /** in-app inbox 분류용 (web-push 페이로드에는 포함되지만 sw는 무시) */
+  targetType?: string;
+  targetId?: string | null;
 };
 
 export type PushSubscriptionRow = {
