@@ -18,6 +18,8 @@ export type ScheduleDateRow = {
 interface Props {
   projectId: string;
   initialDates?: ScheduleDateRow[];
+  /** 추가/수정/삭제 성공 시 호출 — 부모 뷰(타임테이블/열지도 등) 새로고침에 사용 */
+  onMutated?: () => void;
 }
 
 const MAX_RANGE_DAYS = 90;
@@ -35,7 +37,7 @@ function enumerateDates(start: string, end: string): string[] {
   return out;
 }
 
-export function ProjectScheduleManager({ projectId, initialDates }: Props) {
+export function ProjectScheduleManager({ projectId, initialDates, onMutated }: Props) {
   const [rows, setRows] = useState<ScheduleDateRow[]>(initialDates ?? []);
   const [loading, setLoading] = useState(!initialDates);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export function ProjectScheduleManager({ projectId, initialDates }: Props) {
       setNewDate("");
       setNewLabel("");
       toast.success("일정이 추가됐어요");
+      onMutated?.();
     } finally {
       setAdding(false);
     }
@@ -162,6 +165,7 @@ export function ProjectScheduleManager({ projectId, initialDates }: Props) {
         setRangeStart("");
         setRangeEnd("");
         setRangeLabel("");
+        onMutated?.();
       }
     } finally {
       setAddingRange(false);
@@ -185,6 +189,7 @@ export function ProjectScheduleManager({ projectId, initialDates }: Props) {
         return;
       }
       setRows((prev) => prev.map((r) => (r.id === id ? json.data : r)).sort(sortRows));
+      onMutated?.();
     } finally {
       setSavingId(null);
     }
@@ -210,6 +215,7 @@ export function ProjectScheduleManager({ projectId, initialDates }: Props) {
         return;
       }
       toast.success("일정이 삭제됐어요");
+      onMutated?.();
     } finally {
       setSavingId(null);
     }
