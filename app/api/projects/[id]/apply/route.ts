@@ -231,13 +231,6 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    if (existing.status === "approved") {
-      return NextResponse.json(
-        { error: "이미 확정된 지원은 수정할 수 없습니다" },
-        { status: 400 }
-      );
-    }
-
     const row: Record<string, unknown> = {};
     if (motivation !== undefined) row.motivation = motivation;
     if (fee_agreement !== undefined) row.fee_agreement = fee_agreement;
@@ -245,6 +238,14 @@ export async function PATCH(request: Request, { params }: Params) {
     if (answers !== undefined) row.answers = answers;
     if (submitted_at !== undefined) {
       row.created_at = new Date(submitted_at).toISOString();
+    }
+
+    // approved 지원자는 지원 정보(application) 변경 금지 — 일정 투표만 허용
+    if (existing.status === "approved" && Object.keys(row).length > 0) {
+      return NextResponse.json(
+        { error: "확정된 지원은 일정 투표만 수정할 수 있습니다" },
+        { status: 403 }
+      );
     }
 
     let application;

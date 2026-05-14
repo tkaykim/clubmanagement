@@ -26,6 +26,9 @@ interface VoteScheduleEditorProps {
   value: VotesMap;
   onChange: (next: VotesMap) => void;
   showNotice?: boolean; // KST 안내 줄 노출
+  /** 클라이언트 전용 미투표 표시. 이 Set에 포함된 date_id는 빨간 뱃지로 강조되고 정렬 상 상단으로. */
+  unvotedIds?: Set<string>;
+  onUnvotedChange?: (next: Set<string>) => void;
 }
 
 const STATUS_OPTIONS: { value: VoteStatus; label: string; description: string }[] = [
@@ -64,6 +67,8 @@ export function VoteScheduleEditor({
   value,
   onChange,
   showNotice = true,
+  unvotedIds,
+  onUnvotedChange,
 }: VoteScheduleEditorProps) {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [singleDate, setSingleDate] = useState<ScheduleDateLite | null>(null);
@@ -74,9 +79,32 @@ export function VoteScheduleEditor({
     return m;
   }, [scheduleDates, value]);
 
+  // unvoted 우선 정렬 — 미투표 항목이 목록 상단에 오도록
+  const sortedDates = useMemo(() => {
+    if (!unvotedIds || unvotedIds.size === 0) return scheduleDates;
+    return [...scheduleDates].sort((a, b) => {
+      const au = unvotedIds.has(a.id) ? 0 : 1;
+      const bu = unvotedIds.has(b.id) ? 0 : 1;
+      if (au !== bu) return au - bu;
+      return a.date.localeCompare(b.date);
+    });
+  }, [scheduleDates, unvotedIds]);
+
+  const unvotedCount = unvotedIds?.size ?? 0;
+
+  const clearUnvoted = (dateId: string) => {
+    if (!unvotedIds || !onUnvotedChange) return;
+    if (!unvotedIds.has(dateId)) return;
+    const next = new Set(unvotedIds);
+    next.delete(dateId);
+    onUnvotedChange(next);
+  };
+
   const updateVote = (dateId: string, partial: Partial<VoteState>) => {
     const current = value[dateId] ?? { status: "available" as VoteStatus, time_slots: [], note: "" };
     onChange({ ...value, [dateId]: { ...current, ...partial } });
+    // 사용자가 명시적으로 상태를 선택하면 미투표 해제
+    if (partial.status !== undefined) clearUnvoted(dateId);
   };
 
   const handleBulkApply = (payload: {
@@ -142,6 +170,24 @@ export function VoteScheduleEditor({
         </div>
       )}
 
+      {unvotedCount > 0 && (
+        <div
+          className="row mb-8"
+          style={{
+            gap: 8,
+            padding: "8px 12px",
+            background: "rgba(239, 68, 68, 0.08)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: 8,
+            fontSize: 13,
+            color: "var(--danger, #b91c1c)",
+            fontWeight: 500,
+          }}
+        >
+          <span>투표 필요 {unvotedCount}개 — 새로 추가된 일정에 대해 가능 여부를 표시해주세요</span>
+        </div>
+      )}
+
       <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
         <button
           type="button"
@@ -155,13 +201,25 @@ export function VoteScheduleEditor({
       </div>
 
       <div className="sched">
-        {scheduleDates.map((d) => {
+        {sortedDates.map((d) => {
           const v = value[d.id] ?? { status: "available" as VoteStatus, time_slots: [], note: "" };
           const { month, day, dow } = kstDayDow(d.date);
           const isPractice = d.kind === "practice";
+          const isUnvoted = unvotedIds?.has(d.id) ?? false;
 
           return (
-            <div key={d.id} className="sched-row">
+            <div
+              key={d.id}
+              className="sched-row"
+              style={
+                isUnvoted
+                  ? {
+                      borderLeft: "3px solid #ef4444",
+                      background: "rgba(239, 68, 68, 0.04)",
+                    }
+                  : undefined
+              }
+            >
               <div className="date-col">
                 <div
                   style={{
@@ -190,6 +248,23 @@ export function VoteScheduleEditor({
                 >
                   {isPractice ? "연습" : "본행사"}
                 </div>
+                {isUnvoted && (
+                  <div
+                    style={{
+                      fontSize: 9,
+                      marginTop: 4,
+                      padding: "1px 4px",
+                      borderRadius: 4,
+                      display: "inline-block",
+                      background: "#ef4444",
+                      color: "#fff",
+                      fontWeight: 700,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    투표 필요
+                  </div>
+                )}
                 {d.label && (
                   <div
                     style={{

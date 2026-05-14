@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Bell, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { NotificationBell } from "./NotificationBell";
 
 interface TopBarProps {
   crumb?: string;
@@ -17,9 +18,7 @@ export function TopBar({ crumb, isAdmin }: TopBarProps) {
           새 프로젝트
         </Link>
       )}
-      <button className="btn icon-only" aria-label="알림">
-        <Bell size={14} strokeWidth={2} />
-      </button>
+      <NotificationBell variant="desktop" />
     </header>
   );
 }

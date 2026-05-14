@@ -12,6 +12,18 @@ import {
 } from "@/lib/supabase-server";
 import { sendPushToSubscriptions, type PushPayload, type PushSubscriptionRow } from "@/lib/push";
 import { logActivity } from "@/lib/activity-log";
+import { createUserNotifications } from "@/lib/notifications-inbox";
+
+function inboxPayload(payload: PushPayload, target: { targetType?: string; targetId?: string | null }) {
+  return {
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    tag: payload.tag,
+    targetType: target.targetType,
+    targetId: target.targetId,
+  };
+}
 
 type SupaClient = ReturnType<typeof createRouteSupabaseClient>;
 
@@ -105,7 +117,10 @@ export async function notifyAdmins(payload: PushPayload): Promise<void> {
       .not("user_id", "is", null);
     const userIds = ((members ?? []) as Array<{ user_id: string }>).map((m) => m.user_id);
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    const result = await send(subs, payload);
+    const [result] = await Promise.all([
+      send(subs, payload),
+      createUserNotifications(userIds, inboxPayload(payload, { targetType: payload.targetType, targetId: payload.targetId })),
+    ]);
     await logAutoPush({
       title: payload.title,
       url: payload.url,
@@ -123,7 +138,10 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
   try {
     const supabase = getSupa();
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    const result = await send(subs, payload);
+    const [result] = await Promise.all([
+      send(subs, payload),
+      createUserNotifications(userIds, inboxPayload(payload, { targetType: payload.targetType, targetId: payload.targetId })),
+    ]);
     await logAutoPush({
       title: payload.title,
       url: payload.url,
@@ -141,7 +159,10 @@ export async function notifyAllActive(payload: PushPayload): Promise<void> {
     const supabase = getSupa();
     const subs = await fetchAllSubs(supabase);
     const userIds = subs.map((s) => s.user_id);
-    const result = await send(subs, payload);
+    const [result] = await Promise.all([
+      send(subs, payload),
+      createUserNotifications(userIds, inboxPayload(payload, { targetType: payload.targetType, targetId: payload.targetId })),
+    ]);
     await logAutoPush({
       title: payload.title,
       url: payload.url,
@@ -207,7 +228,13 @@ export async function notifyVisibility(
     }
 
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    const result = await send(subs, payload);
+    const [result] = await Promise.all([
+      send(subs, payload),
+      createUserNotifications(userIds, inboxPayload(payload, {
+        targetType: payload.targetType ?? "project",
+        targetId: payload.targetId ?? project.id,
+      })),
+    ]);
     await logAutoPush({
       title: payload.title,
       url: payload.url,
@@ -248,7 +275,13 @@ export async function notifyApprovedParticipants(
     }
 
     const subs = await fetchSubsByUserIds(supabase, userIds);
-    const result = await send(subs, payload);
+    const [result] = await Promise.all([
+      send(subs, payload),
+      createUserNotifications(userIds, inboxPayload(payload, {
+        targetType: payload.targetType ?? "project",
+        targetId: payload.targetId ?? projectId,
+      })),
+    ]);
     await logAutoPush({
       title: payload.title,
       url: payload.url,

@@ -36,9 +36,10 @@ export default async function ProjectDetailPage({ params }: Props) {
     .eq("project_id", projectId)
     .eq("status", "approved");
 
-  // 현재 유저의 지원 여부
+  // 현재 유저의 지원 여부 + 미투표 일정 카운트
   const { data: { user } } = await supabase.auth.getUser();
   let myApp: { status: string } | null = null;
+  let unvotedCount = 0;
   if (user) {
     const { data } = await supabase
       .from("project_applications")
@@ -47,14 +48,36 @@ export default async function ProjectDetailPage({ params }: Props) {
       .eq("user_id", user.id)
       .maybeSingle();
     myApp = data;
+
+    if (myApp && myApp.status !== "rejected") {
+      const { data: scheduleDateRows } = await supabase
+        .from("schedule_dates")
+        .select("id")
+        .eq("project_id", projectId);
+      const dateIds = (scheduleDateRows ?? []).map((r) => (r as { id: string }).id);
+      if (dateIds.length > 0) {
+        const { data: voteRows } = await supabase
+          .from("schedule_votes")
+          .select("schedule_date_id")
+          .eq("user_id", user.id)
+          .in("schedule_date_id", dateIds);
+        const votedSet = new Set(
+          (voteRows ?? []).map((r) => (r as { schedule_date_id: string }).schedule_date_id)
+        );
+        unvotedCount = dateIds.filter((id) => !votedSet.has(id)).length;
+      }
+    }
   }
 
   const isRecruiting = project.status === "recruiting";
   const canApply = isRecruiting && !myApp;
-  const canEditOrWithdrawApplication =
-    isRecruiting &&
-    myApp &&
-    myApp.status !== "approved";
+  const canVote = !!myApp && myApp.status !== "rejected";
+  const ctaLabel =
+    myApp?.status === "approved"
+      ? "내 일정 투표"
+      : isRecruiting
+        ? "지원 수정 · 일정 투표"
+        : "일정 투표";
 
   return (
     <div className="page">
@@ -92,9 +115,29 @@ export default async function ProjectDetailPage({ params }: Props) {
             지원하기
           </Link>
         )}
-        {canEditOrWithdrawApplication && (
-          <Link href={`/projects/${projectId}/apply`} className="btn primary lg">
-            지원 수정·취소
+        {canVote && (
+          <Link
+            href={`/projects/${projectId}/apply`}
+            className="btn primary lg"
+            style={{ position: "relative" }}
+          >
+            {ctaLabel}
+            {unvotedCount > 0 && (
+              <span
+                aria-label={`미투표 ${unvotedCount}개`}
+                style={{
+                  marginLeft: 6,
+                  padding: "2px 6px",
+                  borderRadius: 10,
+                  background: "#ef4444",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                투표 필요 {unvotedCount}
+              </span>
+            )}
           </Link>
         )}
         {myApp && (
@@ -176,10 +219,25 @@ export default async function ProjectDetailPage({ params }: Props) {
                   </Link>
                 </div>
               )}
-              {canEditOrWithdrawApplication && (
+              {canVote && (
                 <div style={{ marginTop: 16 }}>
                   <Link href={`/projects/${projectId}/apply`} className="btn primary" style={{ width: "100%", justifyContent: "center" }}>
-                    지원 수정·취소
+                    {ctaLabel}
+                    {unvotedCount > 0 && (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          padding: "2px 6px",
+                          borderRadius: 10,
+                          background: "#fff",
+                          color: "#ef4444",
+                          fontSize: 10,
+                          fontWeight: 700,
+                        }}
+                      >
+                        투표 필요 {unvotedCount}
+                      </span>
+                    )}
                   </Link>
                 </div>
               )}
