@@ -46,6 +46,7 @@ export async function middleware(req: NextRequest) {
   if (pathname === "/") return res;
   if (pathname.startsWith("/apply/")) return res;
   if (pathname === "/api/portfolio/inquiries") return res;
+  if (pathname.startsWith("/api/cron/")) return res;
 
   // 1차 인증 판단: Supabase 인증 쿠키 존재 여부 (Auth API 호출 없음)
   // 쿠키 이름 패턴: sb-<project-ref>-auth-token(.0|.1|...)
