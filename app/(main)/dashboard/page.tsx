@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { OsAvatar } from "@/components/ui/OsAvatar";
 import { fmtKRW, fmtDateKo, fmtPay, payTypeChipTone } from "@/lib/utils";
 import { Folder, Calendar, Megaphone, Pin, Sparkles, Clock, UserPlus } from "lucide-react";
 
@@ -44,6 +45,7 @@ export default async function DashboardPage() {
     id: string; title: string; status: string; type: string;
     poster_url: string | null; start_date: string | null;
     pay_type: string | null; fee: number; venue: string | null;
+    owner_id: string | null; owner_name: string | null;
   }> = [];
   let announcements: Array<{
     id: string; title: string; body: string; pinned: boolean;
@@ -56,7 +58,7 @@ export default async function DashboardPage() {
     const [projRes, annRes] = await Promise.all([
       supabase
         .from("projects_with_range")
-        .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue")
+        .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue, owner_id")
         .in("status", ["recruiting", "in_progress", "completed"])
         .order("created_at", { ascending: false })
         .limit(10),
@@ -68,8 +70,33 @@ export default async function DashboardPage() {
         .limit(5),
     ]);
 
-    projects = (projRes.data ?? []) as typeof projects;
+    const projRaw = (projRes.data ?? []) as Array<Omit<typeof projects[number], "owner_name">>;
     announcements = (annRes.data ?? []) as typeof announcements;
+
+    // owner 이름은 crew_members(authenticated read)에서 조회
+    const ownerIds = Array.from(
+      new Set(projRaw.map(p => p.owner_id).filter((v): v is string => !!v))
+    );
+    const ownerNameById = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: ownerRows } = await supabase
+        .from("crew_members")
+        .select("user_id, name, stage_name")
+        .in("user_id", ownerIds);
+      for (const u of (ownerRows ?? []) as Array<{
+        user_id: string | null;
+        name: string | null;
+        stage_name: string | null;
+      }>) {
+        if (!u.user_id) continue;
+        const display = u.stage_name?.trim() || u.name?.trim();
+        if (display) ownerNameById.set(u.user_id, display);
+      }
+    }
+    projects = projRaw.map(p => ({
+      ...p,
+      owner_name: p.owner_id ? ownerNameById.get(p.owner_id) ?? null : null,
+    }));
 
     if (user) {
       const [appRes, payRes] = await Promise.all([
@@ -340,6 +367,12 @@ export default async function DashboardPage() {
                       </>
                     )}
                   </dl>
+                  {p.owner_name && (
+                    <div className="row gap-6 mt-8" style={{ alignItems: "center" }}>
+                      <OsAvatar name={p.owner_name} size="sm" />
+                      <span className="text-xs sub">개설 · {p.owner_name}</span>
+                    </div>
+                  )}
                 </div>
               </Link>
             ))}

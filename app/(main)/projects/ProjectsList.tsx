@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo } from "react";
 import { Folder, Calendar, MapPin } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { AvatarStack } from "@/components/ui/OsAvatar";
+import { OsAvatar } from "@/components/ui/OsAvatar";
 import { fmtPay, payTypeChipTone } from "@/lib/utils";
 
 export type ProjectRow = {
@@ -18,6 +18,8 @@ export type ProjectRow = {
   fee: number;
   venue: string | null;
   max_participants: number | null;
+  owner_id: string | null;
+  owner_name: string | null;
 };
 
 const ACTIVE_STATUSES = new Set(["recruiting", "selecting", "in_progress"]);
@@ -195,8 +197,27 @@ export function ProjectsList({ projects, unvotedByProject }: ProjectsListProps) 
                   )}
                 </dl>
                 <div className="divider" style={{ margin: "10px 0" }} />
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <AvatarStack members={[]} max={5} />
+                <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="row gap-6" style={{ alignItems: "center", minWidth: 0 }}>
+                    {p.owner_name ? (
+                      <>
+                        <OsAvatar name={p.owner_name} size="sm" />
+                        <span
+                          className="text-xs sub"
+                          style={{
+                            maxWidth: 100,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {p.owner_name}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs sub">개설자 미상</span>
+                    )}
+                  </div>
                   <span className="btn sm">자세히</span>
                 </div>
               </div>
