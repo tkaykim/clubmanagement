@@ -16,7 +16,7 @@ export default async function ProjectsPage() {
   const viewQuery = await supabase
     .from("projects_with_range")
     .select(
-      "id, title, status, type, poster_url, start_date, pay_type, fee, venue, max_participants"
+      "id, title, status, type, poster_url, start_date, pay_type, fee, venue, max_participants, owner_id"
     )
     .order("created_at", { ascending: false });
 
@@ -33,7 +33,7 @@ export default async function ProjectsPage() {
       supabase
         .from("projects")
         .select(
-          "id, title, status, type, poster_url, pay_type, fee, venue, max_participants, created_at"
+          "id, title, status, type, poster_url, pay_type, fee, venue, max_participants, owner_id, created_at"
         )
         .order("created_at", { ascending: false }),
       supabase.from("schedule_dates").select("project_id, date"),
@@ -51,7 +51,7 @@ export default async function ProjectsPage() {
       const retry = await supabase
         .from("projects")
         .select(
-          "id, title, status, type, poster_url, fee, venue, max_participants, created_at"
+          "id, title, status, type, poster_url, fee, venue, max_participants, owner_id, created_at"
         )
         .order("created_at", { ascending: false });
       if (retry.error) {
@@ -77,6 +77,36 @@ export default async function ProjectsPage() {
     }));
   }
 
+  // owner_id 모아 users 테이블에서 name 일괄 조회
+  const ownerIds = Array.from(
+    new Set(
+      rows
+        .map(r => r.owner_id)
+        .filter((v): v is string => typeof v === "string" && v.length > 0)
+    )
+  );
+  const ownerNameById = new Map<string, string>();
+  if (ownerIds.length > 0) {
+    // users 테이블은 self-only RLS라 owner 조회 불가 → crew_members(authenticated read)에서 name 조회
+    const { data: ownerRows, error: ownerErr } = await supabase
+      .from("crew_members")
+      .select("user_id, name, stage_name")
+      .in("user_id", ownerIds);
+    if (ownerErr) {
+      console.error("[projects] owner name fetch failed:", ownerErr);
+    } else {
+      for (const u of (ownerRows ?? []) as Array<{
+        user_id: string | null;
+        name: string | null;
+        stage_name: string | null;
+      }>) {
+        if (!u.user_id) continue;
+        const display = u.stage_name?.trim() || u.name?.trim();
+        if (display) ownerNameById.set(u.user_id, display);
+      }
+    }
+  }
+
   const all: ProjectRow[] = rows.map(r => ({
     id: r.id,
     title: r.title,
@@ -88,6 +118,8 @@ export default async function ProjectsPage() {
     fee: r.fee,
     venue: r.venue,
     max_participants: r.max_participants,
+    owner_id: r.owner_id ?? null,
+    owner_name: r.owner_id ? ownerNameById.get(r.owner_id) ?? null : null,
   }));
 
   // 현재 사용자가 지원한 프로젝트별 미투표 일정 수 계산
