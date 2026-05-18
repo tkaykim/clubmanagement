@@ -63,7 +63,7 @@ export async function sendPushToSubscriptions(
             keys: { p256dh: s.p256dh, auth: s.auth },
           },
           json,
-          { TTL: 60 * 60 * 24 }
+          { TTL: 60 * 60 * 24, urgency: "high" }
         );
         sent += 1;
       } catch (err: unknown) {
