@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarPlus, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarPlus, ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Kind = "event" | "practice";
@@ -42,6 +42,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
   const [loading, setLoading] = useState(!initialDates);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [addMode, setAddMode] = useState<"single" | "range">("single");
+  const [expanded, setExpanded] = useState(false);
 
   // 단일 추가
   const [newDate, setNewDate] = useState("");
@@ -223,12 +224,37 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
 
   return (
     <div className="card">
-      <div className="card-head">
-        <h3>일정 후보 관리</h3>
-        <div style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--mf)" }}>
-          {rows.length}개
+      <button
+        type="button"
+        className="card-head"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        style={{
+          width: "100%",
+          background: "transparent",
+          border: 0,
+          cursor: "pointer",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <h3 style={{ margin: 0 }}>일정 후보 관리</h3>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 11.5, color: "var(--mf)" }}>{rows.length}개</span>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            style={{
+              transition: "transform 160ms ease",
+              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+              color: "var(--mf)",
+            }}
+          />
         </div>
-      </div>
+      </button>
+      {expanded && (
       <div style={{ padding: 18 }}>
         <div
           style={{
@@ -433,6 +459,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
