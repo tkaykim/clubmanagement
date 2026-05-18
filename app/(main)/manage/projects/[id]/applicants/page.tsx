@@ -129,7 +129,7 @@ export default async function ApplicantsPage({ params }: Props) {
           <div className="num tabnum" style={{ fontSize: 24 }}>{pending}</div>
         </div>
         <div className="card stat">
-          <div className="lab">거절</div>
+          <div className="lab">다음 기회에</div>
           <div className="num tabnum" style={{ fontSize: 24 }}>{rejected}</div>
         </div>
       </div>

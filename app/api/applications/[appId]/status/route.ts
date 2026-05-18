@@ -118,10 +118,10 @@ export async function PATCH(request: Request, { params }: Params) {
       const isRejected = parsed.data.status === "rejected";
       if (isApproved || isRejected) {
         await notifyUsers([existing.user_id], {
-          title: isApproved ? "프로젝트 합류 확정" : "지원 결과 안내",
+          title: isApproved ? "프로젝트 합류 확정" : "지원해주셔서 감사해요",
           body: isApproved
             ? `${projTitle} 합류가 확정되었어요 🎉`
-            : `${projTitle} 지원 결과를 확인해주세요`,
+            : `${projTitle}는 이번에 함께하지 못했지만, 다음 프로젝트에서 또 만나요 🙌`,
           url: `/projects/${existing.project_id}`,
           tag: `app-result-${appId}`,
         });
