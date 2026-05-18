@@ -460,7 +460,7 @@ export function ApplicantList({
                             className="btn sm icon-only ghost danger"
                             style={a.status === "rejected" ? { background: "var(--danger)", color: "#fff" } : {}}
                             onClick={() => updateStatus(a.id, "rejected")}
-                            title="거절"
+                            title="다음 기회에"
                           >
                             <X size={12} strokeWidth={2.5} />
                           </button>

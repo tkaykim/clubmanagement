@@ -6,7 +6,7 @@ const STATUS_MAP: Record<string, { label: string; kind: string }> = {
   cancelled:    { label: "취소",     kind: "danger" },
   pending:      { label: "대기",     kind: "warn" },
   approved:     { label: "확정",     kind: "ok" },
-  rejected:     { label: "탈락",     kind: "danger" },
+  rejected:     { label: "다음 기회에", kind: "outline" },
   available:    { label: "가능",     kind: "ok" },
   unavailable:  { label: "불가",     kind: "danger" },
   maybe:        { label: "부분",     kind: "warn" },

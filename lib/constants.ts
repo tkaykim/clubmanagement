@@ -29,7 +29,7 @@ export const STATUS_LABELS: Record<string, string> = {
   // Application status
   pending: "대기",
   approved: "확정",
-  rejected: "탈락",
+  rejected: "다음 기회에",
   // Vote status
   available: "가능",
   maybe: "부분",
@@ -177,7 +177,7 @@ export const APPLICATION_STATUS_BADGE: Record<
 > = {
   pending: { label: "대기", kind: "warn" },
   approved: { label: "확정", kind: "ok" },
-  rejected: { label: "탈락", kind: "danger" },
+  rejected: { label: "다음 기회에", kind: "outline" },
 } as const;
 
 // ============================================================
