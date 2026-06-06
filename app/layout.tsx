@@ -19,9 +19,13 @@ const instrument = Instrument_Serif({
   display: "swap",
 });
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://oneshotcrew.grigoent.co.kr";
+
 export const metadata: Metadata = {
-  title: "원샷크루",
-  description: "원샷크루 관리 플랫폼",
+  metadataBase: new URL(SITE),
+  title: { default: "원샷크루 — 댄스 크루 포트폴리오", template: "%s · 원샷크루" },
+  description: "댄스 크루 원샷크루의 포트폴리오·소개·협업 문의.",
+  openGraph: { type: "website", locale: "ko_KR", siteName: "원샷크루", title: "원샷크루 — 댄스 크루 포트폴리오", description: "댄스 크루 원샷크루의 포트폴리오·소개·협업 문의.", url: SITE },
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -47,9 +51,18 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // GEO/AEO: schema.org JSON-LD (Organization + WebSite)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": `${SITE}/#organization`, name: "원샷크루", alternateName: "oneshotcrew", url: SITE, email: "contact@grigoent.co.kr", description: "댄스 크루 원샷크루의 포트폴리오·소개·협업 문의.", areaServed: "KR" },
+      { "@type": "WebSite", "@id": `${SITE}/#website`, url: SITE, name: "원샷크루", inLanguage: "ko-KR", publisher: { "@id": `${SITE}/#organization` } },
+    ],
+  };
   return (
     <html lang="ko" className={cn(plexMono.variable, instrument.variable)}>
       <head>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <link
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
           rel="stylesheet"

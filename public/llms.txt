@@ -1,0 +1,13 @@
+# 원샷크루 (oneshotcrew)
+
+> 댄스 크루 '원샷크루'의 공개 포트폴리오·소개·문의 및 크루 운영(멤버·프로젝트·일정·모집) 플랫폼. (oneshotcrew.grigoent.co.kr)
+
+## 핵심 페이지
+- [홈](https://oneshotcrew.grigoent.co.kr): 크루 소개·포트폴리오
+- 포트폴리오·협업 문의 (공개)
+
+## 연락처
+- 이메일: contact@grigoent.co.kr
+- 웹사이트: https://oneshotcrew.grigoent.co.kr
+
+<!-- AI 검색/응답 엔진이 사이트 핵심 정보를 정확히 인용하도록 큐레이션. -->
