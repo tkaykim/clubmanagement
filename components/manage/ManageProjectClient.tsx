@@ -10,6 +10,12 @@ import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
 import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
+import { downloadXlsx } from "@/lib/xlsx";
+import {
+  buildTimetableSheets,
+  buildByDateSheets,
+  buildHeatmapSheets,
+} from "@/lib/availability-export";
 import { ProjectScheduleManager, type ScheduleDateRow } from "@/components/project/ProjectScheduleManager";
 import { Linkify } from "@/lib/text/Linkify";
 import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/components/project/VoteScheduleEditor";
@@ -281,6 +287,35 @@ export function ManageProjectClient({
     }
     return map;
   })();
+
+  // 현재 가용성 뷰를 엑셀(xlsx)로 내보내기
+  const handleExportAvailability = () => {
+    const safeTitle = (project.title || "프로젝트")
+      .replace(/[\\/:*?"<>|]/g, "_")
+      .slice(0, 40);
+    const stamp = new Date().toISOString().slice(0, 10);
+    try {
+      if (aggView === "timetable") {
+        downloadXlsx(
+          `${safeTitle}_타임테이블_${stamp}`,
+          buildTimetableSheets(scheduleDates, analysisPool, votes)
+        );
+      } else if (aggView === "by-date") {
+        downloadXlsx(
+          `${safeTitle}_날짜별취합_${stamp}`,
+          buildByDateSheets(scheduleDates, analysisPool, votesByUser)
+        );
+      } else {
+        downloadXlsx(
+          `${safeTitle}_멤버열지도_${stamp}`,
+          buildHeatmapSheets(scheduleDates, analysisPool, votesByUser)
+        );
+      }
+      toast.success("엑셀 파일을 내려받았어요");
+    } catch {
+      toast.error("엑셀 생성 중 오류가 발생했어요");
+    }
+  };
 
   const handleStatus = async (appId: string, status: "approved" | "rejected") => {
     setLoading(appId);
@@ -624,6 +659,23 @@ export function ManageProjectClient({
                   >
                     <Grid3x3 size={12} strokeWidth={2} />
                     멤버 열지도
+                  </button>
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 1,
+                      alignSelf: "stretch",
+                      background: "var(--border)",
+                      margin: "0 2px",
+                    }}
+                  />
+                  <button
+                    className="btn sm"
+                    onClick={handleExportAvailability}
+                    title="현재 뷰를 엑셀(.xlsx) 파일로 내려받기"
+                  >
+                    <Download size={12} strokeWidth={2} />
+                    엑셀 다운로드
                   </button>
                 </div>
               </div>
