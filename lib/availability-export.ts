@@ -11,6 +11,7 @@ import {
 } from "@/lib/availability";
 import type { XlsxSheet } from "@/lib/xlsx";
 import type { TimeSlot, VoteStatus } from "@/lib/types";
+import type { ScheduleCandidate } from "@/lib/availability-recommend";
 
 export interface ExportApp {
   id: string;
@@ -265,4 +266,33 @@ export function buildHeatmapSheets(
   }
 
   return [{ name: "멤버 열지도", rows }];
+}
+
+// ── 4. 일정 추천 뷰 ────────────────────────────────────────
+// 날짜별 최적 시간창 후보를 겹침 인원순으로 한 시트에 출력
+export function buildRecommendSheets(
+  candidates: ScheduleCandidate[]
+): XlsxSheet[] {
+  const names = (list: { name: string }[]) => list.map((m) => m.name).join(", ");
+  const header = [
+    "순위", "날짜", "종류", "라벨", "추천 시간대", "소요(분)",
+    "겹침 인원", "확정가능", "부분가능(별도)", "조정가능(별도)", "빠지는 멤버",
+  ];
+  const rows: (string | number)[][] = [header];
+  candidates.forEach((c, i) => {
+    rows.push([
+      i + 1,
+      c.date,
+      c.kind === "practice" ? "연습" : "본행사",
+      c.label ?? "",
+      `${c.startLabel}~${c.endLabel}`,
+      c.durationMin,
+      c.count,
+      names(c.fullDay),
+      names(c.partialIn),
+      names(c.adjustable),
+      names(c.missing),
+    ]);
+  });
+  return [{ name: "일정 추천", rows }];
 }

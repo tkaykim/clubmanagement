@@ -7,15 +7,18 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, initials } from "@/lib/utils";
 import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
-import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings } from "lucide-react";
+import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings, Sparkles } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
+import { AvailabilityRecommend } from "@/components/manage/AvailabilityRecommend";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
 import { downloadXlsx } from "@/lib/xlsx";
 import {
   buildTimetableSheets,
   buildByDateSheets,
   buildHeatmapSheets,
+  buildRecommendSheets,
 } from "@/lib/availability-export";
+import { recommendSchedule } from "@/lib/availability-recommend";
 import { ProjectScheduleManager, type ScheduleDateRow } from "@/components/project/ProjectScheduleManager";
 import { Linkify } from "@/lib/text/Linkify";
 import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/components/project/VoteScheduleEditor";
@@ -130,7 +133,9 @@ export function ManageProjectClient({
   const [projectStatus, setProjectStatus] = useState<string>(project.status ?? "recruiting");
   const [savingStatus, setSavingStatus] = useState(false);
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
-  const [aggView, setAggView] = useState<"timetable" | "by-date" | "heatmap">("timetable");
+  const [aggView, setAggView] = useState<"timetable" | "by-date" | "heatmap" | "recommend">("timetable");
+  const [recWindowSlots, setRecWindowSlots] = useState<number>(2); // 30분 * 2 = 1시간
+  const [recIncludePartial, setRecIncludePartial] = useState<boolean>(false);
   const [poolFilter, setPoolFilter] = useState<"all" | "pending" | "approved">("all");
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [heatmapCell, setHeatmapCell] = useState<{ appId: string; dateId: string } | null>(null);
@@ -266,6 +271,20 @@ export function ManageProjectClient({
     return { ...d, cnt };
   });
 
+  // 일정 추천 후보 (날짜별 최적 시간창)
+  const recCandidates = useMemo(
+    () =>
+      recommendSchedule({
+        scheduleDates,
+        pool: analysisPool,
+        votesByUser,
+        windowSlots: recWindowSlots,
+        includePartial: recIncludePartial,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scheduleDates, analysisPool, votesByUser, recWindowSlots, recIncludePartial]
+  );
+
   // 편집 모달용 초기값 계산
   const editingApp = editingAppId ? applications.find((a) => a.id === editingAppId) ?? null : null;
   const editingInitialVotes: VotesMap = (() => {
@@ -305,10 +324,15 @@ export function ManageProjectClient({
           `${safeTitle}_날짜별취합_${stamp}`,
           buildByDateSheets(scheduleDates, analysisPool, votesByUser)
         );
-      } else {
+      } else if (aggView === "heatmap") {
         downloadXlsx(
           `${safeTitle}_멤버열지도_${stamp}`,
           buildHeatmapSheets(scheduleDates, analysisPool, votesByUser)
+        );
+      } else {
+        downloadXlsx(
+          `${safeTitle}_일정추천_${stamp}`,
+          buildRecommendSheets(recCandidates)
         );
       }
       toast.success("엑셀 파일을 내려받았어요");
@@ -660,6 +684,14 @@ export function ManageProjectClient({
                     <Grid3x3 size={12} strokeWidth={2} />
                     멤버 열지도
                   </button>
+                  <button
+                    className={cn("btn sm", aggView === "recommend" && "primary")}
+                    onClick={() => setAggView("recommend")}
+                    title="날짜별 최적 시간대 + 겹치는 멤버 추천"
+                  >
+                    <Sparkles size={12} strokeWidth={2} />
+                    일정 추천
+                  </button>
                   <span
                     aria-hidden
                     style={{
@@ -808,6 +840,17 @@ export function ManageProjectClient({
                 })}
               </div>
             </div>
+              )}
+
+              {aggView === "recommend" && (
+                <AvailabilityRecommend
+                  candidates={recCandidates}
+                  poolSize={analysisPool.length}
+                  windowSlots={recWindowSlots}
+                  includePartial={recIncludePartial}
+                  onWindowSlotsChange={setRecWindowSlots}
+                  onIncludePartialChange={setRecIncludePartial}
+                />
               )}
             </>
           )}
