@@ -140,6 +140,16 @@ export function AvailabilityTimetable({
     slotIdx: number;
   } | null>(null);
 
+  // 최소 가능 인원 필터 — 0(전체)이 기본, N으로 올리면 그 시간대에 N명 이상 가능한 날짜만 노출
+  const [minCount, setMinCount] = useState(0);
+  const visibleMatrix = useMemo(
+    () =>
+      minCount <= 0
+        ? matrix
+        : matrix.filter((r) => r.cells.some((c) => c.avail.length >= minCount)),
+    [matrix, minCount]
+  );
+
   if (scheduleDates.length === 0) {
     return <div className="empty">등록된 일정이 없어요</div>;
   }
@@ -203,12 +213,56 @@ export function AvailabilityTimetable({
         </span>
       </div>
 
+      {/* 최소 가능 인원 필터 */}
+      <div
+        className="row gap-8"
+        style={{
+          padding: "10px 16px",
+          fontSize: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>최소 가능 인원</span>
+        <input
+          type="range"
+          min={0}
+          max={pool.length}
+          step={1}
+          value={minCount}
+          onChange={(e) => setMinCount(Number(e.target.value))}
+          style={{ width: 180 }}
+          aria-label="최소 가능 인원 필터"
+        />
+        <span
+          className="mono"
+          style={{
+            fontWeight: 700,
+            minWidth: 72,
+            color: minCount > 0 ? "var(--accent, #3b82f6)" : "var(--mf)",
+          }}
+        >
+          {minCount === 0 ? "전체" : `${minCount}명 이상`}
+        </span>
+        {minCount > 0 && (
+          <span style={{ color: "var(--mf)" }}>
+            · {visibleMatrix.length}/{matrix.length} 날짜
+          </span>
+        )}
+      </div>
+
+      {minCount > 0 && visibleMatrix.length === 0 ? (
+        <div className="empty" style={{ padding: 32 }}>
+          {minCount}명 이상 동시에 가능한 날짜가 없어요
+        </div>
+      ) : (
       <div style={{ overflow: "auto", maxHeight: "70vh" }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `60px repeat(${scheduleDates.length}, minmax(88px, 1fr))`,
-            minWidth: 60 + scheduleDates.length * 88,
+            gridTemplateColumns: `60px repeat(${visibleMatrix.length}, minmax(88px, 1fr))`,
+            minWidth: 60 + visibleMatrix.length * 88,
             fontSize: 11,
           }}
         >
@@ -224,7 +278,7 @@ export function AvailabilityTimetable({
               borderRight: "1px solid var(--border)",
             }}
           />
-          {scheduleDates.map((d) => {
+          {visibleMatrix.map(({ date: d }) => {
             const { day, dow, month } = kstDayDow(d.date);
             const isPractice = d.kind === "practice";
             return (
@@ -283,14 +337,17 @@ export function AvailabilityTimetable({
               major={t.major}
               cellHeight={CELL_H}
             >
-              {matrix.map((row) => {
+              {visibleMatrix.map((row) => {
                 const cell = row.cells[t.idx];
                 const total = pool.length;
                 const availCount = cell.avail.length;
                 const adjustCount = cell.adjust.length;
                 const ratio = total === 0 ? 0 : availCount / total;
-                const bg =
-                  ratio > 0
+                // 최소 인원 필터 미달 셀은 흐리게 처리해 충족 시간대가 눈에 띄도록
+                const belowThreshold = minCount > 0 && availCount < minCount;
+                const bg = belowThreshold
+                  ? "transparent"
+                  : ratio > 0
                     ? `rgba(34,197,94,${Math.max(0.08, Math.min(0.55, ratio * 0.6))})`
                     : adjustCount > 0
                       ? "rgba(250,204,21,0.15)"
@@ -337,7 +394,12 @@ export function AvailabilityTimetable({
                       padding: 0,
                       fontSize: 10,
                       fontFamily: "var(--font-mono)",
-                      color: ratio > 0.4 ? "#052e16" : "var(--mf)",
+                      color: belowThreshold
+                        ? "rgba(100,116,139,0.35)"
+                        : ratio > 0.4
+                          ? "#052e16"
+                          : "var(--mf)",
+                      opacity: belowThreshold ? 0.5 : 1,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -354,6 +416,7 @@ export function AvailabilityTimetable({
           ))}
         </div>
       </div>
+      )}
 
       {popover && (() => {
         const row = matrix.find((r) => r.date.id === popover.dateId);
