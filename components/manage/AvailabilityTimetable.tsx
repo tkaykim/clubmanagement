@@ -225,7 +225,18 @@ export function AvailabilityTimetable({
         }}
       >
         <span style={{ fontWeight: 600 }}>최소 가능 인원</span>
-        <span className="mono" style={{ fontSize: 11, color: "var(--mf)" }}>0</span>
+        <span
+          className="mono"
+          style={{
+            fontSize: 16,
+            fontWeight: 800,
+            minWidth: 22,
+            textAlign: "right",
+            color: minCount > 0 ? "var(--accent, #3b82f6)" : "var(--fg)",
+          }}
+        >
+          {minCount}
+        </span>
         <input
           type="range"
           min={0}
@@ -239,27 +250,11 @@ export function AvailabilityTimetable({
         <span className="mono" style={{ fontSize: 11, color: "var(--mf)" }}>
           {pool.length}
         </span>
-        <span
-          className="mono"
-          style={{
-            fontWeight: 800,
-            fontSize: 14,
-            padding: "2px 10px",
-            borderRadius: 999,
-            border: "1px solid var(--border)",
-            background: minCount > 0 ? "var(--accent-soft, #f0f4ff)" : "var(--muted)",
-            color: minCount > 0 ? "var(--accent, #3b82f6)" : "var(--mf)",
-            minWidth: 84,
-            textAlign: "center",
-          }}
-        >
-          {minCount === 0 ? "전체" : `${minCount}명 이상`}
+        <span style={{ color: "var(--mf)" }}>
+          {minCount === 0
+            ? "명 (전체 날짜 표시)"
+            : `명 이상 · ${visibleMatrix.length}/${matrix.length} 날짜`}
         </span>
-        {minCount > 0 && (
-          <span style={{ color: "var(--mf)" }}>
-            · {visibleMatrix.length}/{matrix.length} 날짜
-          </span>
-        )}
       </div>
 
       {minCount > 0 && visibleMatrix.length === 0 ? (
