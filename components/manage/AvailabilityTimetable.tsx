@@ -225,6 +225,7 @@ export function AvailabilityTimetable({
         }}
       >
         <span style={{ fontWeight: 600 }}>최소 가능 인원</span>
+        <span className="mono" style={{ fontSize: 11, color: "var(--mf)" }}>0</span>
         <input
           type="range"
           min={0}
@@ -235,12 +236,21 @@ export function AvailabilityTimetable({
           style={{ width: 180 }}
           aria-label="최소 가능 인원 필터"
         />
+        <span className="mono" style={{ fontSize: 11, color: "var(--mf)" }}>
+          {pool.length}
+        </span>
         <span
           className="mono"
           style={{
-            fontWeight: 700,
-            minWidth: 72,
+            fontWeight: 800,
+            fontSize: 14,
+            padding: "2px 10px",
+            borderRadius: 999,
+            border: "1px solid var(--border)",
+            background: minCount > 0 ? "var(--accent-soft, #f0f4ff)" : "var(--muted)",
             color: minCount > 0 ? "var(--accent, #3b82f6)" : "var(--mf)",
+            minWidth: 84,
+            textAlign: "center",
           }}
         >
           {minCount === 0 ? "전체" : `${minCount}명 이상`}
