@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { getProjectAccess } from "@/lib/auth";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { memberKindOf } from "@/lib/utils";
-import { ArrowLeft, Mail, Phone, Calendar } from "lucide-react";
+import { Calendar, Banknote, ArrowLeft } from "lucide-react";
+import { ApplicantList, type Applicant } from "@/app/(main)/manage/projects/[id]/applicants/ApplicantList";
+import { fmtPay, memberKindOf } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +20,12 @@ type ApplicationRow = {
   guest_phone: string | null;
 };
 
-function formatDateTime(d: string): string {
-  const date = new Date(d);
-  return `${date.toLocaleDateString("ko-KR")} ${date.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+function formatDate(d: string | null): string {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("ko-KR");
 }
 
-// 프로젝트 관리자(읽기전용) 지원자현황.
-// 내부 심사정보(점수/메모/지원동기/지원서 답변)는 조회하지 않는다.
+// 프로젝트 관리자 / 운영진 공용 — 운영진이 보는 것과 동일한 지원자 화면(ApplicantList) 재사용.
 export default async function ManagerApplicantsPage({ params }: Props) {
   const { id: projectId } = await params;
 
@@ -40,10 +36,17 @@ export default async function ManagerApplicantsPage({ params }: Props) {
 
   const { data: projectData } = await supabase
     .from("projects_with_range")
-    .select("id, title, start_date, status")
+    .select("id, title, start_date, end_date, pay_type, fee, status")
     .eq("id", projectId)
     .single();
-  if (!projectData) notFound();
+
+  if (!projectData) {
+    return (
+      <div className="page">
+        <div className="empty">프로젝트를 찾을 수 없습니다</div>
+      </div>
+    );
+  }
 
   const { data: appData } = await supabase
     .from("project_applications")
@@ -80,7 +83,7 @@ export default async function ManagerApplicantsPage({ params }: Props) {
     }
   }
 
-  const applicants = rows.map((a) => {
+  const applicants: Applicant[] = rows.map((a) => {
     const m = a.user_id ? memberMap.get(a.user_id) : null;
     return {
       id: a.id,
@@ -109,8 +112,19 @@ export default async function ManagerApplicantsPage({ params }: Props) {
             <ArrowLeft size={14} strokeWidth={2} />
             내 담당 프로젝트
           </Link>
-          <h1>{projectData.title} · 지원자현황</h1>
-          <div className="sub">읽기전용 · 상태 변경/수정은 운영진만 가능합니다</div>
+          <h1>{projectData.title} · 지원자</h1>
+          <div className="sub">
+            {projectData.start_date && (
+              <span>
+                <Calendar size={12} strokeWidth={2} style={{ display: "inline", marginRight: 4 }} />
+                {formatDate(projectData.start_date)}
+              </span>
+            )}
+            <span style={{ marginLeft: 12 }}>
+              <Banknote size={12} strokeWidth={2} style={{ display: "inline", marginRight: 4 }} />
+              {fmtPay((projectData as { pay_type?: string | null }).pay_type, projectData.fee as number)}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -133,62 +147,7 @@ export default async function ManagerApplicantsPage({ params }: Props) {
         </div>
       </div>
 
-      {applicants.length === 0 ? (
-        <div className="card">
-          <div className="empty">아직 지원자가 없습니다</div>
-        </div>
-      ) : (
-        <div className="card flush">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>이름</th>
-                <th>연락처</th>
-                <th>상태</th>
-                <th>지원일</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applicants.map((a, idx) => (
-                <tr key={a.id}>
-                  <td data-label="#" className="mono text-xs muted">{idx + 1}</td>
-                  <td data-label="이름" style={{ fontWeight: 600 }}>
-                    <div className="row gap-6" style={{ flexWrap: "wrap" }}>
-                      <span>{a.name}</span>
-                      <StatusBadge status={a.kind} />
-                    </div>
-                  </td>
-                  <td data-label="연락처">
-                    {a.email && (
-                      <div className="row gap-4" style={{ fontSize: 12, color: "var(--mf)" }}>
-                        <Mail size={11} strokeWidth={2} />
-                        {a.email}
-                      </div>
-                    )}
-                    {a.phone && (
-                      <div className="row gap-4" style={{ fontSize: 12, color: "var(--mf)" }}>
-                        <Phone size={11} strokeWidth={2} />
-                        {a.phone}
-                      </div>
-                    )}
-                    {!a.email && !a.phone && <span style={{ color: "var(--mf-2)" }}>—</span>}
-                  </td>
-                  <td data-label="상태">
-                    <StatusBadge status={a.status} />
-                  </td>
-                  <td data-label="지원일" className="mono text-xs muted">
-                    <span className="row gap-4" style={{ alignItems: "center" }}>
-                      <Calendar size={11} strokeWidth={2} />
-                      {formatDateTime(a.created_at)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ApplicantList applicants={applicants} projectId={projectId} />
     </div>
   );
 }

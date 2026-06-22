@@ -132,11 +132,12 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
 
   return (
     <div className="page">
-      <div className="row mb-12">
+      <div className="row mb-12" style={{ justifyContent: "space-between" }}>
         <Link href="/manage" className="btn ghost sm">
           <ChevronLeft size={14} strokeWidth={2} />
           관리
         </Link>
+        <ProjectManagersSection projectId={projectId} />
       </div>
 
       <div className="page-head">
@@ -148,8 +149,6 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           <h1 style={{ fontSize: 24 }}>{project.title}</h1>
         </div>
       </div>
-
-      <ProjectManagersSection projectId={projectId} />
 
       <ManageProjectClient
         project={project}

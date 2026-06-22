@@ -3,26 +3,27 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { getProjectAccess } from "@/lib/auth";
 import { ScheduleAggregationView } from "@/components/project/ScheduleAggregationView";
+import { ProjectScheduleManager, type ScheduleDateRow } from "@/components/project/ProjectScheduleManager";
 import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
-// 프로젝트 관리자(읽기전용) 일정 뷰.
+// 프로젝트 관리자 / 운영진 공용 — 운영진이 보는 일정 관리 화면을 동일하게 재사용.
 export default async function ManagerSchedulePage({ params }: Props) {
-  const { id: projectId } = await params;
+  const { id } = await params;
 
-  const access = await getProjectAccess(projectId);
+  const access = await getProjectAccess(id);
   if (!access) notFound();
 
   const supabase = createServerSupabaseClient();
-  const { data: projectData } = await supabase
-    .from("projects")
-    .select("id, title")
-    .eq("id", projectId)
-    .single();
-  if (!projectData) notFound();
+  const { data: scheduleDates } = await supabase
+    .from("schedule_dates")
+    .select("id, project_id, date, label, kind, sort_order")
+    .eq("project_id", id)
+    .order("sort_order", { ascending: true })
+    .order("date", { ascending: true });
 
   return (
     <div className="page">
@@ -36,12 +37,17 @@ export default async function ManagerSchedulePage({ params }: Props) {
             <ArrowLeft size={14} strokeWidth={2} />
             내 담당 프로젝트
           </Link>
-          <h1>{projectData.title} · 일정</h1>
-          <div className="sub">읽기전용 · 후보일 추가/확정은 운영진만 가능합니다</div>
+          <h1>연습 일정</h1>
+          <div className="sub">일정 후보 · 가능 일정 집계 · 일정 확정</div>
         </div>
       </div>
-
-      <ScheduleAggregationView projectId={projectId} readOnly />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <ProjectScheduleManager
+          projectId={id}
+          initialDates={(scheduleDates ?? []) as ScheduleDateRow[]}
+        />
+        <ScheduleAggregationView projectId={id} />
+      </div>
     </div>
   );
 }
