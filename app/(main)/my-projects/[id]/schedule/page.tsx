@@ -42,11 +42,13 @@ export default async function ManagerSchedulePage({ params }: Props) {
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <ProjectScheduleManager
-          projectId={id}
-          initialDates={(scheduleDates ?? []) as ScheduleDateRow[]}
-        />
-        <ScheduleAggregationView projectId={id} />
+        {access === "admin" && (
+          <ProjectScheduleManager
+            projectId={id}
+            initialDates={(scheduleDates ?? []) as ScheduleDateRow[]}
+          />
+        )}
+        <ScheduleAggregationView projectId={id} readOnly={access !== "admin"} />
       </div>
     </div>
   );

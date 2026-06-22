@@ -39,9 +39,12 @@ type EditState = {
 export function ApplicantList({
   applicants: initial,
   projectId,
+  readOnly = false,
 }: {
   applicants: Applicant[];
   projectId: string;
+  /** true 면 추가/상태변경/수정/삭제 컨트롤을 숨긴다 (프로젝트 관리자 보기전용). */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -192,21 +195,23 @@ export function ApplicantList({
   return (
     <>
       {/* 툴바 */}
-      <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
-        <button
-          className="btn primary"
-          onClick={() => {
-            setShowAdd(v => !v);
-            if (showAdd) addFormRef.current?.scrollIntoView({ behavior: "smooth" });
-          }}
-        >
-          {showAdd ? <X size={14} strokeWidth={2} /> : <Plus size={14} strokeWidth={2} />}
-          {showAdd ? "취소" : "참여자 추가"}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
+          <button
+            className="btn primary"
+            onClick={() => {
+              setShowAdd(v => !v);
+              if (showAdd) addFormRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            {showAdd ? <X size={14} strokeWidth={2} /> : <Plus size={14} strokeWidth={2} />}
+            {showAdd ? "취소" : "참여자 추가"}
+          </button>
+        </div>
+      )}
 
       {/* 추가 폼 */}
-      {showAdd && (
+      {!readOnly && showAdd && (
         <div ref={addFormRef} className="card mb-16">
           <div className="card-head">
             <h3>참여자 추가</h3>
@@ -358,7 +363,7 @@ export function ApplicantList({
                 <th>연락처</th>
                 <th>상태</th>
                 <th>지원일</th>
-                <th>액션</th>
+                {!readOnly && <th>액션</th>}
               </tr>
             </thead>
             <tbody>
@@ -426,6 +431,7 @@ export function ApplicantList({
                     <td data-label="지원일" className="mono text-xs muted">
                       {formatDateTime(a.created_at)}
                     </td>
+                    {!readOnly && (
                     <td data-label="액션">
                       {updatingId === a.id ? (
                         <Loader2 size={14} className="animate-spin" style={{ color: "var(--mf)" }} />
@@ -488,6 +494,7 @@ export function ApplicantList({
                         </div>
                       )}
                     </td>
+                    )}
                   </tr>
                 );
               })}

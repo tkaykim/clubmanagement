@@ -147,7 +147,7 @@ export default async function ManagerApplicantsPage({ params }: Props) {
         </div>
       </div>
 
-      <ApplicantList applicants={applicants} projectId={projectId} />
+      <ApplicantList applicants={applicants} projectId={projectId} readOnly={access !== "admin"} />
     </div>
   );
 }
