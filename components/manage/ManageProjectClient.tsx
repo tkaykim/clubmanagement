@@ -110,6 +110,8 @@ interface ManageProjectClientProps {
   payouts: Payout[];
   announcements: Announcement[];
   initialTab: string;
+  /** 프로젝트 관리자(읽기전용): 조작 컨트롤 숨김 + 지원자/가능일정 탭만 노출 */
+  readOnly?: boolean;
 }
 
 export function ManageProjectClient({
@@ -120,9 +122,18 @@ export function ManageProjectClient({
   payouts,
   announcements,
   initialTab,
+  readOnly = false,
 }: ManageProjectClientProps) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>((initialTab as Tab) || "applications");
+  const visibleTabs = readOnly
+    ? TABS.filter((t) => t.key === "applications" || t.key === "availability")
+    : TABS;
+  const colCount = readOnly ? 6 : 8;
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = (initialTab as Tab) || "applications";
+    if (readOnly && t !== "applications" && t !== "availability") return "applications";
+    return t;
+  });
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<string>(project.visibility ?? "public");
@@ -425,7 +436,7 @@ export function ManageProjectClient({
     <div>
       {/* 탭 */}
       <nav className="tabs">
-        {TABS.map(t => (
+        {visibleTabs.map(t => (
           <button
             key={t.key}
             className={cn("tab", tab === t.key && "on")}
@@ -446,7 +457,7 @@ export function ManageProjectClient({
             <div className="mono text-xs muted">
               총 {applications.length}명 · 대기 {pendingApps.length} · 확정 {approvedApps.length}
             </div>
-            {selected.length > 0 && (
+            {!readOnly && selected.length > 0 && (
               <div className="row gap-8">
                 <span className="mono text-xs">{selected.length}명 선택됨</span>
                 <button
@@ -472,27 +483,29 @@ export function ManageProjectClient({
             <table className="tbl">
               <thead>
                 <tr>
-                  <th className="checkbox-col">
-                    <button
-                      className={cn("cbx", selected.length === applications.length && applications.length > 0 && "on")}
-                      onClick={toggleAll}
-                      role="checkbox"
-                      aria-checked={selected.length === applications.length && applications.length > 0}
-                    />
-                  </th>
+                  {!readOnly && (
+                    <th className="checkbox-col">
+                      <button
+                        className={cn("cbx", selected.length === applications.length && applications.length > 0 && "on")}
+                        onClick={toggleAll}
+                        role="checkbox"
+                        aria-checked={selected.length === applications.length && applications.length > 0}
+                      />
+                    </th>
+                  )}
                   <th style={{ width: 24 }} />
                   <th>이름</th>
                   <th>지원일</th>
                   <th>동의</th>
                   <th>점수</th>
                   <th>상태</th>
-                  <th>액션</th>
+                  {!readOnly && <th>액션</th>}
                 </tr>
               </thead>
               <tbody>
                 {applications.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
+                    <td colSpan={colCount} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
                       아직 지원자가 없어요
                     </td>
                   </tr>
@@ -512,14 +525,16 @@ export function ManageProjectClient({
                             toggleExpanded(a.id);
                           }}
                         >
-                          <td className="checkbox-col" data-label="">
-                            <button
-                              className={cn("cbx", selected.includes(a.id) && "on")}
-                              onClick={(e) => { e.stopPropagation(); toggleSelect(a.id); }}
-                              role="checkbox"
-                              aria-checked={selected.includes(a.id)}
-                            />
-                          </td>
+                          {!readOnly && (
+                            <td className="checkbox-col" data-label="">
+                              <button
+                                className={cn("cbx", selected.includes(a.id) && "on")}
+                                onClick={(e) => { e.stopPropagation(); toggleSelect(a.id); }}
+                                role="checkbox"
+                                aria-checked={selected.includes(a.id)}
+                              />
+                            </td>
+                          )}
                           <td data-label="" style={{ width: 24 }}>
                             <button
                               className="btn ghost sm"
@@ -555,34 +570,36 @@ export function ManageProjectClient({
                           <td data-label="상태">
                             <StatusBadge status={a.status} />
                           </td>
-                          <td data-label="액션">
-                            <div className="row gap-6">
-                              {a.status !== "approved" && (
-                                <button
-                                  className="btn sm primary"
-                                  onClick={(e) => { e.stopPropagation(); handleStatus(a.id, "approved"); }}
-                                  disabled={loading === a.id}
-                                  title="확정"
-                                >
-                                  {loading === a.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2} />}
-                                </button>
-                              )}
-                              {a.status !== "rejected" && (
-                                <button
-                                  className="btn sm danger"
-                                  onClick={(e) => { e.stopPropagation(); handleStatus(a.id, "rejected"); }}
-                                  disabled={loading === a.id}
-                                  title="탈락"
-                                >
-                                  <X size={11} strokeWidth={2} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
+                          {!readOnly && (
+                            <td data-label="액션">
+                              <div className="row gap-6">
+                                {a.status !== "approved" && (
+                                  <button
+                                    className="btn sm primary"
+                                    onClick={(e) => { e.stopPropagation(); handleStatus(a.id, "approved"); }}
+                                    disabled={loading === a.id}
+                                    title="확정"
+                                  >
+                                    {loading === a.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2} />}
+                                  </button>
+                                )}
+                                {a.status !== "rejected" && (
+                                  <button
+                                    className="btn sm danger"
+                                    onClick={(e) => { e.stopPropagation(); handleStatus(a.id, "rejected"); }}
+                                    disabled={loading === a.id}
+                                    title="탈락"
+                                  >
+                                    <X size={11} strokeWidth={2} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                         {isExpanded && (
                           <tr className="applicant-detail-row">
-                            <td colSpan={8} style={{ background: "var(--muted)", padding: 16 }}>
+                            <td colSpan={colCount} style={{ background: "var(--muted)", padding: 16 }}>
                               <ApplicantDetail
                                 application={a}
                                 scheduleDates={scheduleDates}
@@ -605,18 +622,20 @@ export function ManageProjectClient({
       {tab === "availability" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* 일정 후보 관리 — 일정 유무와 무관하게 항상 노출 (admin 인라인 CRUD) */}
-          <ProjectScheduleManager
-            projectId={project.id}
-            initialDates={scheduleDates.map((d) => ({
-              id: d.id,
-              project_id: project.id,
-              date: d.date,
-              label: d.label,
-              kind: d.kind === "practice" ? "practice" : "event",
-              sort_order: d.sort_order,
-            })) as ScheduleDateRow[]}
-            onMutated={() => router.refresh()}
-          />
+          {!readOnly && (
+            <ProjectScheduleManager
+              projectId={project.id}
+              initialDates={scheduleDates.map((d) => ({
+                id: d.id,
+                project_id: project.id,
+                date: d.date,
+                label: d.label,
+                kind: d.kind === "practice" ? "practice" : "event",
+                sort_order: d.sort_order,
+              })) as ScheduleDateRow[]}
+              onMutated={() => router.refresh()}
+            />
+          )}
 
           {scheduleDates.length === 0 ? (
             <div className="card">
@@ -717,7 +736,7 @@ export function ManageProjectClient({
                   scheduleDates={scheduleDates}
                   pool={analysisPool}
                   votes={votes}
-                  onEditMember={(appId) => setEditingAppId(appId)}
+                  onEditMember={readOnly ? undefined : (appId) => setEditingAppId(appId)}
                 />
               )}
 
@@ -726,7 +745,7 @@ export function ManageProjectClient({
                   scheduleDates={scheduleDates}
                   approvedApps={analysisPool}
                   votesByUser={votesByUser}
-                  onEditMember={(appId) => setEditingAppId(appId)}
+                  onEditMember={readOnly ? undefined : (appId) => setEditingAppId(appId)}
                 />
               )}
 
@@ -818,7 +837,8 @@ export function ManageProjectClient({
                             className="heat-cell"
                             data-lvl={s ?? "none"}
                             title={tt}
-                            onClick={() => setHeatmapCell({ appId: a.id, dateId: d.id })}
+                            disabled={readOnly}
+                            onClick={readOnly ? undefined : () => setHeatmapCell({ appId: a.id, dateId: d.id })}
                             style={{
                               color,
                               textAlign: "center",
@@ -826,7 +846,7 @@ export function ManageProjectClient({
                               background: "transparent",
                               border: "none",
                               padding: 0,
-                              cursor: "pointer",
+                              cursor: readOnly ? "default" : "pointer",
                               font: "inherit",
                               width: "100%",
                             }}
@@ -858,7 +878,7 @@ export function ManageProjectClient({
       )}
 
       {/* 정산 탭 */}
-      {tab === "settlement" && (
+      {!readOnly && tab === "settlement" && (
         <div>
           {/* 합계 */}
           <div className="os-grid grid-3 mb-16">
@@ -960,7 +980,7 @@ export function ManageProjectClient({
       )}
 
       {/* 공지 탭 */}
-      {tab === "announcements" && (
+      {!readOnly && tab === "announcements" && (
         <div>
           <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
             <button
@@ -998,7 +1018,7 @@ export function ManageProjectClient({
       )}
 
       {/* 설정 탭 */}
-      {tab === "settings" && (
+      {!readOnly && tab === "settings" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* 기본 정보 편집 진입 */}
           <div className="card">
@@ -1163,7 +1183,7 @@ export function ManageProjectClient({
       )}
 
       <AdminVoteEditorModal
-        open={editingApp !== null}
+        open={!readOnly && editingApp !== null}
         projectId={project.id}
         application={editingApp}
         scheduleDates={scheduleDates}
@@ -1171,7 +1191,7 @@ export function ManageProjectClient({
         onClose={() => setEditingAppId(null)}
       />
 
-      {heatmapCell && (() => {
+      {!readOnly && heatmapCell && (() => {
         const app = applications.find((a) => a.id === heatmapCell.appId);
         const date = scheduleDates.find((d) => d.id === heatmapCell.dateId);
         if (!app || !date) return null;

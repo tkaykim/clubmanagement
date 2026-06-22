@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Users, CalendarDays, ChevronRight, ShieldCheck } from "lucide-react";
+import { CalendarDays, ChevronRight, ShieldCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -79,14 +79,8 @@ export default async function MyProjectsPage() {
                 {formatRange(p.start_date, p.end_date)}
               </div>
               <div className="row gap-8" style={{ flexWrap: "wrap" }}>
-                <Link href={`/my-projects/${p.id}/applicants`} className="btn sm">
-                  <Users size={14} strokeWidth={2} />
-                  지원자현황
-                  <ChevronRight size={14} strokeWidth={2} />
-                </Link>
-                <Link href={`/my-projects/${p.id}/schedule`} className="btn sm">
-                  <CalendarDays size={14} strokeWidth={2} />
-                  일정
+                <Link href={`/my-projects/${p.id}`} className="btn sm primary">
+                  지원자현황 · 일정 보기
                   <ChevronRight size={14} strokeWidth={2} />
                 </Link>
               </div>
