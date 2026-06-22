@@ -22,6 +22,7 @@ interface AppShellProps {
   children: React.ReactNode;
   me: CrewMember | null;
   isAdmin: boolean;
+  isProjectManager?: boolean;
   crumb?: string;
   // 초기 SSR에서 비워두고 클라이언트에서 fetch (탭 전환 지연 제거).
   initialCounts?: CountsShape;
@@ -53,7 +54,7 @@ function writeCachedCounts(data: CountsShape) {
   } catch {}
 }
 
-export function AppShell({ children, me, isAdmin, crumb, initialCounts }: AppShellProps) {
+export function AppShell({ children, me, isAdmin, isProjectManager = false, crumb, initialCounts }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<CountsShape>(
     () => initialCounts ?? readCachedCounts() ?? {}
@@ -104,6 +105,7 @@ export function AppShell({ children, me, isAdmin, crumb, initialCounts }: AppShe
       <Sidebar
         me={me}
         isAdmin={isAdmin}
+        isProjectManager={isProjectManager}
         counts={counts}
         className="pc-only"
       />
@@ -120,6 +122,7 @@ export function AppShell({ children, me, isAdmin, crumb, initialCounts }: AppShe
         onClose={() => setDrawerOpen(false)}
         me={me}
         isAdmin={isAdmin}
+        isProjectManager={isProjectManager}
         counts={counts}
       />
 

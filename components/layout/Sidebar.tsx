@@ -13,6 +13,7 @@ import {
   Inbox,
   Bell,
   History,
+  ShieldCheck,
 } from "lucide-react";
 import { NavItem } from "./NavItem";
 import { initials, memberKindOf } from "@/lib/utils";
@@ -29,6 +30,8 @@ const KIND_LABEL: Record<ReturnType<typeof memberKindOf>, string> = {
 interface SidebarProps {
   me: CrewMember | null;
   isAdmin: boolean;
+  /** 1개 이상 프로젝트의 '프로젝트 관리자'로 지정된 멤버 → '내 담당 프로젝트' 노출 */
+  isProjectManager?: boolean;
   counts?: {
     projects?: number;
     unreadAnn?: number;
@@ -39,7 +42,7 @@ interface SidebarProps {
   onNavClick?: () => void;
 }
 
-export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: SidebarProps) {
+export function Sidebar({ me, isAdmin, isProjectManager = false, counts = {}, className, onNavClick }: SidebarProps) {
   return (
     <aside className={`sidebar ${className ?? ""}`}>
       {/* Brand */}
@@ -58,6 +61,9 @@ export function Sidebar({ me, isAdmin, counts = {}, className, onNavClick }: Sid
       <NavItem href="/calendar" icon={Calendar} onClick={onNavClick}>내 캘린더</NavItem>
       <NavItem href="/members" icon={Users} onClick={onNavClick}>멤버</NavItem>
       <NavItem href="/announcements" icon={Megaphone} count={counts.unreadAnn} onClick={onNavClick}>공지</NavItem>
+      {isProjectManager && (
+        <NavItem href="/my-projects" icon={ShieldCheck} onClick={onNavClick}>내 담당 프로젝트</NavItem>
+      )}
 
       {/* PERSONAL 그룹 */}
       <div className="nav-group-title">PERSONAL</div>

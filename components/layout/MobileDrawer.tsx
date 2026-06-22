@@ -11,6 +11,7 @@ interface MobileDrawerProps {
   onClose: () => void;
   me: CrewMember | null;
   isAdmin: boolean;
+  isProjectManager?: boolean;
   counts?: {
     projects?: number;
     unreadAnn?: number;
@@ -19,7 +20,7 @@ interface MobileDrawerProps {
   };
 }
 
-export function MobileDrawer({ open, onClose, me, isAdmin, counts }: MobileDrawerProps) {
+export function MobileDrawer({ open, onClose, me, isAdmin, isProjectManager, counts }: MobileDrawerProps) {
   const pathname = usePathname();
 
   // 라우트 변경 시 자동 닫기
@@ -58,6 +59,7 @@ export function MobileDrawer({ open, onClose, me, isAdmin, counts }: MobileDrawe
         <Sidebar
           me={me}
           isAdmin={isAdmin}
+          isProjectManager={isProjectManager}
           counts={counts}
           onNavClick={onClose}
         />

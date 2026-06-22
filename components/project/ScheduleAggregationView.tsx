@@ -73,8 +73,11 @@ function formatDate(dateStr: string): string {
 
 export function ScheduleAggregationView({
   projectId,
+  readOnly = false,
 }: {
   projectId: string;
+  /** true 면 후보일 추가/삭제 컨트롤을 숨긴다 (프로젝트 관리자 읽기전용 뷰). */
+  readOnly?: boolean;
 }) {
   const [dates, setDates] = useState<ScheduleDateRow[]>([]);
   const [votesByDate, setVotesByDate] = useState<
@@ -182,32 +185,34 @@ export function ScheduleAggregationView({
 
   return (
     <div className="space-y-4">
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-4">
-          <Label className="text-sm font-semibold flex items-center gap-1.5 mb-3">
-            <CalendarDays className="size-4" />
-            후보 날짜 관리
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="flex-1 rounded-lg"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={addScheduleDate}
-              disabled={addingDate || !newDate}
-              className="gap-1 rounded-lg"
-            >
-              <Plus className="size-4" />
-              추가
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {!readOnly && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <Label className="text-sm font-semibold flex items-center gap-1.5 mb-3">
+              <CalendarDays className="size-4" />
+              후보 날짜 관리
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="flex-1 rounded-lg"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={addScheduleDate}
+                disabled={addingDate || !newDate}
+                className="gap-1 rounded-lg"
+              >
+                <Plus className="size-4" />
+                추가
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {dates.length === 0 ? (
         <Card className="border-0 bg-muted/30">
@@ -267,16 +272,18 @@ export function ScheduleAggregationView({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeScheduleDate(d.id);
-                      }}
-                      className="text-muted-foreground hover:text-destructive p-1"
-                    >
-                      <X className="size-4" />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeScheduleDate(d.id);
+                        }}
+                        className="text-muted-foreground hover:text-destructive p-1"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    )}
                     {expanded ? (
                       <ChevronUp className="size-4 text-muted-foreground" />
                     ) : (

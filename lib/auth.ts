@@ -126,6 +126,44 @@ export async function requireOwner(): Promise<CrewMember | NextResponse> {
 }
 
 // ============================================================
+// Project-scoped access
+// ============================================================
+
+export type ProjectAccess = "admin" | "manager" | null;
+
+/**
+ * 특정 프로젝트에 대한 현재 사용자의 접근 수준을 판정한다.
+ *  - "admin"   : 운영진(owner/admin) — 전체 관리 권한
+ *  - "manager" : 프로젝트 관리자로 지정된 멤버 — 읽기전용
+ *  - null      : 접근 권한 없음
+ */
+export async function getProjectAccess(projectId: string): Promise<ProjectAccess> {
+  const session = await getSession();
+  if (!session) return null;
+  const supabase = createRouteSupabaseClient();
+
+  const { data: member } = await supabase
+    .from("crew_members")
+    .select("role, is_active")
+    .eq("user_id", session.userId)
+    .maybeSingle();
+  const m = member as { role: string; is_active: boolean } | null;
+  if (m?.is_active && (m.role === "admin" || m.role === "owner")) {
+    return "admin";
+  }
+
+  const { data: pm } = await supabase
+    .from("project_managers")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("user_id", session.userId)
+    .maybeSingle();
+  if (pm) return "manager";
+
+  return null;
+}
+
+// ============================================================
 // Crew member lookup
 // ============================================================
 

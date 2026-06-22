@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ManageProjectClient } from "@/components/manage/ManageProjectClient";
+import { ProjectManagersSection } from "@/components/manage/ProjectManagersSection";
 import { ChevronLeft } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
@@ -147,6 +148,8 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           <h1 style={{ fontSize: 24 }}>{project.title}</h1>
         </div>
       </div>
+
+      <ProjectManagersSection projectId={projectId} />
 
       <ManageProjectClient
         project={project}

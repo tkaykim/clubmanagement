@@ -27,10 +27,21 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const initialStatus: "active" | "inactive" =
     isAdmin || me?.is_active ? "active" : "inactive";
 
+  // 프로젝트 관리자(읽기전용)로 지정된 멤버인지 — '내 담당 프로젝트' 메뉴 노출용.
+  // 운영진은 /manage 를 쓰므로 비운영진에게만 확인.
+  let isProjectManager = false;
+  if (!isAdmin) {
+    const { count } = await supabase
+      .from("project_managers")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    isProjectManager = (count ?? 0) > 0;
+  }
+
   return (
     <ActiveGuard initialStatus={initialStatus}>
       <SessionRefresher />
-      <AppShell me={me} isAdmin={isAdmin}>
+      <AppShell me={me} isAdmin={isAdmin} isProjectManager={isProjectManager}>
         {children}
       </AppShell>
     </ActiveGuard>
