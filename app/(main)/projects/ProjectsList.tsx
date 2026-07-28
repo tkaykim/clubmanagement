@@ -1,8 +1,7 @@
 "use client";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo } from "react";
-import { Folder, Calendar, MapPin } from "lucide-react";
+import { Folder, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
 import { fmtPay, payTypeChipTone } from "@/lib/utils";
@@ -117,113 +116,95 @@ export function ProjectsList({ projects, unvotedByProject }: ProjectsListProps) 
           </div>
         </div>
       ) : (
-        <div className="os-grid grid-projects">
-          {filtered.map(p => {
-            const unvoted = unvotedByProject?.[p.id] ?? 0;
-            return (
-            <Link
-              key={p.id}
-              href={`/projects/${p.id}`}
-              className="card flush"
-              style={{
-                cursor: "pointer",
-                textDecoration: "none",
-                transition: "border-color 150ms",
-                position: "relative",
-              }}
-            >
-              {unvoted > 0 && (
-                <span
-                  aria-label={`투표 필요 ${unvoted}개`}
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    zIndex: 2,
-                    background: "#ef4444",
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: "3px 7px",
-                    borderRadius: 10,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                  }}
-                >
-                  투표 필요 {unvoted}
-                </span>
-              )}
-              <div className="project-poster">
-                {p.poster_url ? (
-                  <img
-                    src={p.poster_url}
-                    alt={p.title}
-                    className="project-poster-img"
-                  />
-                ) : (
-                  <div className="poster thumb project-poster-empty">
-                    NO POSTER
-                  </div>
-                )}
-                {p.type && (
-                  <div className="project-type-overlay">
-                    <StatusBadge status={p.type} />
-                  </div>
-                )}
-              </div>
-              <div className="project-card-body">
-                <div className="project-card-meta">
-                  <StatusBadge status={p.status} />
-                  <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
-                    {fmtPay(p.pay_type, p.fee)}
-                  </span>
-                </div>
-                <div className="project-card-title">{p.title}</div>
-                <dl className="kv" style={{ gap: "4px 12px" }}>
-                  {p.start_date && (
-                    <>
-                      <dt>
-                        <Calendar size={10} strokeWidth={2} />
-                      </dt>
-                      <dd className="mono text-xs">{p.start_date}</dd>
-                    </>
-                  )}
-                  {p.venue && (
-                    <>
-                      <dt>
-                        <MapPin size={10} strokeWidth={2} />
-                      </dt>
-                      <dd className="text-xs">{p.venue}</dd>
-                    </>
-                  )}
-                </dl>
-                <div className="divider" style={{ margin: "10px 0" }} />
-                <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-                  <div className="row gap-6" style={{ alignItems: "center", minWidth: 0 }}>
-                    {p.owner_name ? (
-                      <>
-                        <OsAvatar name={p.owner_name} size="sm" />
-                        <span
-                          className="text-xs sub"
-                          style={{
-                            maxWidth: 100,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {p.owner_name}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs sub">개설자 미상</span>
-                    )}
-                  </div>
-                  <span className="btn sm">자세히</span>
-                </div>
-              </div>
-            </Link>
-            );
-          })}
+        <div className="card flush tbl-scroll">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>상태</th>
+                <th>타입</th>
+                <th>제목</th>
+                <th>일정</th>
+                <th>장소</th>
+                <th>페이</th>
+                <th>개설자</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(p => {
+                const unvoted = unvotedByProject?.[p.id] ?? 0;
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => router.push(`/projects/${p.id}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <td data-label="상태">
+                      <StatusBadge status={p.status} />
+                    </td>
+                    <td data-label="타입">
+                      <StatusBadge status={p.type} />
+                    </td>
+                    <td data-label="제목" style={{ fontWeight: 600 }}>
+                      <div className="row gap-6" style={{ alignItems: "center", flexWrap: "wrap" }}>
+                        <span>{p.title}</span>
+                        {unvoted > 0 && (
+                          <span
+                            aria-label={`투표 필요 ${unvoted}개`}
+                            style={{
+                              background: "#ef4444",
+                              color: "#fff",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: 8,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            투표 필요 {unvoted}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td data-label="일정" className="mono text-xs muted">
+                      {p.start_date ?? "—"}
+                    </td>
+                    <td data-label="장소" className="text-xs">
+                      {p.venue ?? "—"}
+                    </td>
+                    <td data-label="페이">
+                      <span className={`badge ${payTypeChipTone(p.pay_type)}`}>
+                        {fmtPay(p.pay_type, p.fee)}
+                      </span>
+                    </td>
+                    <td data-label="개설자">
+                      {p.owner_name ? (
+                        <div className="row gap-6" style={{ alignItems: "center", minWidth: 0 }}>
+                          <OsAvatar name={p.owner_name} size="sm" />
+                          <span
+                            className="text-xs sub"
+                            style={{
+                              maxWidth: 100,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {p.owner_name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs sub">개설자 미상</span>
+                      )}
+                    </td>
+                    <td data-label="" style={{ textAlign: "right" }}>
+                      <ChevronRight size={14} strokeWidth={2} style={{ color: "var(--mf)" }} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </>

@@ -479,7 +479,7 @@ export function ManageProjectClient({
             )}
           </div>
 
-          <div className="card flush">
+          <div className="card flush tbl-scroll">
             <table className="tbl">
               <thead>
                 <tr>

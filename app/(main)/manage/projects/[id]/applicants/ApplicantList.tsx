@@ -354,7 +354,7 @@ export function ApplicantList({
           <div className="empty">아직 지원자가 없습니다</div>
         </div>
       ) : (
-        <div className="card flush">
+        <div className="card flush tbl-scroll">
           <table className="tbl">
             <thead>
               <tr>
