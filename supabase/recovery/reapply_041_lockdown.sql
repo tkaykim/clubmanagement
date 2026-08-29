@@ -10,6 +10,9 @@ DROP POLICY IF EXISTS applications_self_update ON public.project_applications;
 REVOKE INSERT ON TABLE public.project_applications FROM anon, authenticated;
 
 DROP FUNCTION IF EXISTS public.project_accepts_applications(UUID);
+DROP TRIGGER IF EXISTS guard_legacy_application_self_update
+  ON public.project_applications;
+DROP FUNCTION IF EXISTS public.guard_legacy_application_self_update();
 
 INSERT INTO public.crew_member_payout_accounts (
   crew_member_id, bank_code, bank_name, bank_account, bank_holder, updated_at
