@@ -98,6 +98,13 @@ AS $$
       AND project.status = 'recruiting'
       AND (project.recruitment_start_at IS NULL OR now() >= project.recruitment_start_at)
       AND (project.recruitment_end_at IS NULL OR now() < project.recruitment_end_at)
+      AND (
+        (auth.role() = 'anon' AND project.visibility = 'public')
+        OR (
+          auth.role() = 'authenticated'
+          AND public.user_can_access_project(auth.uid(), project.id)
+        )
+      )
   );
 $$;
 
@@ -128,7 +135,48 @@ CREATE POLICY applications_authenticated_insert ON public.project_applications
 DROP POLICY IF EXISTS applications_self_update ON public.project_applications;
 CREATE POLICY applications_self_update ON public.project_applications
   FOR UPDATE TO authenticated
-  USING (user_id = (SELECT auth.uid()))
-  WITH CHECK (user_id = (SELECT auth.uid()));
+  USING (
+    user_id = (SELECT auth.uid())
+    AND status IN ('pending', 'rejected')
+  )
+  WITH CHECK (
+    user_id = (SELECT auth.uid())
+    AND status IN ('pending', 'rejected')
+  );
+
+CREATE OR REPLACE FUNCTION public.guard_legacy_application_self_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  IF auth.role() = 'authenticated'
+     AND NOT public.is_admin_or_owner(auth.uid())
+     AND (
+       NEW.id IS DISTINCT FROM OLD.id
+       OR NEW.project_id IS DISTINCT FROM OLD.project_id
+       OR NEW.user_id IS DISTINCT FROM OLD.user_id
+       OR NEW.status IS DISTINCT FROM OLD.status
+       OR NEW.guest_name IS DISTINCT FROM OLD.guest_name
+       OR NEW.guest_email IS DISTINCT FROM OLD.guest_email
+       OR NEW.guest_phone IS DISTINCT FROM OLD.guest_phone
+     ) THEN
+    RAISE EXCEPTION 'legacy self update attempted protected fields'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.guard_legacy_application_self_update()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS guard_legacy_application_self_update
+  ON public.project_applications;
+CREATE TRIGGER guard_legacy_application_self_update
+  BEFORE UPDATE ON public.project_applications
+  FOR EACH ROW
+  EXECUTE FUNCTION public.guard_legacy_application_self_update();
 
 COMMIT;
