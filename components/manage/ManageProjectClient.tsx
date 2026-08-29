@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtKRW, initials } from "@/lib/utils";
 import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
-import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Settings, Sparkles } from "lucide-react";
+import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Sparkles } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
 import { AvailabilityRecommend } from "@/components/manage/AvailabilityRecommend";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
@@ -63,6 +63,7 @@ interface Application {
   score: number | null;
   memo: string | null;
   answers_note: string | null;
+  answers: Record<string, unknown>;
   user_id: string | null;
   guest_name: string | null;
   crew_members: { id: string; name: string; stage_name: string | null; role: string; position: string | null } | null;
@@ -74,6 +75,8 @@ interface ScheduleDate {
   label: string | null;
   kind: string;
   sort_order: number;
+  is_confirmed: boolean;
+  confirmed_at: string | null;
 }
 
 interface ScheduleVoteRow {
@@ -292,7 +295,6 @@ export function ManageProjectClient({
         windowSlots: recWindowSlots,
         includePartial: recIncludePartial,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [scheduleDates, analysisPool, votesByUser, recWindowSlots, recIncludePartial]
   );
 
@@ -632,6 +634,8 @@ export function ManageProjectClient({
                 label: d.label,
                 kind: d.kind === "practice" ? "practice" : "event",
                 sort_order: d.sort_order,
+                is_confirmed: d.is_confirmed,
+                confirmed_at: d.confirmed_at,
               })) as ScheduleDateRow[]}
               onMutated={() => router.refresh()}
             />
@@ -1871,6 +1875,15 @@ function ApplicantDetail({ application: a, scheduleDates, userVotes }: Applicant
   const hasMotivation = !!(a.motivation && a.motivation.trim());
   const hasAnswers = !!(a.answers_note && a.answers_note.trim());
   const hasMemo = !!(a.memo && a.memo.trim());
+  const guestVotes = (
+    !a.user_id && typeof a.answers?._schedule_votes === "object"
+      ? a.answers._schedule_votes
+      : {}
+  ) as Record<string, {
+    status?: string;
+    time_slots?: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
+    note?: string | null;
+  }>;
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -1907,7 +1920,7 @@ function ApplicantDetail({ application: a, scheduleDates, userVotes }: Applicant
         ) : (
           <div style={{ display: "grid", gap: 6 }}>
             {scheduleDates.map((d) => {
-              const v = userVotes?.get(d.id);
+              const v = userVotes?.get(d.id) ?? guestVotes[d.id];
               const s = v?.status as
                 | "available" | "partial" | "adjustable" | "unavailable"
                 | undefined;

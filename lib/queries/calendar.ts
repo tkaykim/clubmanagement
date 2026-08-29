@@ -15,19 +15,21 @@ export async function getMemberCalendar(
   // 해당 월 범위 계산
   const [year, mon] = month.split("-").map(Number);
   const startDate = `${month}-01`;
-  const endDate = `${year}-${String(mon + 1).padStart(2, "0")}-01`;
+  const nextMonth = new Date(Date.UTC(year, mon, 1));
+  const endDate = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
 
   // 해당 월 schedule_dates 조회 (approved 프로젝트)
   const { data: dates, error } = await supabase
     .from("schedule_dates")
     .select(
       `
-      id, date, label, kind, project_id,
+      id, date, label, kind, project_id, is_confirmed,
       project:projects(id, title, type, venue, status)
     `
     )
     .gte("date", startDate)
     .lt("date", endDate)
+    .eq("is_confirmed", true)
     .in(
       "project_id",
       // approved 지원이 있는 프로젝트만
@@ -66,6 +68,7 @@ export async function getMemberCalendar(
       status: string;
     };
     const project = (d as unknown as { project: ProjectRef | null }).project;
+    if (!project || project.status === "cancelled") continue;
     result[key].push({
       title: project?.title ?? "",
       kind: d.kind,

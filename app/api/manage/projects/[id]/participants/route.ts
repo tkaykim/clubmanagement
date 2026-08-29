@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import { createServiceSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
@@ -27,7 +27,13 @@ export async function POST(request: Request, { params }: Params) {
     if (isNextResponse(auth)) return auth;
 
     const body = (await request.json()) as Body;
-    const supabase = createRouteSupabaseClient();
+    const supabase = createServiceSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "참여자 관리 서비스를 사용할 수 없습니다" },
+        { status: 503 }
+      );
+    }
 
     let resolvedUserId: string | null = body.user_id ?? null;
 
@@ -84,7 +90,7 @@ export async function POST(request: Request, { params }: Params) {
         guest_phone: isGuest ? body.guest_phone?.trim() || null : null,
         status: body.status ?? "approved",
         answers: {},
-        fee_agreement: "negotiable",
+        fee_agreement: "partial",
         memo: body.memo ?? null,
         reviewed_at: new Date().toISOString(),
         reviewed_by: auth.user_id,
@@ -94,6 +100,12 @@ export async function POST(request: Request, { params }: Params) {
 
     if (error) {
       console.error("[POST /api/manage/projects/[id]/participants]", error);
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "이미 해당 멤버가 이 프로젝트에 참여 중입니다" },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: "참여자 추가에 실패했습니다" }, { status: 500 });
     }
 

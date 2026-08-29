@@ -48,7 +48,7 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
   // → 따로 조회해서 user_id 로 매칭한다.
   const { data: rawApps } = await supabase
     .from("project_applications")
-    .select("id, status, created_at, updated_at, motivation, fee_agreement, score, memo, answers_note, user_id, guest_name")
+    .select("id, status, created_at, updated_at, motivation, fee_agreement, score, memo, answers_note, answers, user_id, guest_name")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
@@ -81,7 +81,7 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
   type RawApp = {
     id: string; status: string; created_at: string; updated_at: string;
     motivation: string | null; fee_agreement: string; score: number | null;
-    memo: string | null; answers_note: string | null;
+    memo: string | null; answers_note: string | null; answers: Record<string, unknown>;
     user_id: string | null; guest_name: string | null;
   };
   const applications = ((rawApps ?? []) as RawApp[]).map((a) => ({
@@ -155,11 +155,14 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
         applications={(applications ?? []) as Array<{
           id: string; status: string; created_at: string; updated_at: string;
           motivation: string | null; fee_agreement: string; score: number | null;
-          memo: string | null; answers_note: string | null;
+          memo: string | null; answers_note: string | null; answers: Record<string, unknown>;
           user_id: string | null; guest_name: string | null;
           crew_members: { id: string; name: string; stage_name: string | null; role: string; position: string | null } | null;
         }>}
-        scheduleDates={(scheduleDates ?? []) as Array<{ id: string; date: string; label: string | null; kind: string; sort_order: number }>}
+        scheduleDates={(scheduleDates ?? []) as Array<{
+          id: string; date: string; label: string | null; kind: string; sort_order: number;
+          is_confirmed: boolean; confirmed_at: string | null;
+        }>}
         votes={(votes ?? []) as Array<{
           schedule_date_id: string;
           user_id: string;

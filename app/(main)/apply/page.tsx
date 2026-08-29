@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Sparkles, Calendar, MapPin } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtPay, payTypeChipTone } from "@/lib/utils";
+import { getRecruitmentWindowState } from "@/lib/recruitment";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ type RecruitingRow = {
   fee: number;
   venue: string | null;
   recruitment_end_at: string | null;
+  recruitment_start_at: string | null;
 };
 
 export default async function ApplyEntryPage() {
@@ -26,7 +28,7 @@ export default async function ApplyEntryPage() {
   let rows: RecruitingRow[] = [];
   const viewQuery = await supabase
     .from("projects_with_range")
-    .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue, recruitment_end_at")
+    .select("id, title, status, type, poster_url, start_date, pay_type, fee, venue, recruitment_start_at, recruitment_end_at")
     .eq("status", "recruiting")
     .order("recruitment_end_at", { ascending: true, nullsFirst: false });
 
@@ -35,12 +37,14 @@ export default async function ApplyEntryPage() {
   } else {
     const fallback = await supabase
       .from("projects")
-      .select("id, title, status, type, poster_url, pay_type, fee, venue, recruitment_end_at, created_at")
+      .select("id, title, status, type, poster_url, pay_type, fee, venue, recruitment_start_at, recruitment_end_at, created_at")
       .eq("status", "recruiting")
       .order("created_at", { ascending: false });
     const list = (fallback.data ?? []) as Array<Omit<RecruitingRow, "start_date"> & { created_at?: string }>;
     rows = list.map((p) => ({ ...p, start_date: null }));
   }
+
+  rows = rows.filter((project) => getRecruitmentWindowState(project) === "open");
 
   return (
     <div className="page">

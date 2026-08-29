@@ -84,6 +84,7 @@ export const scheduleDatePatchSchema = z.object({
   label: z.string().max(200).nullable().optional(),
   kind: z.enum(["event", "practice"]).optional(),
   sort_order: z.number().int().optional(),
+  is_confirmed: z.boolean().optional(),
 });
 
 export type ScheduleDatePatchInput = z.infer<typeof scheduleDatePatchSchema>;
@@ -93,6 +94,8 @@ export type ScheduleDatePatchInput = z.infer<typeof scheduleDatePatchSchema>;
 // ============================================================
 
 export const applySchema = z.object({
+  // 공개 지원 폼의 봇 차단용 honeypot. 서버에서만 소비하고 DB에는 저장하지 않는다.
+  _hp: z.string().max(200).optional(),
   // 인증된 경우 user_id는 서버에서 주입 — 게스트는 guest_* 필드 사용
   guest_name: z.string().min(1, "이름을 입력해주세요").max(100).optional(),
   guest_email: z.string().email("올바른 이메일 주소를 입력해주세요").optional(),

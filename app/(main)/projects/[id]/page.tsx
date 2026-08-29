@@ -3,8 +3,13 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { fmtPay, payTypeChipTone } from "@/lib/utils";
-import { ChevronLeft, Calendar, MapPin, Users, DollarSign } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Linkify } from "@/lib/text/Linkify";
+import {
+  formatRecruitmentDateTime,
+  getRecruitmentWindowState,
+  recruitmentWindowMessage,
+} from "@/lib/recruitment";
 
 export const dynamic = "force-dynamic";
 
@@ -69,9 +74,11 @@ export default async function ProjectDetailPage({ params }: Props) {
     }
   }
 
-  const isRecruiting = project.status === "recruiting";
+  const recruitmentState = getRecruitmentWindowState(project);
+  const isRecruiting = recruitmentState === "open";
   const canApply = isRecruiting && !myApp;
   const canVote = !!myApp && myApp.status !== "rejected";
+  const recruitmentMessage = recruitmentWindowMessage(recruitmentState, project);
   const ctaLabel =
     myApp?.status === "approved"
       ? "내 일정 투표"
@@ -146,6 +153,15 @@ export default async function ProjectDetailPage({ params }: Props) {
             <StatusBadge status={myApp.status} />
           </div>
         )}
+        {!myApp && recruitmentMessage && (
+          <div
+            role="status"
+            className="text-sm"
+            style={{ padding: "10px 12px", borderRadius: 8, background: "var(--muted)" }}
+          >
+            {recruitmentMessage}
+          </div>
+        )}
       </div>
 
       <div className="os-grid grid-2">
@@ -180,10 +196,20 @@ export default async function ProjectDetailPage({ params }: Props) {
                 <dd className="tabnum" style={{ fontWeight: 600 }}>
                   {fmtPay(project.pay_type, project.fee)}
                 </dd>
+                {project.recruitment_start_at && (
+                  <>
+                    <dt>모집시작</dt>
+                    <dd className="mono text-xs">
+                      {formatRecruitmentDateTime(project.recruitment_start_at)}
+                    </dd>
+                  </>
+                )}
                 {project.recruitment_end_at && (
                   <>
                     <dt>모집마감</dt>
-                    <dd className="mono text-xs">{project.recruitment_end_at}</dd>
+                    <dd className="mono text-xs">
+                      {formatRecruitmentDateTime(project.recruitment_end_at)}
+                    </dd>
                   </>
                 )}
                 {project.max_participants && (

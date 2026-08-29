@@ -47,10 +47,22 @@ export async function GET() {
         .reduce((s: number, p: PayoutRow) => s + p.amount, 0),
     };
 
+    let payoutAccount = null;
+    if (memberResult.data?.id) {
+      const { data } = await supabase
+        .from("crew_member_payout_accounts")
+        .select("bank_code, bank_name, bank_account, bank_holder")
+        .eq("crew_member_id", memberResult.data.id)
+        .maybeSingle();
+      payoutAccount = data;
+    }
+
     return NextResponse.json({
       data: {
         user: userResult.data,
-        crew_member: memberResult.data,
+        crew_member: memberResult.data
+          ? { ...memberResult.data, ...payoutAccount }
+          : null,
         applications: appsResult.data ?? [],
         payouts,
         stats,
