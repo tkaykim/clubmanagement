@@ -8,9 +8,9 @@ export default function NewBugReportPage() {
   return (
     <div className="page">
       <div className="row mb-12">
-        <Link href="/dashboard" className="btn ghost sm">
+        <Link href="/bugs" className="btn ghost sm">
           <ChevronLeft size={14} strokeWidth={2} />
-          홈
+          내 제보
         </Link>
         <span className="mono text-xs muted" style={{ letterSpacing: "0.08em" }}>
           BUG REPORT

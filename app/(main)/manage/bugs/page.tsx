@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { BugReportAdminList } from "@/components/bugs/BugReportAdminList";
 import { ChevronLeft, Bug } from "lucide-react";
-import type { BugReport } from "@/lib/types";
+import type { BugReportWithComments } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export default async function AdminBugsPage() {
 
   const { data: bugs } = await supabase
     .from("bug_reports")
-    .select("*")
+    .select("*, comments:bug_report_comments(*)")
     .order("created_at", { ascending: false });
 
   return (
@@ -50,7 +50,7 @@ export default async function AdminBugsPage() {
         </div>
       </div>
 
-      <BugReportAdminList bugs={(bugs ?? []) as BugReport[]} />
+      <BugReportAdminList bugs={(bugs ?? []) as BugReportWithComments[]} />
     </div>
   );
 }

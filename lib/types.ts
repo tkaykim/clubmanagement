@@ -68,6 +68,20 @@ export type BugReport = {
   updated_at: string;
 };
 
+export type BugReportComment = {
+  id: string;
+  bug_report_id: string;
+  author_id: string | null;
+  author_name: string;
+  author_kind: "reporter" | "staff";
+  body: string;
+  created_at: string;
+};
+
+export type BugReportWithComments = BugReport & {
+  comments: BugReportComment[];
+};
+
 // ============================================================
 // DB Row types (1:1 with table columns)
 // ============================================================
