@@ -4,9 +4,17 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Bug, Loader2, Trash2, Copy, ExternalLink } from "lucide-react";
-import type { BugReport, BugStatus } from "@/lib/types";
+import {
+  Bug,
+  Loader2,
+  Trash2,
+  Copy,
+  ExternalLink,
+  MessageCircle,
+} from "lucide-react";
+import type { BugReport, BugReportWithComments, BugStatus } from "@/lib/types";
 import { Linkify } from "@/lib/text/Linkify";
+import { BugReportComments } from "./BugReportComments";
 
 const STATUS_OPTIONS: { value: BugStatus; label: string }[] = [
   { value: "open", label: "접수" },
@@ -39,12 +47,12 @@ const SEVERITY_RANK: Record<string, number> = {
 };
 
 interface Props {
-  bugs: BugReport[];
+  bugs: BugReportWithComments[];
 }
 
 export function BugReportAdminList({ bugs: initialBugs }: Props) {
   const router = useRouter();
-  const [bugs, setBugs] = useState<BugReport[]>(initialBugs);
+  const [bugs, setBugs] = useState<BugReportWithComments[]>(initialBugs);
   const [filter, setFilter] = useState<"all" | BugStatus>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
@@ -79,7 +87,10 @@ export function BugReportAdminList({ bugs: initialBugs }: Props) {
         toast.error(json.error ?? "상태 변경 실패");
         return;
       }
-      setBugs((prev) => prev.map((b) => (b.id === id ? (json.data as BugReport) : b)));
+      const updated = json.data as BugReport;
+      setBugs((prev) =>
+        prev.map((bug) => (bug.id === id ? { ...bug, ...updated } : bug))
+      );
       toast.success("상태가 변경되었습니다");
     } catch {
       toast.error("네트워크 오류");
@@ -103,7 +114,10 @@ export function BugReportAdminList({ bugs: initialBugs }: Props) {
         toast.error(json.error ?? "저장 실패");
         return;
       }
-      setBugs((prev) => prev.map((b) => (b.id === id ? (json.data as BugReport) : b)));
+      const updated = json.data as BugReport;
+      setBugs((prev) =>
+        prev.map((bug) => (bug.id === id ? { ...bug, ...updated } : bug))
+      );
       toast.success("메모가 저장되었습니다");
     } catch {
       toast.error("네트워크 오류");
@@ -223,6 +237,16 @@ export function BugReportAdminList({ bugs: initialBugs }: Props) {
                     >
                       {b.title}
                     </div>
+                    {(b.comments?.length ?? 0) > 0 && (
+                      <span
+                        className="row gap-4 muted text-xs"
+                        style={{ alignItems: "center" }}
+                        aria-label={`댓글 ${b.comments.length}개`}
+                      >
+                        <MessageCircle size={12} />
+                        {b.comments.length}
+                      </span>
+                    )}
                     <span className="mono text-xs muted">
                       {new Date(b.created_at).toLocaleString("ko-KR", {
                         month: "2-digit",
@@ -336,6 +360,23 @@ export function BugReportAdminList({ bugs: initialBugs }: Props) {
                         </dd>
                       </dl>
                     </div>
+
+                    <BugReportComments
+                      bugId={b.id}
+                      initialComments={b.comments ?? []}
+                      onCommentAdded={(comment) =>
+                        setBugs((current) =>
+                          current.map((bug) =>
+                            bug.id === b.id
+                              ? {
+                                  ...bug,
+                                  comments: [...(bug.comments ?? []), comment],
+                                }
+                              : bug
+                          )
+                        )
+                      }
+                    />
 
                     {/* 관리자 메모 */}
                     <div style={{ marginTop: 14 }}>

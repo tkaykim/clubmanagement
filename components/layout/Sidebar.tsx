@@ -69,7 +69,7 @@ export function Sidebar({ me, isAdmin, isProjectManager = false, counts = {}, cl
       <div className="nav-group-title">PERSONAL</div>
       <NavItem href="/mypage" icon={User} count={counts.myPending} onClick={onNavClick}>마이페이지</NavItem>
       <NavItem href="/apply" icon={Sparkles} onClick={onNavClick}>빠른 지원</NavItem>
-      <NavItem href="/bugs/new" icon={Bug} onClick={onNavClick}>버그 제보</NavItem>
+      <NavItem href="/bugs" icon={Bug} onClick={onNavClick}>버그 제보</NavItem>
 
       {/* ADMIN 그룹 */}
       {isAdmin && (

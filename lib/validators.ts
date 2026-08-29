@@ -294,6 +294,18 @@ export const updateBugReportSchema = z.object({
 
 export type UpdateBugReportInput = z.infer<typeof updateBugReportSchema>;
 
+export const createBugReportCommentSchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, "댓글 내용을 적어주세요")
+    .max(2000, "댓글은 2000자 이하로 적어주세요"),
+});
+
+export type CreateBugReportCommentInput = z.infer<
+  typeof createBugReportCommentSchema
+>;
+
 // ============================================================
 // Portfolio schemas
 // ============================================================

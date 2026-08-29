@@ -105,4 +105,12 @@ test.describe("Auth — API 인증 체크", () => {
     });
     expect([401, 403]).toContain(res.status());
   });
+
+  test("POST /api/bugs/[id]/comments — 비인증 요청은 401 반환", async ({ request }) => {
+    const res = await request.post(
+      "/api/bugs/00000000-0000-0000-0000-000000000000/comments",
+      { data: { body: "확인 부탁드립니다." } }
+    );
+    expect([401, 403]).toContain(res.status());
+  });
 });

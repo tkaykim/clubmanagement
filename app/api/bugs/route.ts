@@ -82,7 +82,7 @@ export async function GET(request: Request) {
     const supabase = createRouteSupabaseClient();
     let query = supabase
       .from("bug_reports")
-      .select("*")
+      .select("*, comments:bug_report_comments(*)")
       .order("created_at", { ascending: false });
 
     if (mine) {
