@@ -154,13 +154,13 @@ BEGIN
   IF auth.role() = 'authenticated'
      AND NOT public.is_admin_or_owner(auth.uid())
      AND (
-       NEW.id IS DISTINCT FROM OLD.id
-       OR NEW.project_id IS DISTINCT FROM OLD.project_id
-       OR NEW.user_id IS DISTINCT FROM OLD.user_id
-       OR NEW.status IS DISTINCT FROM OLD.status
-       OR NEW.guest_name IS DISTINCT FROM OLD.guest_name
-       OR NEW.guest_email IS DISTINCT FROM OLD.guest_email
-       OR NEW.guest_phone IS DISTINCT FROM OLD.guest_phone
+       to_jsonb(NEW) - ARRAY[
+         'motivation', 'fee_agreement', 'answers_note', 'answers', 'created_at'
+       ]
+       IS DISTINCT FROM
+       to_jsonb(OLD) - ARRAY[
+         'motivation', 'fee_agreement', 'answers_note', 'answers', 'created_at'
+       ]
      ) THEN
     RAISE EXCEPTION 'legacy self update attempted protected fields'
       USING ERRCODE = '42501';
