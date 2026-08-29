@@ -348,8 +348,8 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    const { error: updateError } = await supabase.rpc(
-      "service_update_project_application",
+    const { data: applicationData, error: updateError } = await supabase.rpc(
+      "service_update_project_application_v2",
       {
         p_application_id: existing.id,
         p_user_id: session.userId,
@@ -357,7 +357,7 @@ export async function PATCH(request: Request, { params }: Params) {
         p_votes: votes ?? {},
       }
     );
-    if (updateError) {
+    if (updateError || !applicationData) {
       console.error("[PATCH /api/projects/[id]/apply] atomic update error:", updateError);
       return NextResponse.json(
         { error: "지원 수정에 실패했습니다" },
@@ -365,17 +365,7 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    const { data: application, error: readError } = await supabase
-      .from("project_applications")
-      .select("*")
-      .eq("id", existing.id)
-      .single();
-    if (readError || !application) {
-      return NextResponse.json(
-        { error: "지원 수정 결과를 불러오지 못했습니다" },
-        { status: 500 }
-      );
-    }
+    const application = applicationData as { id: string } & Record<string, unknown>;
 
     const { data: projForLog } = await supabase
       .from("projects")

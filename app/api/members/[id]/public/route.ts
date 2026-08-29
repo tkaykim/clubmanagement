@@ -91,38 +91,20 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    const profileFields =
-      "id, name, stage_name, phone, position, profile_image_url, public_bio, specialties, is_public, is_active, joined_month, gender, birth_date, youtube_url, instagram_handle, height_cm, top_size, bottom_size, shoe_size, wardrobe_notes";
-    const { error: updateError } = await writeSupabase.rpc(
-      "service_update_member_profile_and_payout",
+    const { data: updatedMemberId, error: updateError } = await writeSupabase.rpc(
+      "service_update_member_profile_and_payout_v2",
       {
         p_member_id: id,
         p_profile_updates: normalized,
         p_payout_updates: hasPayoutUpdate ? payoutData : null,
       }
     );
-    if (updateError) {
+    if (updateError || !updatedMemberId) {
       console.error("[PATCH /api/members/[id]/public] atomic update error:", updateError);
       return NextResponse.json({ error: "프로필 수정에 실패했습니다" }, { status: 500 });
     }
 
-    const [profileResult, payoutResult] = await Promise.all([
-      writeSupabase
-        .from("crew_members")
-        .select(profileFields)
-        .eq("id", id)
-        .single(),
-      writeSupabase
-        .from("crew_member_payout_accounts")
-        .select("bank_code, bank_name, bank_account, bank_holder")
-        .eq("crew_member_id", id)
-        .maybeSingle(),
-    ]);
-    if (profileResult.error || !profileResult.data || payoutResult.error) {
-      return NextResponse.json({ error: "저장 결과를 불러오지 못했습니다" }, { status: 500 });
-    }
-
-    return NextResponse.json({ data: { ...profileResult.data, ...(payoutResult.data ?? {}) } });
+    return NextResponse.json({ data: { id: updatedMemberId } });
   } catch (err) {
     console.error("[PATCH /api/members/[id]/public] error:", err);
     return NextResponse.json({ error: "서버 오류가 발생했습니다" }, { status: 500 });

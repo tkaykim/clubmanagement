@@ -45,7 +45,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
     Object.fromEntries((initialDates ?? []).map((row) => [row.id, row.label]))
   );
   const [loading, setLoading] = useState(!initialDates);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingIds, setSavingIds] = useState<Set<string>>(() => new Set());
   const [addMode, setAddMode] = useState<"single" | "range">("single");
   const [expanded, setExpanded] = useState(false);
 
@@ -194,11 +194,10 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
     patch: Partial<Pick<ScheduleDateRow, "date" | "label" | "kind" | "is_confirmed">>,
     rollbackPatch: Partial<ScheduleDateRow> = {}
   ) {
-    const before = rows.map((row) =>
-      row.id === id ? { ...row, ...rollbackPatch } : row
-    );
+    const rollbackRow = rows.find((row) => row.id === id);
+    const restoredRow = rollbackRow ? { ...rollbackRow, ...rollbackPatch } : null;
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)).sort(sortRows));
-    setSavingId(id);
+    setSavingIds((prev) => new Set(prev).add(id));
     try {
       const res = await fetch(`/api/projects/${projectId}/schedule-dates/${id}`, {
         method: "PATCH",
@@ -207,7 +206,11 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
       });
       const json = await res.json();
       if (!res.ok) {
-        setRows(before);
+        if (restoredRow) {
+          setRows((prev) => prev.map((row) =>
+            row.id === id ? restoredRow : row
+          ).sort(sortRows));
+        }
         toast.error(json.error ?? "수정 실패");
         return;
       }
@@ -215,10 +218,18 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
       setRows((prev) => prev.map((r) => (r.id === id ? json.data : r)).sort(sortRows));
       onMutated?.();
     } catch {
-      setRows(before);
+      if (restoredRow) {
+        setRows((prev) => prev.map((row) =>
+          row.id === id ? restoredRow : row
+        ).sort(sortRows));
+      }
       toast.error("네트워크 오류로 일정 변경을 저장하지 못했습니다");
     } finally {
-      setSavingId(null);
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -228,16 +239,17 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
     if (!confirm(`${row.date} (${row.kind === "event" ? "본행사" : "연습"}) 일정을 삭제할까요?\n이 일정에 대한 투표도 함께 삭제됩니다.`)) {
       return;
     }
-    const before = rows;
     setRows((prev) => prev.filter((r) => r.id !== id));
-    setSavingId(id);
+    setSavingIds((prev) => new Set(prev).add(id));
     try {
       const res = await fetch(`/api/projects/${projectId}/schedule-dates/${id}`, {
         method: "DELETE",
       });
       const json = await res.json();
       if (!res.ok) {
-        setRows(before);
+        setRows((prev) => prev.some((current) => current.id === id)
+          ? prev
+          : [...prev, row].sort(sortRows));
         toast.error(json.error ?? "삭제 실패");
         return;
       }
@@ -245,10 +257,16 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
       toast.success("일정이 삭제됐어요");
       onMutated?.();
     } catch {
-      setRows(before);
+      setRows((prev) => prev.some((current) => current.id === id)
+        ? prev
+        : [...prev, row].sort(sortRows));
       toast.error("네트워크 오류로 일정을 삭제하지 못했습니다");
     } finally {
-      setSavingId(null);
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -449,7 +467,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                     value={r.date}
                     onChange={(e) => updateRow(r.id, { date: e.target.value })}
                     style={{ width: "100%", height: 32, padding: "2px 6px", fontSize: 12 }}
-                    disabled={savingId === r.id}
+                    disabled={savingIds.has(r.id)}
                   />
                   <select
                     className="select"
@@ -457,7 +475,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                     value={r.kind}
                     onChange={(e) => updateRow(r.id, { kind: e.target.value as Kind })}
                     style={{ width: "100%", height: 32, padding: "2px 6px", fontSize: 12 }}
-                    disabled={savingId === r.id}
+                    disabled={savingIds.has(r.id)}
                   >
                     <option value="event">본행사</option>
                     <option value="practice">연습</option>
@@ -484,7 +502,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                       void updateRow(r.id, { label: next }, { label: persisted });
                     }}
                     style={{ width: "100%", height: 32, padding: "2px 8px", fontSize: 12 }}
-                    disabled={savingId === r.id}
+                    disabled={savingIds.has(r.id)}
                   />
                   <button
                     type="button"
@@ -492,13 +510,13 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                     onClick={() => void updateRow(r.id, { is_confirmed: !r.is_confirmed })}
                     aria-pressed={r.is_confirmed}
                     aria-label={`${r.date} ${r.is_confirmed ? "확정 해제" : "일정 확정"}`}
-                    disabled={savingId === r.id}
+                    disabled={savingIds.has(r.id)}
                     style={{ minWidth: 86, justifyContent: "center" }}
                   >
                     <CalendarCheck size={12} strokeWidth={2} />
                     {r.is_confirmed ? "확정됨" : "확정"}
                   </button>
-                  {savingId === r.id ? (
+                  {savingIds.has(r.id) ? (
                     <Loader2 size={12} className="animate-spin" />
                   ) : (
                     <button
