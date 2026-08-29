@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRouteSupabaseClient } from "@/lib/supabase-server";
+import { createRouteSupabaseClient, createServiceSupabaseClient } from "@/lib/supabase-server";
 import { getSession, requireAdmin, isNextResponse } from "@/lib/auth";
 import { memberPublicProfileSchema } from "@/lib/validators";
 import { validateUuidParam } from "@/lib/api";
@@ -74,20 +74,37 @@ export async function PATCH(request: Request, { params }: Params) {
       if (normalized[k] === "") normalized[k] = null;
     }
 
-    const { data, error } = await supabase
-      .from("crew_members")
-      .update(normalized)
-      .eq("id", id)
-      .select(
-        "id, name, stage_name, phone, position, profile_image_url, public_bio, specialties, is_public, is_active, joined_month, gender, birth_date, youtube_url, instagram_handle, height_cm, top_size, bottom_size, shoe_size, wardrobe_notes, bank_code, bank_name, bank_account, bank_holder"
-      )
-      .single();
+    const payoutKeys = ["bank_code", "bank_name", "bank_account", "bank_holder"] as const;
+    const payoutData = Object.fromEntries(
+      payoutKeys
+        .filter((key) => key in parsed.data)
+        .map((key) => [key, normalized[key] ?? null])
+    );
+    const hasPayoutUpdate = payoutKeys.some((key) => key in parsed.data);
+    for (const key of payoutKeys) delete normalized[key];
 
-    if (error) {
+    const writeSupabase = createServiceSupabaseClient();
+    if (!writeSupabase) {
+      return NextResponse.json(
+        { error: "프로필 저장 서비스를 사용할 수 없습니다" },
+        { status: 503 }
+      );
+    }
+
+    const { data: updatedMemberId, error: updateError } = await writeSupabase.rpc(
+      "service_update_member_profile_and_payout_v2",
+      {
+        p_member_id: id,
+        p_profile_updates: normalized,
+        p_payout_updates: hasPayoutUpdate ? payoutData : null,
+      }
+    );
+    if (updateError || !updatedMemberId) {
+      console.error("[PATCH /api/members/[id]/public] atomic update error:", updateError);
       return NextResponse.json({ error: "프로필 수정에 실패했습니다" }, { status: 500 });
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data: { id: updatedMemberId } });
   } catch (err) {
     console.error("[PATCH /api/members/[id]/public] error:", err);
     return NextResponse.json({ error: "서버 오류가 발생했습니다" }, { status: 500 });

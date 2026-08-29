@@ -45,6 +45,11 @@ export async function PATCH(request: Request, { params }: Params) {
     if (parsed.data.label !== undefined) updateData.label = parsed.data.label;
     if (parsed.data.kind !== undefined) updateData.kind = parsed.data.kind;
     if (parsed.data.sort_order !== undefined) updateData.sort_order = parsed.data.sort_order;
+    if (parsed.data.is_confirmed !== undefined) {
+      updateData.is_confirmed = parsed.data.is_confirmed;
+      updateData.confirmed_at = parsed.data.is_confirmed ? new Date().toISOString() : null;
+      updateData.confirmed_by = parsed.data.is_confirmed ? admin.user_id : null;
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
@@ -87,7 +92,12 @@ export async function PATCH(request: Request, { params }: Params) {
     await notifyApprovedParticipants(
       projectId,
       {
-        title: "프로젝트 일정이 변경됐어요",
+        title:
+          parsed.data.is_confirmed === true
+            ? "프로젝트 일정이 확정됐어요"
+            : parsed.data.is_confirmed === false
+              ? "프로젝트 일정 확정이 해제됐어요"
+              : "프로젝트 일정이 변경됐어요",
         body: project.title,
         url: `/projects/${projectId}`,
         tag: `project-schedule-${projectId}`,

@@ -90,7 +90,11 @@ export async function requireAdmin(): Promise<CrewMember | NextResponse> {
     .eq("user_id", session.userId)
     .maybeSingle();
   const member = data as CrewMember | null;
-  if (!member || (member.role !== "admin" && member.role !== "owner")) {
+  if (
+    !member ||
+    !member.is_active ||
+    (member.role !== "admin" && member.role !== "owner")
+  ) {
     return NextResponse.json(
       { error: "관리자 권한이 필요합니다" },
       { status: 403 }
@@ -116,7 +120,7 @@ export async function requireOwner(): Promise<CrewMember | NextResponse> {
     .eq("user_id", session.userId)
     .maybeSingle();
   const member = data as CrewMember | null;
-  if (!member || member.role !== "owner") {
+  if (!member || !member.is_active || member.role !== "owner") {
     return NextResponse.json(
       { error: "오너 권한이 필요합니다" },
       { status: 403 }

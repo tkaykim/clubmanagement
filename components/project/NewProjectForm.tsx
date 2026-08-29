@@ -46,13 +46,13 @@ const MAX_RANGE_DAYS = 366;
 
 function enumerateDates(start: string, end: string): string[] {
   const out: string[] = [];
-  const s = new Date(start + "T00:00:00");
-  const e = new Date(end + "T00:00:00");
+  const s = new Date(start + "T00:00:00Z");
+  const e = new Date(end + "T00:00:00Z");
   if (isNaN(s.getTime()) || isNaN(e.getTime()) || s > e) return out;
   const cur = new Date(s);
   while (cur <= e) {
     out.push(cur.toISOString().slice(0, 10));
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return out;
 }

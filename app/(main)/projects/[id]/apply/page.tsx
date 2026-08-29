@@ -4,6 +4,7 @@ import { ApplyForm, type ApplyFormInitial } from "@/components/project/ApplyForm
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import type { TimeSlot, VotesMap } from "@/components/project/VoteScheduleEditor";
+import { getRecruitmentWindowState } from "@/lib/recruitment";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ApplyPage({ params }: Props) {
 
   const { data: project, error } = await supabase
     .from("projects")
-    .select("id, title, status, type, fee, recruitment_end_at, description")
+    .select("id, title, status, type, fee, recruitment_start_at, recruitment_end_at, description")
     .eq("id", projectId)
     .single();
 
@@ -33,7 +34,7 @@ export default async function ApplyPage({ params }: Props) {
     .maybeSingle();
 
   // 신규 지원은 모집 중일 때만. 기존 지원자는 일정 투표 수정 위해 항상 진입 가능.
-  if (!existing && project.status !== "recruiting") {
+  if (!existing && getRecruitmentWindowState(project) !== "open") {
     redirect(`/projects/${projectId}`);
   }
 
@@ -52,7 +53,7 @@ export default async function ApplyPage({ params }: Props) {
 
   // 기존 votes prefetch (수정 모드 + vote-only)
   let initialVotes: VotesMap | undefined;
-  let initialUnvotedIds: string[] = [];
+  const initialUnvotedIds: string[] = [];
   if (isEdit && scheduleDates && scheduleDates.length > 0) {
     const dateIds = scheduleDates.map((d) => d.id);
     const { data: prevVotes } = await supabase

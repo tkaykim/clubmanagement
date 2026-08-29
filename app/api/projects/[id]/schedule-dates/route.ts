@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: Params) {
     const supabase = createRouteSupabaseClient();
     const { data, error } = await supabase
       .from("schedule_dates")
-      .select("id, project_id, date, label, kind, sort_order, created_at")
+      .select("id, project_id, date, label, kind, sort_order, is_confirmed, confirmed_at, confirmed_by, created_at")
       .eq("project_id", projectId)
       .order("sort_order", { ascending: true })
       .order("date", { ascending: true });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -322,6 +322,7 @@ function buildInitial(m: Member): FormState {
 function ProfileEditor({ member }: ProfileEditorProps) {
   const [form, setForm] = useState<FormState>(() => buildInitial(member));
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [showExtra, setShowExtra] = useState(false);
   const [showPayout, setShowPayout] = useState(false);
   const [bankSearch, setBankSearch] = useState("");
@@ -339,42 +340,71 @@ function ProfileEditor({ member }: ProfileEditorProps) {
 
   const selectedBank = KOREAN_BANKS.find((b) => b.code === form.bank_code);
 
-  async function save() {
-    if (!form.name.trim()) {
-      toast.error("이름을 입력하세요");
-      return;
+  async function save(scope: "all" | "payout") {
+    setFormError(null);
+
+    if (scope === "all") {
+      const validationError = !form.name.trim()
+        ? "기본 정보의 이름을 입력해주세요."
+        : !form.gender
+          ? "기본 정보의 성별을 선택해주세요."
+          : !form.phone.trim()
+            ? "기본 정보의 연락처를 입력해주세요."
+            : form.height_cm && (isNaN(Number(form.height_cm)) || Number(form.height_cm) < 50)
+              ? "키는 50 이상의 숫자로 입력해주세요."
+              : null;
+      if (validationError) {
+        setFormError(validationError);
+        toast.error(validationError);
+        document.getElementById("profile-basic-info")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
     }
-    if (!form.gender) {
-      toast.error("성별을 선택하세요");
-      return;
-    }
-    if (!form.phone.trim()) {
-      toast.error("연락처를 입력하세요");
-      return;
-    }
-    if (form.height_cm && (isNaN(Number(form.height_cm)) || Number(form.height_cm) < 50)) {
-      toast.error("키는 50 이상의 숫자로 입력");
+
+    const hasAnyPayoutField = Boolean(
+      form.bank_code || form.bank_account.trim() || form.bank_holder.trim()
+    );
+    if (
+      hasAnyPayoutField &&
+      (!form.bank_code || !form.bank_account.trim() || !form.bank_holder.trim())
+    ) {
+      const message = "정산 정보를 저장하려면 은행·계좌번호·예금주를 모두 입력해주세요.";
+      setFormError(message);
+      setShowPayout(true);
+      toast.error(message);
+      requestAnimationFrame(() => {
+        document.getElementById("profile-payout-info")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
       return;
     }
 
-    const payload: Record<string, unknown> = {
-      name: form.name.trim(),
-      stage_name: form.stage_name.trim() || null,
-      phone: form.phone.trim(),
-      gender: form.gender,
-      birth_date: form.birth_date || null,
-      youtube_url: form.youtube_url.trim() || null,
-      instagram_handle: form.instagram_handle.trim() || null,
-      height_cm: form.height_cm ? Number(form.height_cm) : null,
-      top_size: form.top_size.trim() || null,
-      bottom_size: form.bottom_size.trim() || null,
-      shoe_size: form.shoe_size.trim() || null,
-      wardrobe_notes: form.wardrobe_notes.trim() || null,
+    const payoutPayload: Record<string, unknown> = {
       bank_code: form.bank_code || null,
       bank_name: selectedBank?.name ?? null,
       bank_account: form.bank_account.trim() || null,
       bank_holder: form.bank_holder.trim() || null,
     };
+    const payload: Record<string, unknown> =
+      scope === "payout"
+        ? payoutPayload
+        : {
+            name: form.name.trim(),
+            stage_name: form.stage_name.trim() || null,
+            phone: form.phone.trim(),
+            gender: form.gender,
+            birth_date: form.birth_date || null,
+            youtube_url: form.youtube_url.trim() || null,
+            instagram_handle: form.instagram_handle.trim() || null,
+            height_cm: form.height_cm ? Number(form.height_cm) : null,
+            top_size: form.top_size.trim() || null,
+            bottom_size: form.bottom_size.trim() || null,
+            shoe_size: form.shoe_size.trim() || null,
+            wardrobe_notes: form.wardrobe_notes.trim() || null,
+            ...payoutPayload,
+          };
 
     setSaving(true);
     try {
@@ -385,10 +415,16 @@ function ProfileEditor({ member }: ProfileEditorProps) {
       });
       const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error ?? "저장 실패");
+        const message = json.error ?? "저장에 실패했습니다.";
+        setFormError(message);
+        toast.error(message);
         return;
       }
-      toast.success("저장되었습니다");
+      toast.success(scope === "payout" ? "정산 정보를 저장했습니다." : "프로필을 저장했습니다.");
+    } catch {
+      const message = "네트워크 오류로 저장하지 못했습니다. 다시 시도해주세요.";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -398,22 +434,41 @@ function ProfileEditor({ member }: ProfileEditorProps) {
     <div className="card">
       <div style={{ padding: 20 }}>
         {/* 기본 정보 */}
-        <h3 style={{ marginBottom: 14 }}>기본 정보</h3>
+        <h3 id="profile-basic-info" style={{ marginBottom: 14, scrollMarginTop: 80 }}>기본 정보</h3>
         <div className="text-xs muted mb-12">
           이름 · 성별 · 연락처 는 필수 항목입니다.
         </div>
 
-        <div className="os-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="이름 *">
+        {formError && (
+          <div
+            role="alert"
+            className="mb-12"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid rgba(239, 68, 68, 0.35)",
+              background: "rgba(239, 68, 68, 0.07)",
+              color: "var(--danger, #b91c1c)",
+              fontSize: 13,
+            }}
+          >
+            {formError}
+          </div>
+        )}
+
+        <div className="os-grid grid-2" style={{ gap: 12 }}>
+          <Field label="이름 *" controlId="profile-name">
             <input
+              id="profile-name"
               className="input"
               value={form.name}
               onChange={(e) => update("name", e.target.value)}
               maxLength={100}
             />
           </Field>
-          <Field label="활동명">
+          <Field label="활동명" controlId="profile-stage-name">
             <input
+              id="profile-stage-name"
               className="input"
               value={form.stage_name}
               onChange={(e) => update("stage_name", e.target.value)}
@@ -422,8 +477,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
             />
           </Field>
 
-          <Field label="성별 *">
+          <Field label="성별 *" controlId="profile-gender">
             <select
+              id="profile-gender"
               className="input"
               value={form.gender}
               onChange={(e) => update("gender", e.target.value)}
@@ -434,8 +490,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
               <option value="other">기타/비공개</option>
             </select>
           </Field>
-          <Field label="생년월일">
+          <Field label="생년월일" controlId="profile-birth-date">
             <input
+              id="profile-birth-date"
               type="date"
               className="input"
               value={form.birth_date}
@@ -443,8 +500,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
             />
           </Field>
 
-          <Field label="연락처 *">
+          <Field label="연락처 *" controlId="profile-phone">
             <input
+              id="profile-phone"
               className="input"
               value={form.phone}
               onChange={(e) => update("phone", e.target.value)}
@@ -452,8 +510,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
               maxLength={30}
             />
           </Field>
-          <Field label="유튜브 채널">
+          <Field label="유튜브 채널" controlId="profile-youtube">
             <input
+              id="profile-youtube"
               className="input"
               value={form.youtube_url}
               onChange={(e) => update("youtube_url", e.target.value)}
@@ -462,7 +521,7 @@ function ProfileEditor({ member }: ProfileEditorProps) {
             />
           </Field>
 
-          <Field label="인스타그램 ID" full>
+          <Field label="인스타그램 ID" controlId="profile-instagram" full>
             <div className="row" style={{ alignItems: "stretch" }}>
               <span
                 className="text-xs muted"
@@ -479,6 +538,7 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                 instagram.com/
               </span>
               <input
+                id="profile-instagram"
                 className="input"
                 style={{ borderRadius: "0 8px 8px 0" }}
                 value={form.instagram_handle}
@@ -509,11 +569,12 @@ function ProfileEditor({ member }: ProfileEditorProps) {
 
           {showExtra && (
             <div
-              className="os-grid mt-12"
-              style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}
+              className="os-grid grid-2 mt-12"
+              style={{ gap: 12 }}
             >
-              <Field label="키 (cm)">
+              <Field label="키 (cm)" controlId="profile-height">
                 <input
+                  id="profile-height"
                   className="input"
                   type="number"
                   min={50}
@@ -523,8 +584,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                   placeholder="예: 170"
                 />
               </Field>
-              <Field label="신발 사이즈">
+              <Field label="신발 사이즈" controlId="profile-shoe-size">
                 <input
+                  id="profile-shoe-size"
                   className="input"
                   value={form.shoe_size}
                   onChange={(e) => update("shoe_size", e.target.value)}
@@ -532,8 +594,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                   maxLength={20}
                 />
               </Field>
-              <Field label="상의 사이즈">
+              <Field label="상의 사이즈" controlId="profile-top-size">
                 <input
+                  id="profile-top-size"
                   className="input"
                   value={form.top_size}
                   onChange={(e) => update("top_size", e.target.value)}
@@ -541,8 +604,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                   maxLength={20}
                 />
               </Field>
-              <Field label="하의 사이즈">
+              <Field label="하의 사이즈" controlId="profile-bottom-size">
                 <input
+                  id="profile-bottom-size"
                   className="input"
                   value={form.bottom_size}
                   onChange={(e) => update("bottom_size", e.target.value)}
@@ -550,8 +614,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                   maxLength={20}
                 />
               </Field>
-              <Field label="의상 관련 특이사항" full>
+              <Field label="의상 관련 특이사항" controlId="profile-wardrobe-notes" full>
                 <textarea
+                  id="profile-wardrobe-notes"
                   className="input"
                   rows={3}
                   value={form.wardrobe_notes}
@@ -567,6 +632,7 @@ function ProfileEditor({ member }: ProfileEditorProps) {
         {/* 정산 정보 (접힘) */}
         <div className="mt-12">
           <button
+            id="profile-payout-info"
             type="button"
             className="btn ghost"
             onClick={() => setShowPayout((v) => !v)}
@@ -583,14 +649,16 @@ function ProfileEditor({ member }: ProfileEditorProps) {
 
           {showPayout && (
             <div className="mt-12">
-              <Field label="은행">
+              <Field label="은행" controlId="profile-bank-search">
                 <input
+                  id="profile-bank-search"
                   className="input sm"
                   value={bankSearch}
                   onChange={(e) => setBankSearch(e.target.value)}
                   placeholder="은행명 검색"
                 />
                 <select
+                  aria-label="은행 선택"
                   className="input mt-8"
                   value={form.bank_code}
                   onChange={(e) => update("bank_code", e.target.value)}
@@ -606,11 +674,12 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                 </select>
               </Field>
               <div
-                className="os-grid mt-12"
-                style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}
+                className="os-grid grid-2 mt-12"
+                style={{ gap: 12 }}
               >
-                <Field label="계좌번호">
+                <Field label="계좌번호" controlId="profile-bank-account">
                   <input
+                    id="profile-bank-account"
                     className="input"
                     value={form.bank_account}
                     onChange={(e) =>
@@ -620,8 +689,9 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                     maxLength={40}
                   />
                 </Field>
-                <Field label="예금주명">
+                <Field label="예금주명" controlId="profile-bank-holder">
                   <input
+                    id="profile-bank-holder"
                     className="input"
                     value={form.bank_holder}
                     onChange={(e) => update("bank_holder", e.target.value)}
@@ -630,6 +700,16 @@ function ProfileEditor({ member }: ProfileEditorProps) {
                   />
                 </Field>
               </div>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => void save("payout")}
+                disabled={saving}
+                style={{ width: "100%", justifyContent: "center", marginTop: 12 }}
+              >
+                {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                정산 정보만 저장
+              </button>
             </div>
           )}
         </div>
@@ -638,7 +718,7 @@ function ProfileEditor({ member }: ProfileEditorProps) {
           <button
             type="button"
             className="btn primary"
-            onClick={save}
+            onClick={() => void save("all")}
             disabled={saving}
           >
             {saving ? (
@@ -656,16 +736,18 @@ function ProfileEditor({ member }: ProfileEditorProps) {
 
 function Field({
   label,
+  controlId,
   children,
   full,
 }: {
   label: string;
+  controlId: string;
   children: React.ReactNode;
   full?: boolean;
 }) {
   return (
     <div style={full ? { gridColumn: "1 / -1" } : undefined}>
-      <label className="lab text-xs muted" style={{ display: "block", marginBottom: 4 }}>
+      <label htmlFor={controlId} className="lab text-xs muted" style={{ display: "block", marginBottom: 4 }}>
         {label}
       </label>
       {children}

@@ -32,6 +32,7 @@ export function PublicApplyForm({ projectId, fee, scheduleDates }: PublicApplyFo
   const [feeAgreement, setFeeAgreement] = useState<"yes" | "partial">("yes");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [hp, setHp] = useState("");
 
   const [votes, setVotes] = useState<VotesMap>(() => initialVotesFromSchedule(scheduleDates));
 
@@ -56,6 +57,7 @@ export function PublicApplyForm({ projectId, fee, scheduleDates }: PublicApplyFo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          _hp: hp,
           guest_name: name.trim(),
           guest_email: email.trim(),
           guest_phone: phone.trim() || null,
@@ -92,6 +94,16 @@ export function PublicApplyForm({ projectId, fee, scheduleDates }: PublicApplyFo
 
   return (
     <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        name="_hp"
+        value={hp}
+        onChange={(e) => setHp(e.target.value)}
+        tabIndex={-1}
+        aria-hidden="true"
+        autoComplete="off"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }}
+      />
       <div className="field">
         <label htmlFor="g-name">이름 <span className="req">*</span></label>
         <input id="g-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="홍길동" required />

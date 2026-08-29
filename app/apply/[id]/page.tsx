@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServiceSupabaseClient } from "@/lib/supabase-server";
 import { PublicApplyForm } from "@/components/project/PublicApplyForm";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { getRecruitmentWindowState, recruitmentWindowMessage } from "@/lib/recruitment";
 
 // 공개 지원 링크 (비인증 게스트 허용)
 export const dynamic = "force-dynamic";
@@ -10,15 +11,18 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function PublicApplyPage({ params }: Props) {
   const { id: projectId } = await params;
-  const supabase = createServerSupabaseClient();
+  const supabase = createServiceSupabaseClient();
+  if (!supabase) notFound();
 
   const { data: project, error } = await supabase
     .from("projects")
-    .select("id, title, status, type, fee, description, venue")
+    .select("id, title, status, type, fee, description, venue, visibility, recruitment_start_at, recruitment_end_at")
     .eq("id", projectId)
     .single();
 
-  if (error || !project) notFound();
+  if (error || !project || project.visibility !== "public") notFound();
+  const recruitmentState = getRecruitmentWindowState(project);
+  const blockedMessage = recruitmentWindowMessage(recruitmentState, project);
 
   const { data: scheduleDates } = await supabase
     .from("schedule_dates")
@@ -63,10 +67,10 @@ export default async function PublicApplyPage({ params }: Props) {
           )}
         </div>
 
-        {project.status !== "recruiting" ? (
+        {recruitmentState !== "open" ? (
           <div className="card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ color: "var(--mf)", fontSize: 14 }}>
-              현재 지원을 받지 않는 프로젝트입니다.
+              {blockedMessage ?? "현재 지원을 받지 않는 프로젝트입니다."}
             </div>
           </div>
         ) : (

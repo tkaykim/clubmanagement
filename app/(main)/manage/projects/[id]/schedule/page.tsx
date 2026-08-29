@@ -15,7 +15,7 @@ export default async function ScheduleManagePage({
   const supabase = createServerSupabaseClient();
   const { data: scheduleDates } = await supabase
     .from("schedule_dates")
-    .select("id, project_id, date, label, kind, sort_order")
+    .select("id, project_id, date, label, kind, sort_order, is_confirmed, confirmed_at")
     .eq("project_id", id)
     .order("sort_order", { ascending: true })
     .order("date", { ascending: true });
@@ -37,7 +37,7 @@ export default async function ScheduleManagePage({
           projectId={id}
           initialDates={(scheduleDates ?? []) as ScheduleDateRow[]}
         />
-        <ScheduleAggregationView projectId={id} />
+        <ScheduleAggregationView projectId={id} readOnly />
       </div>
     </div>
   );

@@ -132,6 +132,9 @@ export type ScheduleDate = {
   label: string | null;
   kind: ScheduleDateKind;
   sort_order: number;
+  is_confirmed: boolean;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
   created_at: string;
 };
 

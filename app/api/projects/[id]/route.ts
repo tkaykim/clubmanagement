@@ -28,41 +28,18 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const { dates, practiceDates, ...updateData } = parsed.data;
     const supabase = createRouteSupabaseClient();
+    let data;
 
-    const { data, error } = await supabase
-      .from("projects")
-      .update(updateData)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        return NextResponse.json(
-          { error: "프로젝트를 찾을 수 없습니다" },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json(
-        { error: "프로젝트 수정에 실패했습니다" },
-        { status: 500 }
-      );
-    }
-
-    // 날짜 업데이트 (dates/practiceDates 제공 시 기존 삭제 후 재삽입)
+    // 일정과 프로젝트 필드는 한 트랜잭션에서 갱신하고, 동일 날짜/종류의 ID와 투표는 보존한다.
     if (dates !== undefined || practiceDates !== undefined) {
-      await supabase.from("schedule_dates").delete().eq("project_id", id);
-
       const allDates = [
         ...(dates ?? []).map((d, i) => ({
-          project_id: id,
           date: d.date,
           label: d.label ?? null,
           kind: "event" as const,
           sort_order: i,
         })),
         ...(practiceDates ?? []).map((d, i) => ({
-          project_id: id,
           date: d.date,
           label: d.label ?? null,
           kind: "practice" as const,
@@ -70,9 +47,49 @@ export async function PATCH(request: Request, { params }: Params) {
         })),
       ];
 
-      if (allDates.length > 0) {
-        await supabase.from("schedule_dates").insert(allDates);
+      const { error: updateError } = await supabase.rpc(
+        "update_project_with_schedule",
+        {
+          p_project_id: id,
+          p_project_updates: updateData,
+          p_dates: allDates,
+        }
+      );
+      if (updateError) {
+        console.error("[PATCH /api/projects/[id]] atomic update error:", updateError);
+        return NextResponse.json(
+          { error: "프로젝트 일정 수정에 실패했습니다" },
+          { status: 500 }
+        );
       }
+      const result = await supabase.from("projects").select().eq("id", id).single();
+      if (result.error || !result.data) {
+        return NextResponse.json(
+          { error: "프로젝트 수정 결과를 불러오지 못했습니다" },
+          { status: 500 }
+        );
+      }
+      data = result.data;
+    } else {
+      const result = await supabase
+        .from("projects")
+        .update(updateData)
+        .eq("id", id)
+        .select()
+        .single();
+      if (result.error) {
+        if (result.error.code === "PGRST116") {
+          return NextResponse.json(
+            { error: "프로젝트를 찾을 수 없습니다" },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          { error: "프로젝트 수정에 실패했습니다" },
+          { status: 500 }
+        );
+      }
+      data = result.data;
     }
 
     await logActivity({

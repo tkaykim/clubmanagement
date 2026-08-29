@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CalendarPlus, ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CalendarCheck, CalendarPlus, ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Kind = "event" | "practice";
@@ -13,6 +13,8 @@ export type ScheduleDateRow = {
   label: string | null;
   kind: Kind;
   sort_order: number;
+  is_confirmed: boolean;
+  confirmed_at: string | null;
 };
 
 interface Props {
@@ -26,21 +28,24 @@ const MAX_RANGE_DAYS = 90;
 
 function enumerateDates(start: string, end: string): string[] {
   const out: string[] = [];
-  const s = new Date(start + "T00:00:00");
-  const e = new Date(end + "T00:00:00");
+  const s = new Date(start + "T00:00:00Z");
+  const e = new Date(end + "T00:00:00Z");
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return out;
   const cursor = new Date(s);
   while (cursor <= e) {
     out.push(cursor.toISOString().slice(0, 10));
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out;
 }
 
 export function ProjectScheduleManager({ projectId, initialDates, onMutated }: Props) {
   const [rows, setRows] = useState<ScheduleDateRow[]>(initialDates ?? []);
+  const persistedLabels = useRef<Record<string, string | null>>(
+    Object.fromEntries((initialDates ?? []).map((row) => [row.id, row.label]))
+  );
   const [loading, setLoading] = useState(!initialDates);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingIds, setSavingIds] = useState<Set<string>>(() => new Set());
   const [addMode, setAddMode] = useState<"single" | "range">("single");
   const [expanded, setExpanded] = useState(false);
 
@@ -56,6 +61,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
   const [rangeKind, setRangeKind] = useState<Kind>("event");
   const [rangeLabel, setRangeLabel] = useState("");
   const [addingRange, setAddingRange] = useState(false);
+  const confirmedCount = rows.filter((row) => row.is_confirmed).length;
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -68,7 +74,11 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         toast.error(json.error ?? "일정 조회 실패");
         return;
       }
-      setRows(json.data ?? []);
+      const nextRows: ScheduleDateRow[] = json.data ?? [];
+      persistedLabels.current = Object.fromEntries(
+        nextRows.map((row) => [row.id, row.label])
+      );
+      setRows(nextRows);
     } finally {
       setLoading(false);
     }
@@ -103,11 +113,14 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         toast.error(json.error ?? "일정 추가 실패");
         return;
       }
+      persistedLabels.current[json.data.id] = json.data.label;
       setRows((prev) => [...prev, json.data].sort(sortRows));
       setNewDate("");
       setNewLabel("");
       toast.success("일정이 추가됐어요");
       onMutated?.();
+    } catch {
+      toast.error("네트워크 오류로 일정을 추가하지 못했습니다");
     } finally {
       setAdding(false);
     }
@@ -155,6 +168,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
           toast.error(`${date} 추가 실패: ${json.error ?? ""}`);
           break;
         }
+        persistedLabels.current[json.data.id] = json.data.label;
         inserted.push(json.data);
       }
       if (inserted.length > 0) {
@@ -168,15 +182,22 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         setRangeLabel("");
         onMutated?.();
       }
+    } catch {
+      toast.error("네트워크 오류로 일정 범위를 추가하지 못했습니다");
     } finally {
       setAddingRange(false);
     }
   }
 
-  async function updateRow(id: string, patch: Partial<Pick<ScheduleDateRow, "date" | "label" | "kind">>) {
-    const before = rows;
+  async function updateRow(
+    id: string,
+    patch: Partial<Pick<ScheduleDateRow, "date" | "label" | "kind" | "is_confirmed">>,
+    rollbackPatch: Partial<ScheduleDateRow> = {}
+  ) {
+    const rollbackRow = rows.find((row) => row.id === id);
+    const restoredRow = rollbackRow ? { ...rollbackRow, ...rollbackPatch } : null;
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)).sort(sortRows));
-    setSavingId(id);
+    setSavingIds((prev) => new Set(prev).add(id));
     try {
       const res = await fetch(`/api/projects/${projectId}/schedule-dates/${id}`, {
         method: "PATCH",
@@ -185,14 +206,30 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
       });
       const json = await res.json();
       if (!res.ok) {
-        setRows(before);
+        if (restoredRow) {
+          setRows((prev) => prev.map((row) =>
+            row.id === id ? restoredRow : row
+          ).sort(sortRows));
+        }
         toast.error(json.error ?? "수정 실패");
         return;
       }
+      if ("label" in patch) persistedLabels.current[id] = json.data.label;
       setRows((prev) => prev.map((r) => (r.id === id ? json.data : r)).sort(sortRows));
       onMutated?.();
+    } catch {
+      if (restoredRow) {
+        setRows((prev) => prev.map((row) =>
+          row.id === id ? restoredRow : row
+        ).sort(sortRows));
+      }
+      toast.error("네트워크 오류로 일정 변경을 저장하지 못했습니다");
     } finally {
-      setSavingId(null);
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -202,23 +239,34 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
     if (!confirm(`${row.date} (${row.kind === "event" ? "본행사" : "연습"}) 일정을 삭제할까요?\n이 일정에 대한 투표도 함께 삭제됩니다.`)) {
       return;
     }
-    const before = rows;
     setRows((prev) => prev.filter((r) => r.id !== id));
-    setSavingId(id);
+    setSavingIds((prev) => new Set(prev).add(id));
     try {
       const res = await fetch(`/api/projects/${projectId}/schedule-dates/${id}`, {
         method: "DELETE",
       });
       const json = await res.json();
       if (!res.ok) {
-        setRows(before);
+        setRows((prev) => prev.some((current) => current.id === id)
+          ? prev
+          : [...prev, row].sort(sortRows));
         toast.error(json.error ?? "삭제 실패");
         return;
       }
+      delete persistedLabels.current[id];
       toast.success("일정이 삭제됐어요");
       onMutated?.();
+    } catch {
+      setRows((prev) => prev.some((current) => current.id === id)
+        ? prev
+        : [...prev, row].sort(sortRows));
+      toast.error("네트워크 오류로 일정을 삭제하지 못했습니다");
     } finally {
-      setSavingId(null);
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -242,7 +290,9 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
       >
         <h3 style={{ margin: 0 }}>일정 후보 관리</h3>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11.5, color: "var(--mf)" }}>{rows.length}개</span>
+          <span style={{ fontSize: 11.5, color: "var(--mf)" }}>
+            후보 {rows.length - confirmedCount} · 확정 {confirmedCount}
+          </span>
           <ChevronDown
             size={16}
             strokeWidth={2}
@@ -266,7 +316,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
             borderRadius: 6,
           }}
         >
-          변경 사항은 즉시 저장되고, 프로젝트 지원자(대기/승인 포함)에게 알림이 발송됩니다.
+          후보 날짜를 검토한 뒤 확정으로 표시하세요. 확정 일정만 멤버의 캘린더에 기본 표시됩니다.
         </div>
 
         {/* 추가 모드 토글 */}
@@ -295,11 +345,13 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
               <input
                 className="input"
                 type="date"
+                aria-label="추가할 일정 날짜"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
               />
               <select
                 className="select"
+                aria-label="추가할 일정 종류"
                 value={newKind}
                 onChange={(e) => setNewKind(e.target.value as Kind)}
               >
@@ -309,6 +361,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
             </div>
             <input
               className="input"
+              aria-label="추가할 일정 라벨"
               placeholder="라벨 (선택)"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
@@ -347,6 +400,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
             <div className="os-grid grid-2" style={{ gap: 8, marginBottom: 8 }}>
               <select
                 className="select"
+                aria-label="범위 일정 종류"
                 value={rangeKind}
                 onChange={(e) => setRangeKind(e.target.value as Kind)}
               >
@@ -355,6 +409,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
               </select>
               <input
                 className="input"
+                aria-label="범위 일정 공통 라벨"
                 placeholder="공통 라벨 (선택)"
                 value={rangeLabel}
                 onChange={(e) => setRangeLabel(e.target.value)}
@@ -398,7 +453,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
               {rows.map((r) => (
                 <div
                   key={r.id}
-                  className="row"
+                  className="schedule-manager-row"
                   style={{
                     padding: "8px 0",
                     borderBottom: "1px solid var(--border)",
@@ -408,23 +463,26 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                   <input
                     className="input mono"
                     type="date"
+                    aria-label={`${r.date} 일정 날짜`}
                     value={r.date}
                     onChange={(e) => updateRow(r.id, { date: e.target.value })}
-                    style={{ width: 140, height: 28, padding: "2px 6px", fontSize: 12 }}
-                    disabled={savingId === r.id}
+                    style={{ width: "100%", height: 32, padding: "2px 6px", fontSize: 12 }}
+                    disabled={savingIds.has(r.id)}
                   />
                   <select
                     className="select"
+                    aria-label={`${r.date} 일정 종류`}
                     value={r.kind}
                     onChange={(e) => updateRow(r.id, { kind: e.target.value as Kind })}
-                    style={{ maxWidth: 100, height: 28, padding: "2px 6px", fontSize: 12 }}
-                    disabled={savingId === r.id}
+                    style={{ width: "100%", height: 32, padding: "2px 6px", fontSize: 12 }}
+                    disabled={savingIds.has(r.id)}
                   >
                     <option value="event">본행사</option>
                     <option value="practice">연습</option>
                   </select>
                   <input
                     className="input"
+                    aria-label={`${r.date} 일정 라벨`}
                     placeholder="라벨"
                     value={r.label ?? ""}
                     onChange={(e) =>
@@ -434,14 +492,31 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                     }
                     onBlur={(e) => {
                       const next = e.target.value.trim() || null;
-                      if (next !== (r.label ?? null)) {
-                        void updateRow(r.id, { label: next });
+                      const persisted = persistedLabels.current[r.id] ?? null;
+                      if (next === persisted) {
+                        setRows((prev) => prev.map((row) =>
+                          row.id === r.id ? { ...row, label: persisted } : row
+                        ));
+                        return;
                       }
+                      void updateRow(r.id, { label: next }, { label: persisted });
                     }}
-                    style={{ flex: 1, height: 28, padding: "2px 8px", fontSize: 12 }}
-                    disabled={savingId === r.id}
+                    style={{ width: "100%", height: 32, padding: "2px 8px", fontSize: 12 }}
+                    disabled={savingIds.has(r.id)}
                   />
-                  {savingId === r.id ? (
+                  <button
+                    type="button"
+                    className={`btn sm ${r.is_confirmed ? "primary" : ""}`}
+                    onClick={() => void updateRow(r.id, { is_confirmed: !r.is_confirmed })}
+                    aria-pressed={r.is_confirmed}
+                    aria-label={`${r.date} ${r.is_confirmed ? "확정 해제" : "일정 확정"}`}
+                    disabled={savingIds.has(r.id)}
+                    style={{ minWidth: 86, justifyContent: "center" }}
+                  >
+                    <CalendarCheck size={12} strokeWidth={2} />
+                    {r.is_confirmed ? "확정됨" : "확정"}
+                  </button>
+                  {savingIds.has(r.id) ? (
                     <Loader2 size={12} className="animate-spin" />
                   ) : (
                     <button

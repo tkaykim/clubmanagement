@@ -45,6 +45,14 @@ export async function middleware(req: NextRequest) {
   // 공개 경로는 즉시 통과 (Supabase 호출 없음)
   if (pathname === "/") return res;
   if (pathname.startsWith("/apply/")) return res;
+  // 공개 지원 폼의 제출 요청도 인증 없이 통과시킨다.
+  // PATCH/DELETE는 같은 라우트 파일 내부의 세션 검사로 계속 보호된다.
+  if (
+    req.method === "POST" &&
+    /^\/api\/projects\/[^/]+\/apply$/.test(pathname)
+  ) {
+    return res;
+  }
   if (pathname === "/api/portfolio/inquiries") return res;
   if (pathname.startsWith("/api/cron/")) return res;
 
@@ -105,11 +113,11 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/manage")) {
     const { data: member } = await supabase
       .from("crew_members")
-      .select("role")
+      .select("role, is_active")
       .eq("user_id", authUser.id)
       .maybeSingle();
 
-    if (!member || (member.role !== "admin" && member.role !== "owner")) {
+    if (!member || !member.is_active || (member.role !== "admin" && member.role !== "owner")) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
           { error: "관리자 권한이 필요합니다" },
