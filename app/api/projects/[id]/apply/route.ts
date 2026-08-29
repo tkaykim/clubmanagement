@@ -163,8 +163,8 @@ export async function POST(request: Request, { params }: Params) {
       : { ...(appData.answers ?? {}), _schedule_votes: votes };
 
     // 지원서와 인증 사용자의 일정 응답을 DB 트랜잭션 하나로 생성한다.
-    const { data: applicationId, error: appError } = await supabase.rpc(
-      "service_submit_project_application",
+    const { data: applicationData, error: appError } = await supabase.rpc(
+      "service_submit_project_application_v2",
       {
         p_application: {
         project_id: projectId,
@@ -181,7 +181,7 @@ export async function POST(request: Request, { params }: Params) {
       }
     );
 
-    if (appError || !applicationId) {
+    if (appError || !applicationData) {
       console.error("[POST /api/projects/[id]/apply] application error:", appError);
       if (appError?.code === "23505") {
         return NextResponse.json(
@@ -213,17 +213,7 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    const { data: application, error: applicationReadError } = await supabase
-      .from("project_applications")
-      .select("*")
-      .eq("id", applicationId)
-      .single();
-    if (applicationReadError || !application) {
-      return NextResponse.json(
-        { error: "지원서는 접수됐지만 결과를 불러오지 못했습니다" },
-        { status: 500 }
-      );
-    }
+    const application = applicationData as { id: string } & Record<string, unknown>;
 
     // 프로젝트 제목 + owner_id (로그/알림용)
     const { data: projForLog } = await supabase

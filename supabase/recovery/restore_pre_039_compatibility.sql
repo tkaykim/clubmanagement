@@ -1,5 +1,5 @@
 -- 긴급 forward-recovery 전용.
--- 038 적용 뒤 애플리케이션을 구버전으로 되돌려야 할 때만 Supabase migration으로 실행한다.
+-- 039 적용 뒤 애플리케이션을 구버전으로 되돌려야 할 때만 Supabase migration으로 실행한다.
 
 BEGIN;
 

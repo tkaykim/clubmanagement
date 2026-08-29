@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarCheck, CalendarPlus, ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,6 +41,9 @@ function enumerateDates(start: string, end: string): string[] {
 
 export function ProjectScheduleManager({ projectId, initialDates, onMutated }: Props) {
   const [rows, setRows] = useState<ScheduleDateRow[]>(initialDates ?? []);
+  const persistedLabels = useRef<Record<string, string | null>>(
+    Object.fromEntries((initialDates ?? []).map((row) => [row.id, row.label]))
+  );
   const [loading, setLoading] = useState(!initialDates);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [addMode, setAddMode] = useState<"single" | "range">("single");
@@ -71,7 +74,11 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         toast.error(json.error ?? "일정 조회 실패");
         return;
       }
-      setRows(json.data ?? []);
+      const nextRows: ScheduleDateRow[] = json.data ?? [];
+      persistedLabels.current = Object.fromEntries(
+        nextRows.map((row) => [row.id, row.label])
+      );
+      setRows(nextRows);
     } finally {
       setLoading(false);
     }
@@ -106,6 +113,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         toast.error(json.error ?? "일정 추가 실패");
         return;
       }
+      persistedLabels.current[json.data.id] = json.data.label;
       setRows((prev) => [...prev, json.data].sort(sortRows));
       setNewDate("");
       setNewLabel("");
@@ -160,6 +168,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
           toast.error(`${date} 추가 실패: ${json.error ?? ""}`);
           break;
         }
+        persistedLabels.current[json.data.id] = json.data.label;
         inserted.push(json.data);
       }
       if (inserted.length > 0) {
@@ -182,9 +191,12 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
 
   async function updateRow(
     id: string,
-    patch: Partial<Pick<ScheduleDateRow, "date" | "label" | "kind" | "is_confirmed">>
+    patch: Partial<Pick<ScheduleDateRow, "date" | "label" | "kind" | "is_confirmed">>,
+    rollbackPatch: Partial<ScheduleDateRow> = {}
   ) {
-    const before = rows;
+    const before = rows.map((row) =>
+      row.id === id ? { ...row, ...rollbackPatch } : row
+    );
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)).sort(sortRows));
     setSavingId(id);
     try {
@@ -199,6 +211,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         toast.error(json.error ?? "수정 실패");
         return;
       }
+      if ("label" in patch) persistedLabels.current[id] = json.data.label;
       setRows((prev) => prev.map((r) => (r.id === id ? json.data : r)).sort(sortRows));
       onMutated?.();
     } catch {
@@ -228,6 +241,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
         toast.error(json.error ?? "삭제 실패");
         return;
       }
+      delete persistedLabels.current[id];
       toast.success("일정이 삭제됐어요");
       onMutated?.();
     } catch {
@@ -460,7 +474,14 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                     }
                     onBlur={(e) => {
                       const next = e.target.value.trim() || null;
-                      void updateRow(r.id, { label: next });
+                      const persisted = persistedLabels.current[r.id] ?? null;
+                      if (next === persisted) {
+                        setRows((prev) => prev.map((row) =>
+                          row.id === r.id ? { ...row, label: persisted } : row
+                        ));
+                        return;
+                      }
+                      void updateRow(r.id, { label: next }, { label: persisted });
                     }}
                     style={{ width: "100%", height: 32, padding: "2px 8px", fontSize: 12 }}
                     disabled={savingId === r.id}
