@@ -76,7 +76,9 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const payoutKeys = ["bank_code", "bank_name", "bank_account", "bank_holder"] as const;
     const payoutData = Object.fromEntries(
-      payoutKeys.map((key) => [key, normalized[key] ?? null])
+      payoutKeys
+        .filter((key) => key in parsed.data)
+        .map((key) => [key, normalized[key] ?? null])
     );
     const hasPayoutUpdate = payoutKeys.some((key) => key in parsed.data);
     for (const key of payoutKeys) delete normalized[key];

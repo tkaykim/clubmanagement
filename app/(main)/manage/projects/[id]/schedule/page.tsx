@@ -37,7 +37,7 @@ export default async function ScheduleManagePage({
           projectId={id}
           initialDates={(scheduleDates ?? []) as ScheduleDateRow[]}
         />
-        <ScheduleAggregationView projectId={id} />
+        <ScheduleAggregationView projectId={id} readOnly />
       </div>
     </div>
   );

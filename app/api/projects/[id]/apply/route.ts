@@ -426,49 +426,36 @@ export async function DELETE(_request: Request, { params }: Params) {
       );
     }
 
-    const supabase = createRouteSupabaseClient();
-
-    const { data: existing, error: fetchErr } = await supabase
-      .from("project_applications")
-      .select("id, status")
-      .eq("project_id", projectId)
-      .eq("user_id", session.userId)
-      .maybeSingle();
-
-    if (fetchErr || !existing) {
+    const supabase = createServiceSupabaseClient();
+    if (!supabase) {
       return NextResponse.json(
-        { error: "지원 내역이 없습니다" },
-        { status: 404 }
+        { error: "지원 서비스를 사용할 수 없습니다" },
+        { status: 503 }
       );
     }
 
-    if (existing.status === "approved") {
-      return NextResponse.json(
-        { error: "확정된 지원은 취소할 수 없습니다" },
-        { status: 400 }
-      );
-    }
+    const { data: applicationId, error: cancelError } = await supabase.rpc(
+      "service_cancel_project_application",
+      {
+        p_project_id: projectId,
+        p_user_id: session.userId,
+      }
+    );
 
-    const { data: dateRows } = await supabase
-      .from("schedule_dates")
-      .select("id")
-      .eq("project_id", projectId);
-    const dateIds = (dateRows ?? []).map((r: { id: string }) => r.id);
-    if (dateIds.length > 0) {
-      await supabase
-        .from("schedule_votes")
-        .delete()
-        .in("schedule_date_id", dateIds)
-        .eq("user_id", session.userId);
-    }
-
-    const { error: delErr } = await supabase
-      .from("project_applications")
-      .delete()
-      .eq("id", existing.id);
-
-    if (delErr) {
-      console.error("[DELETE /api/projects/[id]/apply] error:", delErr);
+    if (cancelError || !applicationId) {
+      if (cancelError?.code === "P0002") {
+        return NextResponse.json(
+          { error: "지원 내역이 없습니다" },
+          { status: 404 }
+        );
+      }
+      if (cancelError?.code === "P0001") {
+        return NextResponse.json(
+          { error: "확정된 지원은 취소할 수 없습니다" },
+          { status: 400 }
+        );
+      }
+      console.error("[DELETE /api/projects/[id]/apply] error:", cancelError);
       return NextResponse.json(
         { error: "지원 취소에 실패했습니다" },
         { status: 500 }
@@ -485,7 +472,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       actorUserId: session.userId,
       action: "application.withdraw",
       targetType: "application",
-      targetId: existing.id,
+      targetId: applicationId,
       targetLabel: projForLog?.title ?? null,
       meta: { projectId },
     });

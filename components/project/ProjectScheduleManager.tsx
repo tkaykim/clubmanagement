@@ -460,9 +460,7 @@ export function ProjectScheduleManager({ projectId, initialDates, onMutated }: P
                     }
                     onBlur={(e) => {
                       const next = e.target.value.trim() || null;
-                      if (next !== (r.label ?? null)) {
-                        void updateRow(r.id, { label: next });
-                      }
+                      void updateRow(r.id, { label: next });
                     }}
                     style={{ width: "100%", height: 32, padding: "2px 8px", fontSize: 12 }}
                     disabled={savingId === r.id}
