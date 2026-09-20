@@ -11,6 +11,7 @@ import { FinanceStatus } from "./FinanceStatus";
 import { FinanceSummaryCard } from "./FinanceSummaryCard";
 
 type FinanceMemberCandidate = { crewMemberId: string; userId: string; name: string };
+type FinanceMutation = (path: string, method: "POST" | "PUT", body: unknown, success: string) => Promise<FinanceProjectDetail>;
 
 function useFinanceMemberCandidates(enabled: boolean) {
   const [candidates, setCandidates] = useState<FinanceMemberCandidate[]>([]);
@@ -44,6 +45,13 @@ function draftFromItem(item: FinanceAllowanceItem): FinanceAllowanceDraftItemInp
     requestedAmountRaw: item.requestedAmountRaw, grossAmount: item.grossAmount, taxType: item.taxType,
     scheduledPaymentDate: item.scheduledPaymentDate, evidenceRef: item.evidenceRef ?? null,
   };
+}
+
+function revisionDrafts(items: FinanceAllowanceItem[]): FinanceAllowanceDraftItemInput[] {
+  return items.map((item) => {
+    const { id: _id, ...draft } = draftFromItem(item);
+    return draft;
+  });
 }
 
 export function FinanceProjectDetailClient({ projectId }: { projectId: string }) {
@@ -83,8 +91,10 @@ export function FinanceProjectDetailClient({ projectId }: { projectId: string })
       }
       throw new Error(message);
     }
-    setDetail((payload as { data: FinanceProjectDetail }).data);
+    const nextDetail = (payload as { data: FinanceProjectDetail }).data;
+    setDetail(nextDetail);
     toast.success(success);
+    return nextDetail;
   }, [load, projectId]);
 
   if (loading && !detail) return <div className="page"><FinanceLoading /></div>;
@@ -132,7 +142,7 @@ export function FinanceProjectDetailClient({ projectId }: { projectId: string })
   );
 }
 
-function Overview({ detail, isGlobal, candidates, onMutate }: { detail: FinanceProjectDetail; isGlobal: boolean; candidates: ReturnType<typeof useFinanceMemberCandidates>; onMutate: (path: string, method: "POST" | "PUT", body: unknown, success: string) => Promise<void> }) {
+function Overview({ detail, isGlobal, candidates, onMutate }: { detail: FinanceProjectDetail; isGlobal: boolean; candidates: ReturnType<typeof useFinanceMemberCandidates>; onMutate: FinanceMutation }) {
   const [budget, setBudget] = useState({ budget: detail.budgetAmount?.toString() ?? "", supply: detail.contractSupplyAmount?.toString() ?? "", vat: detail.contractVatAmount?.toString() ?? "", total: detail.contractTotalAmount?.toString() ?? "", basis: detail.contractAmountBasis, note: detail.contractNote ?? "", evidenceRef: detail.budgetEvidenceRef ?? "", client: detail.clientName ?? "", reason: "" });
   const [managerIds, setManagerIds] = useState(detail.managers.map((manager) => manager.crewMemberId));
   const [primaryManagerId, setPrimaryManagerId] = useState(detail.managers.find((manager) => manager.isPrimary)?.crewMemberId ?? detail.managers[0]?.crewMemberId ?? "");
@@ -184,43 +194,56 @@ function Overview({ detail, isGlobal, candidates, onMutate }: { detail: FinanceP
   </div>;
 }
 
-function AllowanceEditor({ detail, candidates, canEdit, onMutate }: { detail: FinanceProjectDetail; candidates: FinanceMemberCandidate[]; canEdit: boolean; onMutate: (path: string, method: "POST" | "PUT", body: unknown, success: string) => Promise<void> }) {
+function AllowanceEditor({ detail, candidates, canEdit, onMutate }: { detail: FinanceProjectDetail; candidates: FinanceMemberCandidate[]; canEdit: boolean; onMutate: FinanceMutation }) {
   const [items, setItems] = useState(() => detail.allowances.map(draftFromItem));
   const [busy, setBusy] = useState(false);
-  useEffect(() => setItems(detail.allowances.map(draftFromItem)), [detail.allowances]);
+  const [creatingRevision, setCreatingRevision] = useState(false);
+  useEffect(() => {
+    setItems(detail.allowances.map(draftFromItem));
+    if (detail.allowanceStatus !== "confirmed") setCreatingRevision(false);
+  }, [detail.allowances, detail.allowanceStatus]);
   const draftTotal = useMemo(() => items.reduce((sum, item) => sum + (item.grossAmount ?? 0), 0), [items]);
   const overBudget = detail.budgetAmount != null && draftTotal > detail.budgetAmount;
+  const canCreateRevision = canEdit && detail.allowanceStatus === "confirmed" && detail.paymentExecutedAmount === 0;
+  const canEditDraft = canEdit && (detail.allowanceStatus !== "confirmed" || creatingRevision);
   function update(index: number, patch: Partial<FinanceAllowanceDraftItemInput>) { setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item)); }
   async function save(submit = false) {
     if (overBudget) return toast.error("총예산을 초과한 배분안은 제출할 수 없습니다.");
     setBusy(true);
     try {
-      await onMutate("/allowances", "PUT", { expectedRevision: detail.allowanceRevision, items, reason: "수당 배분안 저장" }, "배분안을 저장했습니다.");
-      if (submit) await onMutate("/allowances/submit", "POST", { expectedRevision: (detail.allowanceRevision ?? 0) + 1, reason: "재무 검토 요청" }, "재무 검토를 요청했습니다.");
+      const savedDetail = await onMutate("/allowances", "PUT", { expectedRevision: creatingRevision ? null : detail.allowanceRevision, items, reason: "수당 배분안 저장" }, "배분안을 저장했습니다.");
+      if (submit) await onMutate("/allowances/submit", "POST", { expectedRevision: savedDetail.allowanceRevision ?? 0, reason: "재무 검토 요청" }, "재무 검토를 요청했습니다.");
     } catch (cause) { toast.error(cause instanceof Error ? cause.message : "저장하지 못했습니다."); } finally { setBusy(false); }
   }
   async function confirm() { setBusy(true); try { await onMutate("/allowances/confirm", "POST", { expectedRevision: detail.allowanceRevision ?? 0, reason: "재무 확정" }, "정산을 확정했습니다."); } catch (cause) { toast.error(cause instanceof Error ? cause.message : "확정하지 못했습니다."); } finally { setBusy(false); } }
   return <section className="finance-stack"><div className="card finance-section"><div className="card-head"><h2>수당 배분안</h2><div className="row gap-8"><FinanceStatus status={detail.allowanceStatus ?? "draft"} /><span className={overBudget ? "finance-over-budget" : "hint"}>배분 합계 {formatWon(draftTotal, false, detail.currency)}</span></div></div>
     {overBudget && <div className="banner"><strong>예산 초과 {formatWon(draftTotal - (detail.budgetAmount ?? 0), false, detail.currency)}</strong><span>예산을 조정하거나 항목을 줄인 뒤 제출해주세요.</span></div>}
     {items.length === 0 && <FinanceEmpty title="아직 수당 항목이 없습니다" description={canEdit ? "참여자와 수당 사유를 추가해 배분안을 시작하세요." : "재무 담당자의 배분안 작성을 기다리고 있습니다."} />}
-    <div className="finance-allowance-list">{items.map((item, index) => <AllowanceRow key={item.id ?? `new-${index}`} item={item} candidates={candidates} editable={canEdit && detail.allowanceStatus !== "confirmed"} onChange={(patch) => update(index, patch)} onRemove={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} />)}</div>
-    {canEdit && detail.allowanceStatus !== "confirmed" && <div className="row gap-8 mt-12" style={{ flexWrap: "wrap" }}><button className="btn" type="button" onClick={() => setItems((current) => [...current, { ...EMPTY_DRAFT }])}><Plus size={14} /> 항목 추가</button><button className="btn primary" type="button" disabled={busy} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 초안 저장</button><button className="btn" type="button" disabled={busy || detail.allowanceStatus !== "draft"} onClick={() => void save(true)}><Send size={14} /> 재무 검토 제출</button></div>}
+    <div className="finance-allowance-list">{items.map((item, index) => <AllowanceRow key={item.id ?? `new-${index}`} item={item} candidates={candidates} editable={canEditDraft} onChange={(patch) => update(index, patch)} onRemove={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} />)}</div>
+    {canCreateRevision && !creatingRevision && <div className="finance-edit-block mt-12"><p className="hint">기존 확정안은 정산 이력으로 유지되고, 새 배분안은 별도 초안으로 작성됩니다.</p><button className="btn primary" type="button" onClick={() => { setItems(revisionDrafts(detail.allowances)); setCreatingRevision(true); }}><Plus size={14} /> 새 배분안 작성</button></div>}
+    {canEditDraft && <div className="row gap-8 mt-12" style={{ flexWrap: "wrap" }}><button className="btn" type="button" onClick={() => setItems((current) => [...current, { ...EMPTY_DRAFT }])}><Plus size={14} /> 항목 추가</button><button className="btn primary" type="button" disabled={busy} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 초안 저장</button><button className="btn" type="button" disabled={busy || (!creatingRevision && detail.allowanceStatus !== "draft")} onClick={() => void save(true)}><Send size={14} /> 재무 검토 제출</button></div>}
+    {canEdit && detail.allowanceStatus === "confirmed" && !canCreateRevision && <p className="hint mt-12">지급 이력이 있는 확정안은 정산 이력 보존을 위해 수정하거나 새 배분안으로 대체할 수 없습니다.</p>}
     {detail.access === "global" && detail.allowanceStatus === "submitted" && <button className="btn primary mt-12" type="button" disabled={busy || overBudget} onClick={() => void confirm()}><CheckCircle2 size={14} /> 정산 확정</button>}
   </div></section>;
 }
 
 function AllowanceRow({ item, candidates, editable, onChange, onRemove }: { item: FinanceAllowanceDraftItemInput; candidates: FinanceMemberCandidate[]; editable: boolean; onChange: (patch: Partial<FinanceAllowanceDraftItemInput>) => void; onRemove: () => void }) {
-  if (!editable) return <div className="finance-allowance-row"><strong>{item.recipientUserId}</strong><span>{item.category} · {item.reason || "사유 미입력"}</span><span>{formatWon(item.grossAmount)}</span></div>;
-  return <div className="finance-allowance-editor"><div className="finance-form-grid"><Field label="참여자"><select className="select" value={item.recipientUserId} onChange={(e) => onChange({ recipientUserId: e.target.value })}><option value="">선택</option>{!candidates.some((candidate) => candidate.userId === item.recipientUserId) && item.recipientUserId && <option value={item.recipientUserId}>현재 참여자</option>}{candidates.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}</select></Field><Field label="수당 항목"><input className="input" value={item.category} onChange={(e) => onChange({ category: e.target.value })} placeholder="리허설, 공연, 교통비" /></Field><Field label="세전액"><input className="input" inputMode="decimal" value={item.grossAmount ?? ""} onChange={(e) => onChange({ grossAmount: numeric(e.target.value) })} placeholder="금액 미확정" /></Field><Field label="세무 유형"><select className="select" value={item.taxType} onChange={(e) => onChange({ taxType: e.target.value as FinanceAllowanceDraftItemInput["taxType"] })}><option value="undecided">미정</option><option value="business_income_3_3">사업소득 3.3%</option><option value="invoice">세금계산서</option><option value="foreign">외국인</option><option value="none">공제 없음</option></select></Field><Field label="지급 예정일"><input className="input" type="date" value={item.scheduledPaymentDate ?? ""} onChange={(e) => onChange({ scheduledPaymentDate: e.target.value || null })} /></Field><Field label="증빙 참조"><input className="input" value={item.evidenceRef ?? ""} onChange={(e) => onChange({ evidenceRef: e.target.value || null })} placeholder="문서 또는 거래 참조" /></Field><Field label="사유" full><input className="input" value={item.reason} onChange={(e) => onChange({ reason: e.target.value })} placeholder="수당 산정 근거" /></Field></div><button className="btn ghost danger sm" type="button" onClick={onRemove}>항목 삭제</button></div>;
+  if (!editable) return <div className="finance-allowance-row"><strong>{item.recipientUserId}</strong><span>{item.category} · {item.reason || "사유 미입력"}</span>{item.requestedAmountRaw && <span>메일 요청액 · {item.requestedAmountRaw}</span>}<span>{formatWon(item.grossAmount)}</span></div>;
+  return <div className="finance-allowance-editor"><div className="finance-form-grid"><Field label="참여자"><select className="select" value={item.recipientUserId} onChange={(e) => onChange({ recipientUserId: e.target.value })}><option value="">선택</option>{!candidates.some((candidate) => candidate.userId === item.recipientUserId) && item.recipientUserId && <option value={item.recipientUserId}>현재 참여자</option>}{candidates.map((candidate) => <option key={candidate.userId} value={candidate.userId}>{candidate.name}</option>)}</select></Field><Field label="수당 항목"><input className="input" value={item.category} onChange={(e) => onChange({ category: e.target.value })} placeholder="리허설, 공연, 교통비" /></Field><Field label="메일 요청액·기준"><input className="input" value={item.requestedAmountRaw ?? ""} onChange={(e) => onChange({ requestedAmountRaw: e.target.value || null })} placeholder="세무 기준 미확정 요청액" /></Field><Field label="세전액"><input className="input" inputMode="decimal" value={item.grossAmount ?? ""} onChange={(e) => onChange({ grossAmount: numeric(e.target.value) })} placeholder="금액 미확정" /></Field><Field label="세무 유형"><select className="select" value={item.taxType} onChange={(e) => onChange({ taxType: e.target.value as FinanceAllowanceDraftItemInput["taxType"] })}><option value="undecided">미정</option><option value="business_income_3_3">사업소득 3.3%</option><option value="invoice">세금계산서</option><option value="foreign">외국인</option><option value="none">공제 없음</option></select></Field><Field label="지급 예정일"><input className="input" type="date" value={item.scheduledPaymentDate ?? ""} onChange={(e) => onChange({ scheduledPaymentDate: e.target.value || null })} /></Field><Field label="증빙 참조"><input className="input" value={item.evidenceRef ?? ""} onChange={(e) => onChange({ evidenceRef: e.target.value || null })} placeholder="문서 또는 거래 참조" /></Field><Field label="사유" full><input className="input" value={item.reason} onChange={(e) => onChange({ reason: e.target.value })} placeholder="수당 산정 근거" /></Field></div><button className="btn ghost danger sm" type="button" onClick={onRemove}>항목 삭제</button></div>;
 }
 
-function Transactions({ detail, isGlobal, onMutate }: { detail: FinanceProjectDetail; isGlobal: boolean; onMutate: (path: string, method: "POST" | "PUT", body: unknown, success: string) => Promise<void> }) {
+function Transactions({ detail, isGlobal, onMutate }: { detail: FinanceProjectDetail; isGlobal: boolean; onMutate: FinanceMutation }) {
   const [receipt, setReceipt] = useState({ amount: "", sourceSystem: "", sourceAccountRef: "", sourceTransactionId: "", receivedAt: "", counterparty: "", evidenceRef: "" });
   const [payment, setPayment] = useState({ amount: "", sourceSystem: "", sourceAccountRef: "", sourceTransactionId: "", paidAt: "", recipientUserId: detail.allowances[0]?.recipientUserId ?? "", allowanceItemId: detail.allowances[0]?.id ?? "", evidenceRef: "" });
   const [busy, setBusy] = useState(false);
   async function addReceipt() { setBusy(true); try { const body: FinanceReceiptInput = { idempotencyKey: crypto.randomUUID(), sourceSystem: receipt.sourceSystem, sourceAccountRef: receipt.sourceAccountRef, sourceTransactionId: receipt.sourceTransactionId, amount: numeric(receipt.amount) ?? 0, currency: detail.currency, receivedAt: receipt.receivedAt || null, counterparty: receipt.counterparty || null, status: "executed", evidenceRef: receipt.evidenceRef || null }; await onMutate("/receipts", "POST", body, "수금 증빙을 등록했습니다."); } catch (cause) { toast.error(cause instanceof Error ? cause.message : "등록하지 못했습니다."); } finally { setBusy(false); } }
   async function addPayment() { if (!payment.recipientUserId.trim() || !payment.allowanceItemId) { toast.error("배부할 수당 항목을 선택해주세요."); return; } setBusy(true); try { const amount = numeric(payment.amount) ?? 0; const body: FinancePaymentInput = { idempotencyKey: crypto.randomUUID(), sourceSystem: payment.sourceSystem, sourceAccountRef: payment.sourceAccountRef, sourceTransactionId: payment.sourceTransactionId, amount, currency: detail.currency, paidAt: payment.paidAt || null, recipientUserId: payment.recipientUserId.trim(), status: "executed", evidenceRef: payment.evidenceRef || null, allocations: [{ allowanceItemId: payment.allowanceItemId, amount }] }; await onMutate("/payments", "POST", body, "지급 증빙을 등록했습니다."); } catch (cause) { toast.error(cause instanceof Error ? cause.message : "등록하지 못했습니다."); } finally { setBusy(false); } }
-  return <div className="finance-stack"><section className="card finance-section"><div className="card-head"><h2>수금 내역</h2><span className="hint">실제 입금 확인분만 누계에 반영됩니다.</span></div><TransactionList rows={detail.receipts.map((row) => ({ id: row.id, title: row.counterparty ?? "거래처 미입력", date: row.receivedAt, amount: row.amount, status: row.status, evidencePresent: row.evidencePresent }))} empty="등록된 수금 내역이 없습니다." />{isGlobal && <TransactionForm kind="receipt" values={receipt} setValues={setReceipt} onSubmit={addReceipt} busy={busy} />}</section><section className="card finance-section"><div className="card-head"><h2>지급 내역</h2><span className="hint">실제 이체 완료분만 지급 누계에 반영됩니다.</span></div><TransactionList rows={detail.payments.map((row) => ({ id: row.id, title: row.recipientUserId ?? "수취인 미입력", date: row.paidAt, amount: row.amount, status: row.status, evidencePresent: row.evidencePresent }))} empty="등록된 지급 내역이 없습니다." />{isGlobal && <PaymentForm values={payment} setValues={setPayment} allowances={detail.allowances} onSubmit={addPayment} busy={busy} />}</section></div>;
+  const paymentTitle = (recipientUserId: string | null) => {
+    const allowance = detail.allowances.find((item) => item.recipientUserId === recipientUserId);
+    if (!allowance) return "수취인 정보 확인";
+    return [allowance.recipientName, allowance.category, allowance.reason].filter(Boolean).join(" · ");
+  };
+  return <div className="finance-stack"><section className="card finance-section"><div className="card-head"><h2>수금 내역</h2><span className="hint">실제 입금 확인분만 누계에 반영됩니다.</span></div><TransactionList rows={detail.receipts.map((row) => ({ id: row.id, title: row.counterparty ?? "거래처 미입력", date: row.receivedAt, amount: row.amount, status: row.status, evidencePresent: row.evidencePresent }))} empty="등록된 수금 내역이 없습니다." />{isGlobal && <TransactionForm kind="receipt" values={receipt} setValues={setReceipt} onSubmit={addReceipt} busy={busy} />}</section><section className="card finance-section"><div className="card-head"><h2>지급 내역</h2><span className="hint">실제 이체 완료분만 지급 누계에 반영됩니다.</span></div><TransactionList rows={detail.payments.map((row) => ({ id: row.id, title: paymentTitle(row.recipientUserId), date: row.paidAt, amount: row.amount, status: row.status, evidencePresent: row.evidencePresent }))} empty="등록된 지급 내역이 없습니다." />{isGlobal && <PaymentForm values={payment} setValues={setPayment} allowances={detail.allowances} onSubmit={addPayment} busy={busy} />}</section></div>;
 }
 
 function TransactionList({ rows, empty }: { rows: Array<{ id: string; title: string; date: string | null; amount: number; status: string; evidencePresent: boolean }>; empty: string }) { return rows.length ? <div className="finance-transaction-list">{rows.map((row) => <div key={row.id}><div><strong>{row.title}</strong><small>{formatDate(row.date)} · {row.evidencePresent ? "증빙 연결" : "증빙 확인 필요"}</small></div><span className="tabnum">{formatWon(row.amount)}</span><FinanceStatus status={row.status} /></div>)}</div> : <p className="finance-empty-copy">{empty}</p>; }
