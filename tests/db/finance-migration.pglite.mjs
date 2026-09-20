@@ -21,9 +21,11 @@ const ids = {
   manager: "10000000-0000-4000-8000-000000000003",
   member: "10000000-0000-4000-8000-000000000004",
   coManager: "10000000-0000-4000-8000-000000000005",
+  formerMember: "10000000-0000-4000-8000-000000000006",
   managerCrew: "20000000-0000-4000-8000-000000000003",
   memberCrew: "20000000-0000-4000-8000-000000000004",
   coManagerCrew: "20000000-0000-4000-8000-000000000005",
+  formerMemberCrew: "20000000-0000-4000-8000-000000000006",
   project: "30000000-0000-4000-8000-000000000001",
   unbudgetedProject: "30000000-0000-4000-8000-000000000002",
 };
@@ -63,16 +65,19 @@ await db.exec(`
   INSERT INTO auth.users VALUES
     ('${ids.global}', 'finance@example.test'), ('${ids.owner}', 'owner@example.test'),
     ('${ids.manager}', 'manager@example.test'), ('${ids.member}', 'member@example.test'),
-    ('${ids.coManager}', 'co-manager@example.test');
+    ('${ids.coManager}', 'co-manager@example.test'),
+    ('${ids.formerMember}', 'former-member@example.test');
   INSERT INTO public.users VALUES
     ('${ids.owner}', 'owner@example.test', 'Owner'),
     ('${ids.manager}', 'manager@example.test', 'Manager'),
     ('${ids.member}', 'member@example.test', 'Member'),
-    ('${ids.coManager}', 'co-manager@example.test', 'Co-manager');
+    ('${ids.coManager}', 'co-manager@example.test', 'Co-manager'),
+    ('${ids.formerMember}', 'former-member@example.test', 'Former member');
   INSERT INTO public.crew_members VALUES
     ('${ids.managerCrew}', '${ids.manager}', 'Manager', NULL, NULL, true),
     ('${ids.memberCrew}', '${ids.member}', 'Member', NULL, NULL, true),
-    ('${ids.coManagerCrew}', '${ids.coManager}', 'Co-manager', NULL, NULL, true);
+    ('${ids.coManagerCrew}', '${ids.coManager}', 'Co-manager', NULL, NULL, true),
+    ('${ids.formerMemberCrew}', '${ids.formerMember}', 'Former member', NULL, NULL, false);
   INSERT INTO public.projects VALUES
     ('${ids.project}', '${ids.owner}', 'Finance Test', 0),
     ('${ids.unbudgetedProject}', '${ids.owner}', 'Unbudgeted Finance Test', 0);
@@ -98,6 +103,11 @@ const archiveMigration = await readFile(
   "utf8"
 );
 await db.exec(archiveMigration);
+const memberDirectoryMigration = await readFile(
+  new URL("../../supabase/migrations/20260920140000_finance_member_directory.sql", import.meta.url),
+  "utf8"
+);
+await db.exec(memberDirectoryMigration);
 
 await db.query(
   `INSERT INTO public.finance_access_grants(user_id, role, reason) VALUES ($1, 'finance', 'test')`,
@@ -168,6 +178,36 @@ const coManagerRows = await asUser(ids.coManager, `SELECT user_id FROM public.fi
 assert.equal(coManagerRows.rows.length, 2, "a manager can read co-manager assignments for the same project");
 const unassignedManagerRows = await asUser(ids.owner, `SELECT user_id FROM public.finance_project_managers WHERE project_id=$1`, [ids.project]);
 assert.equal(unassignedManagerRows.rows.length, 0, "an unassigned user cannot read manager assignments");
+
+await db.exec(`
+  ALTER TABLE public.crew_members ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY crew_members_self_select ON public.crew_members
+    FOR SELECT TO authenticated USING (user_id = auth.uid());
+  GRANT SELECT ON public.crew_members TO authenticated;
+`);
+const directDirectoryRows = await asUser(ids.global, `SELECT id FROM public.crew_members`);
+assert.equal(directDirectoryRows.rows.length, 0, "inactive global finance does not bypass crew directory RLS");
+const globalDirectory = await asUser(ids.global, `SELECT * FROM public.finance_get_member_directory($1)`, [ids.global]);
+assert.equal(globalDirectory.rows.length, 4, "global finance receives the minimal full member directory");
+assert.deepEqual(
+  Object.keys(globalDirectory.rows[0]).sort(),
+  ["id", "is_active", "name", "profile_image_url", "stage_name", "user_id"],
+  "directory RPC exposes only the approved safe fields"
+);
+assert.equal(
+  globalDirectory.rows.some((row) => row.id === ids.formerMemberCrew && row.is_active === false),
+  true,
+  "global finance can resolve historic inactive recipient names"
+);
+const managerDirectory = await asUser(ids.manager, `SELECT * FROM public.finance_get_member_directory($1)`, [ids.manager]);
+assert.equal(managerDirectory.rows.length, 4, "an assigned manager receives the directory needed to resolve co-managers");
+const memberDirectory = await asUser(ids.member, `SELECT * FROM public.finance_get_member_directory($1)`, [ids.member]);
+assert.deepEqual(memberDirectory.rows.map((row) => row.id), [ids.memberCrew], "an ordinary member receives only their own directory row");
+await assert.rejects(
+  () => asRole("anon", null, `SELECT * FROM public.finance_get_member_directory($1)`, [ids.member]),
+  /permission denied/i,
+  "anon cannot call the member directory RPC"
+);
 await asUser(ids.global, `SELECT * FROM public.finance_set_project_managers($1,$2,0,$3::jsonb,'assign')`, [
   ids.global, ids.unbudgetedProject, JSON.stringify([{ crewMemberId: ids.managerCrew, isPrimary: true }]),
 ]);

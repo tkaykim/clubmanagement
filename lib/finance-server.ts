@@ -23,6 +23,14 @@ export type FinanceIdentity = {
 };
 
 type DbError = { code?: string; message?: string; details?: string | null; hint?: string | null };
+type FinanceMemberDirectoryRow = {
+  id: string;
+  user_id: string | null;
+  name: string | null;
+  stage_name: string | null;
+  profile_image_url: string | null;
+  is_active: boolean;
+};
 
 function money(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -133,32 +141,44 @@ export function financeDbError(error: DbError | null | undefined): NextResponse 
   return financeApiError(500, "INTERNAL_ERROR", "재무 처리 중 오류가 발생했습니다");
 }
 
-async function loadManagers(supabase: SupabaseClient, projectId: string): Promise<FinanceManager[]> {
+async function loadFinanceMemberDirectory(
+  supabase: SupabaseClient,
+  identity: Pick<FinanceIdentity, "userId">
+): Promise<{ byCrewMemberId: Map<string, FinanceMemberDirectoryRow>; byUserId: Map<string, FinanceMemberDirectoryRow> }> {
+  // The actor always comes from the authenticated server-side finance identity.
+  // Never accept an arbitrary user id from a request body or query string here.
+  const { data, error } = await supabase.rpc("finance_get_member_directory", {
+    p_actor_user_id: identity.userId,
+  });
+  if (error) throw new Error("finance member directory lookup failed");
+  const byCrewMemberId = new Map<string, FinanceMemberDirectoryRow>();
+  const byUserId = new Map<string, FinanceMemberDirectoryRow>();
+  for (const row of (data ?? []) as FinanceMemberDirectoryRow[]) {
+    byCrewMemberId.set(row.id, row);
+    if (row.user_id) byUserId.set(row.user_id, row);
+  }
+  return { byCrewMemberId, byUserId };
+}
+
+async function loadManagers(
+  supabase: SupabaseClient,
+  projectId: string,
+  memberDirectory: Awaited<ReturnType<typeof loadFinanceMemberDirectory>>
+): Promise<FinanceManager[]> {
   const { data: rows } = await supabase
     .from("finance_project_managers")
     .select("id,user_id,crew_member_id,is_primary,assigned_at")
     .eq("project_id", projectId)
     .order("assigned_at", { ascending: true });
   const managers = (rows ?? []) as Array<Record<string, unknown>>;
-  const memberIds = managers.map((row) => String(row.crew_member_id));
-  const memberMap = new Map<string, Record<string, unknown>>();
-  if (memberIds.length) {
-    const { data: members } = await supabase
-      .from("crew_members")
-      .select("id,name,stage_name,profile_image_url")
-      .in("id", memberIds);
-    for (const member of (members ?? []) as Array<Record<string, unknown>>) {
-      memberMap.set(String(member.id), member);
-    }
-  }
   return managers.map((row) => {
-    const member = memberMap.get(String(row.crew_member_id));
+    const member = memberDirectory.byCrewMemberId.get(String(row.crew_member_id));
     return {
       id: String(row.id),
       userId: String(row.user_id),
       crewMemberId: String(row.crew_member_id),
-      name: String(member?.stage_name ?? member?.name ?? "멤버"),
-      profileImageUrl: (member?.profile_image_url as string | null | undefined) ?? null,
+      name: String(member?.stage_name || member?.name || "멤버"),
+      profileImageUrl: member?.profile_image_url ?? null,
       isPrimary: row.is_primary === true,
       assignedAt: String(row.assigned_at),
     };
@@ -186,6 +206,7 @@ async function loadProjectMeta(supabase: SupabaseClient, projectId: string) {
 async function loadAllowance(
   supabase: SupabaseClient,
   projectId: string,
+  memberDirectory: Awaited<ReturnType<typeof loadFinanceMemberDirectory>>,
   mode: "display" | "confirmed" = "display"
 ): Promise<{
   batch: Record<string, unknown> | null;
@@ -212,17 +233,6 @@ async function loadAllowance(
     .eq("batch_id", String(batch.id))
     .order("created_at", { ascending: true });
   const rawItems = (itemRows ?? []) as Array<Record<string, unknown>>;
-  const userIds = Array.from(new Set(rawItems.map((row) => String(row.recipient_user_id))));
-  const memberMap = new Map<string, Record<string, unknown>>();
-  if (userIds.length) {
-    const { data: members } = await supabase
-      .from("crew_members")
-      .select("id,user_id,name,stage_name")
-      .in("user_id", userIds);
-    for (const member of (members ?? []) as Array<Record<string, unknown>>) {
-      memberMap.set(String(member.user_id), member);
-    }
-  }
 
   const allBatchIds = allBatches.map((row) => String(row.id));
   let allProjectItemRows = rawItems;
@@ -261,7 +271,7 @@ async function loadAllowance(
   }
 
   const items = rawItems.map((row): FinanceAllowanceItem => {
-    const recipient = memberMap.get(String(row.recipient_user_id));
+    const recipient = memberDirectory.byUserId.get(String(row.recipient_user_id));
     const netAmount = money(row.net_amount);
     // The normal detail view returns the currently selected batch. When that batch
     // is confirmed, its executed payment allocations are part of the display too.
@@ -272,7 +282,7 @@ async function loadAllowance(
       id: String(row.id),
       recipientUserId: String(row.recipient_user_id),
       recipientCrewMemberId: (row.recipient_crew_member_id as string | null) ?? null,
-      recipientName: String(recipient?.stage_name ?? recipient?.name ?? "멤버"),
+      recipientName: String(recipient?.stage_name || recipient?.name || "멤버"),
       category: String(row.category),
       reason: String(row.reason),
       requestedAmountRaw: (row.requested_amount_raw as string | null) ?? null,
@@ -345,11 +355,12 @@ export async function getFinanceProjectDetail(
     .maybeSingle();
   if (error || !financeRow) return null;
   const row = financeRow as Record<string, unknown>;
+  const memberDirectory = await loadFinanceMemberDirectory(client, identity);
   const [meta, managers, allowance, confirmedAllowance, receipts, budgetEvidence] = await Promise.all([
     loadProjectMeta(client, projectId),
-    loadManagers(client, projectId),
-    loadAllowance(client, projectId),
-    loadAllowance(client, projectId, "confirmed"),
+    loadManagers(client, projectId, memberDirectory),
+    loadAllowance(client, projectId, memberDirectory),
+    loadAllowance(client, projectId, memberDirectory, "confirmed"),
     loadReceipts(client, projectId),
     client
       .from("finance_evidence")
@@ -475,6 +486,7 @@ export async function getFinanceMySettlements(
       nextCursor: null,
     };
   }
+  const memberDirectory = await loadFinanceMemberDirectory(supabase, identity);
   let batchQuery = supabase
     .from("finance_allowance_batches")
     .select("id,project_id,confirmed_at,status")
@@ -495,7 +507,7 @@ export async function getFinanceMySettlements(
   const settlements: FinanceMySettlement[] = [];
   for (const batch of (batchRows ?? []) as Array<Record<string, unknown>>) {
     const projectId = String(batch.project_id);
-    const allowance = await loadAllowance(supabase, projectId, "confirmed");
+    const allowance = await loadAllowance(supabase, projectId, memberDirectory, "confirmed");
     const mine = allowance.items
       .filter((item) => item.recipientUserId === identity.userId)
       .map((item) => {
