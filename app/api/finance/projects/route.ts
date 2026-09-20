@@ -1,10 +1,11 @@
 import { isNextResponse } from "@/lib/auth";
+import { canEnterFinance } from "@/lib/finance-access";
 import { financeApiError, financeJson, getFinanceProjects, requireFinanceIdentity } from "@/lib/finance-server";
 
 export async function GET(request: Request) {
   const identity = await requireFinanceIdentity();
   if (isNextResponse(identity)) return identity;
-  if (!identity.isGlobal && identity.managedProjectIds.length === 0) {
+  if (!canEnterFinance(identity)) {
     return financeApiError(403, "FORBIDDEN", "재무 프로젝트 권한이 없습니다");
   }
   const params = new URL(request.url).searchParams;

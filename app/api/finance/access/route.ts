@@ -1,4 +1,5 @@
 import { financeJson, getFinanceIdentity } from "@/lib/finance-server";
+import { canEnterFinance } from "@/lib/finance-access";
 
 export async function GET() {
   const identity = await getFinanceIdentity();
@@ -8,7 +9,7 @@ export async function GET() {
   return financeJson({
     data: {
       authenticated: true,
-      canAccessFinance: identity.isGlobal || identity.managedProjectIds.length > 0,
+      canAccessFinance: canEnterFinance(identity),
       isGlobal: identity.isGlobal,
       managedProjectIds: identity.managedProjectIds,
     },

@@ -168,7 +168,7 @@ export function FinanceProjectsClient() {
       )}
 
       {visibleProjects.length === 0 ? (
-        <FinanceEmpty title="조건에 맞는 프로젝트가 없습니다" description="필터를 바꾸거나 기간을 넓혀 확인해 주세요." />
+        <FinanceEmpty title="표시할 프로젝트가 없습니다" description="담당자로 배정된 프로젝트가 없거나 현재 필터 조건에 맞는 프로젝트가 없습니다." />
       ) : (
         <>
         <section className="card finance-project-cards mob-only">
