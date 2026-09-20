@@ -9,19 +9,27 @@ export async function GET() {
     return financeApiError(403, "FORBIDDEN", "재무 프로젝트 권한이 없습니다");
   }
   const supabase = createRouteSupabaseClient();
-  const { data, error } = await supabase
-    .from("crew_members")
-    .select("id,user_id,name,stage_name,profile_image_url")
-    .eq("is_active", true)
-    .not("user_id", "is", null)
-    .order("name", { ascending: true });
+  const { data, error } = await supabase.rpc("finance_get_member_directory", {
+    p_actor_user_id: identity.userId,
+  });
   if (error) return financeApiError(500, "INTERNAL_ERROR", "담당자 후보를 불러오지 못했습니다");
-  return financeJson({
-    data: (data ?? []).map((row) => ({
+  const members = ((data ?? []) as Array<{
+    id: string;
+    user_id: string | null;
+    name: string | null;
+    stage_name: string | null;
+    profile_image_url: string | null;
+    is_active: boolean;
+  }>)
+    .filter((row) => row.is_active && Boolean(row.user_id))
+    .map((row) => ({
       crewMemberId: row.id,
-      userId: row.user_id,
-      name: row.stage_name || row.name,
+      userId: row.user_id!,
+      name: row.stage_name || row.name || "멤버",
       profileImageUrl: row.profile_image_url ?? null,
-    })),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  return financeJson({
+    data: members,
   });
 }

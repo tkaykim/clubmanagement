@@ -260,6 +260,23 @@ test.describe("finance privacy boundaries — live Supabase and browser", () => 
     await client.auth.signOut();
   });
 
+  test("browser/API: finance-only staff can resolve names without contact details", async ({ page }) => {
+    await loginBrowser(page, fixture.users.finance);
+    const membersResponse = await page.request.get("/api/finance/members");
+    expect(membersResponse.status()).toBe(200);
+    const members = (await membersResponse.json()).data;
+    expect(members.some((member: { userId: string }) => member.userId === fixture.users.manager.userId)).toBe(true);
+    for (const member of members) {
+      expect(Object.keys(member).sort()).toEqual(["crewMemberId", "name", "profileImageUrl", "userId"].sort());
+    }
+    const response = await page.request.get(`/api/finance/projects/${fixture.projects.primary.id}`);
+    expect(response.status()).toBe(200);
+    const detail = (await response.json()).data;
+    expect(detail.managers.length).toBeGreaterThan(0);
+    expect(detail.managers[0].name).not.toBe("멤버");
+    expect(detail.allowances[0].recipientName).not.toBe("멤버");
+  });
+
   test("Data API RLS: legacy payouts are self or explicit finance-management scope only", async () => {
     const cases: Array<{
       key: AccountKey;
