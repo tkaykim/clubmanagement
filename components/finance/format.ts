@@ -10,7 +10,7 @@ export function formatWon(value: number | null, compact = false, currency = "KRW
 
 export function formatDate(value: string | null): string {
   if (!value) return "미정";
-  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
+  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "short", day: "numeric", timeZone: "Asia/Seoul" }).format(new Date(value));
 }
 
 export function financeStatusLabel(status: string): string {

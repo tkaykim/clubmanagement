@@ -100,6 +100,67 @@ async function loginBrowser(page: Page, account: Account): Promise<void> {
   expect(response.status()).toBe(200);
 }
 
+type ConcurrentRequestDiagnostic = {
+  request: number;
+  outcome: "response" | "rejected";
+  elapsedMs: number;
+  status?: number;
+  code?: string;
+  error?: string;
+};
+
+async function browserConcurrentDrafts(
+  page: Page,
+  path: string,
+  payload: unknown
+): Promise<ConcurrentRequestDiagnostic[]> {
+  // This runs in Chromium itself, so it exercises the same cookie and transport
+  // behavior a manager uses in two simultaneous UI actions.
+  if (page.url() === "about:blank") {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+  }
+  return page.evaluate(async ({ path: requestPath, input }) => {
+    const one = async (request: number) => {
+      const startedAt = performance.now();
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15_000);
+      try {
+        const response = await fetch(requestPath, {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+          signal: controller.signal,
+        });
+        let body: Record<string, unknown> | null = null;
+        try {
+          body = (await response.json()) as Record<string, unknown>;
+        } catch {
+          // Keep the status/timing diagnostic even when a proxy returns non-JSON.
+        }
+        return {
+          request,
+          outcome: "response" as const,
+          elapsedMs: Math.round(performance.now() - startedAt),
+          status: response.status,
+          ...(typeof body?.code === "string" ? { code: body.code } : {}),
+          ...(typeof body?.error === "string" ? { error: body.error } : {}),
+        };
+      } catch (error) {
+        return {
+          request,
+          outcome: "rejected" as const,
+          elapsedMs: Math.round(performance.now() - startedAt),
+          error: error instanceof Error ? error.name : "unknown",
+        };
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+    return Promise.all([one(1), one(2)]);
+  }, { path, input: payload });
+}
+
 function expectNoPrivateMarkers(text: string, fixture: Fixture, allowed: number[] = []): void {
   const markers = [
     fixture.projects.primary.budgetAmount,
@@ -368,16 +429,15 @@ test.describe("finance privacy boundaries — live Supabase and browser", () => 
       ],
     };
     expect(before.allowanceStatus).not.toBe("draft");
-    const draftResults = await Promise.allSettled([
-      page.request.put(`/api/finance/projects/${projectId}/allowances`, { data: draftPayload, timeout: 15_000 }),
-      page.request.put(`/api/finance/projects/${projectId}/allowances`, { data: draftPayload, timeout: 15_000 }),
-    ]);
-    expect(draftResults.every((result) => result.status === "fulfilled")).toBe(true);
-    const [firstDraft, secondDraft] = draftResults.map((result) => {
-      if (result.status === "rejected") throw result.reason;
-      return result.value;
-    });
-    expect([firstDraft.status(), secondDraft.status()].sort()).toEqual([200, 409]);
+    const draftDiagnostics = await browserConcurrentDrafts(
+      page,
+      `/api/finance/projects/${projectId}/allowances`,
+      draftPayload
+    );
+    const draftStatuses = draftDiagnostics.map((result) => result.status).sort();
+    if (JSON.stringify(draftStatuses) !== JSON.stringify([200, 409])) {
+      throw new Error(`Concurrent allowance draft diagnostics: ${JSON.stringify(draftDiagnostics)}`);
+    }
 
     const draftedResponse = await page.request.get(`/api/finance/projects/${projectId}`);
     expect(draftedResponse.status()).toBe(200);
