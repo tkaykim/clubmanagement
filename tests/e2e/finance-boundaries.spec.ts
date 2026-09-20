@@ -364,6 +364,22 @@ test.describe("finance privacy boundaries — live Supabase and browser", () => 
     const text = await response.text();
     expect(text).toContain(String(fixture.allowances.member.grossAmount));
     expectNoPrivateMarkers(text, fixture, [fixture.allowances.member.grossAmount]);
+
+    const personalCsv = await page.request.get("/api/finance/my-settlements/csv");
+    expect(personalCsv.status()).toBe(200);
+    expect(await personalCsv.text()).toContain(String(fixture.allowances.member.grossAmount));
+    for (const period of ["year=9999", "month=9999-12"]) {
+      const filtered = await page.request.get(`/api/finance/my-settlements?${period}`);
+      expect(filtered.status()).toBe(200);
+      expect((await filtered.json()).data).toEqual([]);
+      const filteredCsv = await page.request.get(`/api/finance/my-settlements/csv?${period}`);
+      expect(filteredCsv.status()).toBe(200);
+      expect(await filteredCsv.text()).not.toContain(String(fixture.allowances.member.grossAmount));
+    }
+    await page.goto("/my-settlements");
+    await page.locator(".finance-my-filters select").selectOption("");
+    await expect(page.locator(".finance-settlement-card").first()).toBeVisible();
+    expectNoPrivateMarkers(await page.locator("body").innerText(), fixture, [fixture.allowances.member.grossAmount]);
   });
 
   test("browser/API: legacy payout mutation endpoints remain disabled for authorized users", async ({ page }) => {

@@ -1,4 +1,5 @@
 import { isNextResponse } from "@/lib/auth";
+import { filterFinanceSettlementsByEventDate } from "@/lib/finance-settlement-date-filter";
 import { financeJson, getFinanceMySettlements, requireFinanceIdentity } from "@/lib/finance-server";
 
 export async function GET(request: Request) {
@@ -8,14 +9,7 @@ export async function GET(request: Request) {
   const result = await getFinanceMySettlements(identity, { projectId: params.get("projectId") });
   const year = params.get("year");
   const month = params.get("month");
-  if (year || month) {
-    result.data = result.data.filter((row) => {
-      if (!row.eventDate) return false;
-      if (year && !row.eventDate.startsWith(year)) return false;
-      if (month && row.eventDate.slice(5, 7) !== month.padStart(2, "0")) return false;
-      return true;
-    });
-  }
+  result.data = filterFinanceSettlementsByEventDate(result.data, { year, month });
   const totalsByCurrency: typeof result.totals.totalsByCurrency = {};
   for (const settlement of result.data) {
     const totals = totalsByCurrency[settlement.currency] ?? {
