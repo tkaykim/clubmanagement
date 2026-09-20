@@ -444,7 +444,8 @@ export async function getFinanceProjects(
   const limit = Math.min(100, Math.max(1, options.limit ?? 50));
   let query = supabase
     .from("project_finance")
-    .select("project_id")
+    .select("project_id,projects!inner(pay_type)")
+    .neq("projects.pay_type", "free")
     .is("archived_at", null)
     .order("project_id", { ascending: true })
     .limit(limit + 1);

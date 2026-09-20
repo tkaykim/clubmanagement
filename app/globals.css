@@ -1806,6 +1806,23 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .finance-definition-list dd { margin: 8px 0 0; font-family: var(--font-mono); font-size: 15px; font-weight: 700; }
 .finance-manager-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .finance-manager-list > div { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+.finance-manager-selection { display: flex; flex-wrap: wrap; gap: 6px; }
+.finance-manager-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px 5px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--muted); color: var(--fg); font-size: 12px; }
+.finance-manager-chip button { display: inline-grid; place-items: center; width: 17px; height: 17px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--mf); cursor: pointer; font-size: 16px; line-height: 1; }
+.finance-manager-chip button:hover:not(:disabled) { background: var(--border); color: var(--fg); }
+.finance-member-combobox { position: relative; min-width: 0; }
+.finance-member-combobox-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; background-image: none; }
+.finance-member-combobox-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finance-member-combobox-popover { position: absolute; z-index: 20; top: calc(100% + 5px); left: 0; right: 0; padding: 7px; border: 1px solid var(--border); border-radius: var(--radius-os-sm); background: var(--bg); box-shadow: 0 10px 24px rgba(0,0,0,.12); }
+.finance-member-combobox-search { position: relative; display: flex; align-items: center; }
+.finance-member-combobox-search > svg { position: absolute; left: 9px; color: var(--mf); pointer-events: none; }
+.finance-member-combobox-search .input { padding-left: 30px; padding-right: 30px; }
+.finance-member-combobox-clear { position: absolute; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--mf); cursor: pointer; }
+.finance-member-combobox-clear:hover { background: var(--muted); color: var(--fg); }
+.finance-member-combobox-list { max-height: 208px; margin: 6px 0 0; padding: 0; overflow: auto; list-style: none; }
+.finance-member-combobox-list li[role="option"] { padding: 8px 9px; border-radius: 5px; color: var(--fg); cursor: pointer; font-size: 13px; }
+.finance-member-combobox-list li.active, .finance-member-combobox-list li[role="option"]:hover { background: var(--muted); }
+.finance-member-combobox-empty { padding: 10px 9px; color: var(--mf); font-size: 12px; }
 .finance-edit-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
 .finance-edit-block .textarea { min-height: 74px; }
 .finance-edit-block .hint { margin: -4px 0 0; color: var(--mf); font-size: 11px; }
