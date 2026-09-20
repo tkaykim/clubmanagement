@@ -4,6 +4,7 @@ import { ActiveGuard } from "@/components/auth/ActiveGuard";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { AppShell } from "@/components/layout/AppShell";
 import type { CrewMember } from "@/lib/types";
+import { getFinanceIdentity } from "@/lib/finance-server";
 
 // 인증/권한 1차 판정만 수행. 사이드바/네비 카운트는 클라이언트에서 /api/me/counts로 fetch.
 // (이전: 매 nav마다 6개 Supabase 쿼리 실행 → PWA 탭 전환 체감 지연의 주범)
@@ -24,8 +25,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   const me = memberData as CrewMember | null;
   const isAdmin = me?.role === "admin" || me?.role === "owner";
+  const financeIdentity = await getFinanceIdentity();
+  const hasFinanceAccess = Boolean(financeIdentity?.isGlobal || financeIdentity?.managedProjectIds.length);
+  // Auth provisioning may create an inactive crew row for a finance-only account.
+  const financeOnly = Boolean(financeIdentity?.isGlobal && !me?.is_active);
   const initialStatus: "active" | "inactive" =
-    isAdmin || me?.is_active ? "active" : "inactive";
+    isAdmin || me?.is_active || hasFinanceAccess ? "active" : "inactive";
 
   // 프로젝트 관리자(읽기전용)로 지정된 멤버인지 — '내 담당 프로젝트' 메뉴 노출용.
   // 운영진은 /manage 를 쓰므로 비운영진에게만 확인.
@@ -39,9 +44,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <ActiveGuard initialStatus={initialStatus}>
+    <ActiveGuard initialStatus={initialStatus} financeOnly={financeOnly}>
       <SessionRefresher />
-      <AppShell me={me} isAdmin={isAdmin} isProjectManager={isProjectManager}>
+      <AppShell me={financeOnly ? null : me} isAdmin={financeOnly ? false : isAdmin} isProjectManager={isProjectManager} hasFinanceAccess={hasFinanceAccess} financeOnly={financeOnly}>
         {children}
       </AppShell>
     </ActiveGuard>

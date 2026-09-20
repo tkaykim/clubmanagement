@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Folder, Sparkles, Calendar, User } from "lucide-react";
+import { WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -17,14 +18,15 @@ interface MobileBottomNavProps {
   counts?: {
     myPending?: number;
   };
+  financeOnly?: boolean;
 }
 
-export function BottomNav({ counts = {} }: MobileBottomNavProps) {
+export function BottomNav({ counts = {}, financeOnly = false }: MobileBottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="m-bottom mob-only">
-      {TABS.map(({ href, label, icon: Icon, key }) => {
+    <nav className={cn("m-bottom mob-only", financeOnly && "finance-only")}>
+      {(financeOnly ? [{ href: "/finance", label: "재무", icon: WalletCards, key: "finance" }] : TABS).map(({ href, label, icon: Icon, key }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
         const count = key === "mypage" ? (counts.myPending ?? 0) : 0;
 

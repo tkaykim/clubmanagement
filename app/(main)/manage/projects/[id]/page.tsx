@@ -42,7 +42,7 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
 
   if (error || !project) notFound();
 
-  // NOTE: project_applications.user_id / payouts.user_id 는 users(id) FK 이고
+  // NOTE: project_applications.user_id 는 users(id) FK 이고
   // crew_members 로의 FK 는 없으므로 PostgREST nested embed (`crew_members:user_id(...)`)
   // 는 관계 자동감지에 실패해 실제로는 applications/payouts 배열이 비거나 null 이 된다.
   // → 따로 조회해서 user_id 로 매칭한다.
@@ -52,18 +52,13 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  const { data: rawPayouts } = await supabase
-    .from("payouts")
-    .select("id, amount, status, scheduled_at, paid_at, note, user_id")
-    .eq("project_id", projectId);
-
-  // applications + payouts 에 등장하는 user_id 를 모아 crew_members 한 번에 조회
+  // 레거시 프로젝트 관리 화면에서는 금액을 읽지 않는다.
+  // 재무 권한과 운영진 권한은 별개이며, 정산은 finance 전용 화면에서 조회한다.
   const crewUserIds = Array.from(
     new Set(
-      [
-        ...(rawApps ?? []).map((a: { user_id: string | null }) => a.user_id),
-        ...(rawPayouts ?? []).map((p: { user_id: string | null }) => p.user_id),
-      ].filter((v): v is string => !!v)
+      (rawApps ?? [])
+        .map((a: { user_id: string | null }) => a.user_id)
+        .filter((v): v is string => !!v)
     )
   );
   type CrewLite = { id: string; name: string; stage_name: string | null; role: string; position: string | null };
@@ -111,19 +106,6 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           note: string | null;
         }> };
 
-  type RawPayout = {
-    id: string; amount: number; status: string;
-    scheduled_at: string | null; paid_at: string | null;
-    note: string | null; user_id: string | null;
-  };
-  const payouts = ((rawPayouts ?? []) as RawPayout[]).map((p) => {
-    const cm = p.user_id ? crewMap.get(p.user_id) ?? null : null;
-    return {
-      ...p,
-      crew_members: cm ? { id: cm.id, name: cm.name, stage_name: cm.stage_name } : null,
-    };
-  });
-
   const { data: announcements } = await supabase
     .from("announcements")
     .select("*")
@@ -170,7 +152,6 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           time_slots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
           note: string | null;
         }>}
-        payouts={(payouts ?? []) as Array<{ id: string; amount: number; status: string; scheduled_at: string | null; paid_at: string | null; note: string | null; crew_members: { id: string; name: string; stage_name: string | null } | null }>}
         announcements={(announcements ?? []) as Array<{ id: string; title: string; body: string; pinned: boolean; created_at: string }>}
         initialTab={tab}
       />

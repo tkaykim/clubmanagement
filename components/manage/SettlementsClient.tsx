@@ -23,6 +23,8 @@ type View = "list" | "members";
 interface Props {
   rows: SettlementRow[];
   month: string; // YYYY-MM or "all"
+  /** Legacy payouts are historical records; mutations live in the finance ledger. */
+  readOnly?: boolean;
 }
 
 const STATUS_OPTIONS = [
@@ -35,7 +37,7 @@ function statusOrder(s: string): number {
   return s === "pending" ? 0 : s === "scheduled" ? 1 : s === "paid" ? 2 : -1;
 }
 
-export function SettlementsClient({ rows, month }: Props) {
+export function SettlementsClient({ rows, month, readOnly = true }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [view, setView] = useState<View>("list");
@@ -277,8 +279,14 @@ export function SettlementsClient({ rows, month }: Props) {
         </div>
       </div>
 
-      {/* 일괄 액션 바 */}
-      {view === "list" && rows.length > 0 && (
+      {/* 레거시 지급 이력은 읽기 전용이다. */}
+      {readOnly && (
+        <p className="text-xs muted mb-12">
+          과거 정산 이력입니다. 새 수당과 지급 처리는 프로젝트 재무 원장에서 관리합니다.
+        </p>
+      )}
+
+      {!readOnly && view === "list" && rows.length > 0 && (
         <div className="row gap-8 mb-12" style={{ alignItems: "center", flexWrap: "wrap" }}>
           <span className="text-xs muted">
             {selected.size > 0 ? `${selected.size}건 선택됨` : `${rows.length}건`}
@@ -347,14 +355,16 @@ export function SettlementsClient({ rows, month }: Props) {
           <table className="tbl">
             <thead>
               <tr>
-                <th style={{ width: 36 }}>
-                  <input
-                    type="checkbox"
-                    checked={rows.length > 0 && selected.size === rows.length}
-                    onChange={toggleSelectAll}
-                    aria-label="전체 선택"
-                  />
-                </th>
+                {!readOnly && (
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      checked={rows.length > 0 && selected.size === rows.length}
+                      onChange={toggleSelectAll}
+                      aria-label="전체 선택"
+                    />
+                  </th>
+                )}
                 <th>멤버</th>
                 <th>프로젝트</th>
                 <th>금액</th>
@@ -362,30 +372,32 @@ export function SettlementsClient({ rows, month }: Props) {
                 <th>예정일</th>
                 <th>지급일</th>
                 <th>메모</th>
-                <th style={{ width: 80 }}></th>
+                {!readOnly && <th style={{ width: 80 }}></th>}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
+                  <td colSpan={readOnly ? 7 : 9} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
                     <DollarSign size={24} strokeWidth={1.5} style={{ margin: "0 auto 10px", display: "block", color: "var(--mf-2)" }} />
                     정산 내역이 없어요
                   </td>
                 </tr>
               ) : (
                 rows.map((r) => {
-                  const editing = editingId === r.id;
+                  const editing = !readOnly && editingId === r.id;
                   return (
                     <tr key={r.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selected.has(r.id)}
-                          onChange={() => toggleSelect(r.id)}
-                          aria-label="선택"
-                        />
-                      </td>
+                      {!readOnly && (
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(r.id)}
+                            onChange={() => toggleSelect(r.id)}
+                            aria-label="선택"
+                          />
+                        </td>
+                      )}
                       <td data-label="멤버">
                         <div style={{ fontWeight: 600 }}>{r.member?.name ?? "—"}</div>
                         {r.member?.stage_name && (
@@ -395,7 +407,7 @@ export function SettlementsClient({ rows, month }: Props) {
                       <td data-label="프로젝트">
                         {r.project ? (
                           <Link
-                            href={`/manage/projects/${r.project.id}?tab=settlement`}
+                            href={`/finance/${r.project.id}`}
                             style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
                           >
                             {r.project.title}
@@ -462,32 +474,34 @@ export function SettlementsClient({ rows, month }: Props) {
                           r.note ?? "—"
                         )}
                       </td>
-                      <td>
-                        {editing ? (
-                          <div className="row gap-4">
-                            <button
-                              className="btn sm primary"
-                              onClick={() => saveEdit(r.id, r)}
-                              disabled={saving}
-                              aria-label="저장"
-                            >
-                              <Save size={12} strokeWidth={2} />
+                      {!readOnly && (
+                        <td>
+                          {editing ? (
+                            <div className="row gap-4">
+                              <button
+                                className="btn sm primary"
+                                onClick={() => saveEdit(r.id, r)}
+                                disabled={saving}
+                                aria-label="저장"
+                              >
+                                <Save size={12} strokeWidth={2} />
+                              </button>
+                              <button
+                                className="btn sm"
+                                onClick={cancelEdit}
+                                disabled={saving}
+                                aria-label="취소"
+                              >
+                                <X size={12} strokeWidth={2} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button className="btn sm" onClick={() => startEdit(r)}>
+                              편집
                             </button>
-                            <button
-                              className="btn sm"
-                              onClick={cancelEdit}
-                              disabled={saving}
-                              aria-label="취소"
-                            >
-                              <X size={12} strokeWidth={2} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button className="btn sm" onClick={() => startEdit(r)}>
-                            편집
-                          </button>
-                        )}
-                      </td>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })

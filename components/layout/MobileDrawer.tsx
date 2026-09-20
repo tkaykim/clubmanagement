@@ -12,6 +12,8 @@ interface MobileDrawerProps {
   me: CrewMember | null;
   isAdmin: boolean;
   isProjectManager?: boolean;
+  hasFinanceAccess?: boolean;
+  financeOnly?: boolean;
   counts?: {
     projects?: number;
     unreadAnn?: number;
@@ -20,7 +22,7 @@ interface MobileDrawerProps {
   };
 }
 
-export function MobileDrawer({ open, onClose, me, isAdmin, isProjectManager, counts }: MobileDrawerProps) {
+export function MobileDrawer({ open, onClose, me, isAdmin, isProjectManager, hasFinanceAccess, financeOnly, counts }: MobileDrawerProps) {
   const pathname = usePathname();
 
   // 라우트 변경 시 자동 닫기
@@ -60,6 +62,8 @@ export function MobileDrawer({ open, onClose, me, isAdmin, isProjectManager, cou
           me={me}
           isAdmin={isAdmin}
           isProjectManager={isProjectManager}
+          hasFinanceAccess={hasFinanceAccess}
+          financeOnly={financeOnly}
           counts={counts}
           onNavClick={onClose}
         />

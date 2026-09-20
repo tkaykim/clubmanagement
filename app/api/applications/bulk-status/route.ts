@@ -5,7 +5,9 @@ import { bulkStatusSchema } from "@/lib/validators";
 
 /**
  * POST /api/applications/bulk-status — 일괄 확정/탈락 처리 (admin)
- * approved 전환 시 payouts 자동 생성
+ *
+ * 지원 승인과 금전 약정은 별개다.
+ * 개인별 수당은 finance 전용 흐름에서만 작성한다.
  */
 export async function POST(request: Request) {
   try {
@@ -54,42 +56,6 @@ export async function POST(request: Request) {
         { error: "일괄 처리에 실패했습니다" },
         { status: 500 }
       );
-    }
-
-    // approved 전환 시 payouts 생성
-    if (status === "approved") {
-      type AppRow = { id: string; project_id: string; user_id: string | null; status: string };
-      const toApprove = (applications as AppRow[]).filter(
-        (a) => a.status !== "approved" && a.user_id
-      );
-
-      if (toApprove.length > 0) {
-        // 프로젝트별 fee 조회 (중복 제거)
-        const projectIds = [...new Set(toApprove.map((a) => a.project_id))];
-        const { data: projects } = await supabase
-          .from("projects")
-          .select("id, fee")
-          .in("id", projectIds);
-
-        const feeMap: Record<string, number> = {};
-        for (const p of (projects ?? []) as { id: string; fee: number }[]) {
-          feeMap[p.id] = Math.abs(p.fee);
-        }
-
-        const payoutRows = toApprove.map((app) => ({
-          project_id: app.project_id,
-          application_id: app.id,
-          user_id: app.user_id,
-          amount: feeMap[app.project_id] ?? 0,
-          status: "pending" as const,
-          // payouts.created_by 는 users(id) FK
-          created_by: admin.user_id,
-        }));
-
-        await supabase
-          .from("payouts")
-          .upsert(payoutRows, { onConflict: "application_id" });
-      }
     }
 
     return NextResponse.json({ data: { updated: application_ids.length } });

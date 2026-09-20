@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { fmtKRW, initials } from "@/lib/utils";
+import { initials } from "@/lib/utils";
 import { cn, PAY_TYPE_OPTIONS, type PayType } from "@/lib/utils";
-import { Check, X, Loader2, DollarSign, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Sparkles } from "lucide-react";
+import { Check, X, Loader2, Download, Megaphone, ChevronDown, ChevronRight, Users, CalendarRange, Grid3x3, Pencil, Sparkles } from "lucide-react";
 import { AvailabilityTimetable } from "@/components/manage/AvailabilityTimetable";
 import { AvailabilityRecommend } from "@/components/manage/AvailabilityRecommend";
 import { AdminVoteEditorModal } from "@/components/manage/AdminVoteEditorModal";
@@ -26,7 +26,6 @@ import type { VotesMap, VoteState, VoteStatus as VoteStatusType } from "@/compon
 const TABS = [
   { key: "applications", label: "지원자" },
   { key: "availability", label: "가능 일정" },
-  { key: "settlement", label: "정산" },
   { key: "announcements", label: "공지" },
   { key: "settings", label: "설정" },
 ] as const;
@@ -87,16 +86,6 @@ interface ScheduleVoteRow {
   note: string | null;
 }
 
-interface Payout {
-  id: string;
-  amount: number;
-  status: string;
-  scheduled_at: string | null;
-  paid_at: string | null;
-  note: string | null;
-  crew_members: { id: string; name: string; stage_name: string | null } | null;
-}
-
 interface Announcement {
   id: string;
   title: string;
@@ -110,7 +99,6 @@ interface ManageProjectClientProps {
   applications: Application[];
   scheduleDates: ScheduleDate[];
   votes: ScheduleVoteRow[];
-  payouts: Payout[];
   announcements: Announcement[];
   initialTab: string;
   /** 프로젝트 관리자(읽기전용): 조작 컨트롤 숨김 + 지원자/가능일정 탭만 노출 */
@@ -122,7 +110,6 @@ export function ManageProjectClient({
   applications,
   scheduleDates,
   votes,
-  payouts,
   announcements,
   initialTab,
   readOnly = false,
@@ -391,28 +378,6 @@ export function ManageProjectClient({
       } else {
         toast.success(`${selected.length}명 ${status === "approved" ? "확정" : "탈락"} 처리되었습니다`);
         setSelected([]);
-        router.refresh();
-      }
-    } catch {
-      toast.error("네트워크 오류");
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handlePayoutStatus = async (payoutId: string, status: string) => {
-    setLoading(payoutId);
-    try {
-      const res = await fetch(`/api/payouts/${payoutId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        toast.error(json.error ?? "처리에 실패했습니다");
-      } else {
-        toast.success("정산 상태가 변경되었습니다");
         router.refresh();
       }
     } catch {
@@ -881,108 +846,6 @@ export function ManageProjectClient({
         </div>
       )}
 
-      {/* 정산 탭 */}
-      {!readOnly && tab === "settlement" && (
-        <div>
-          {/* 합계 */}
-          <div className="os-grid grid-3 mb-16">
-            <div className="card stat">
-              <div className="lab">총 정산</div>
-              <div className="num tabnum" style={{ fontSize: 24 }}>
-                {fmtKRW(payouts.reduce((s, p) => s + p.amount, 0))}
-              </div>
-              <div className="delta">원</div>
-            </div>
-            <div className="card stat">
-              <div className="lab">지급 완료</div>
-              <div className="num tabnum" style={{ fontSize: 24 }}>
-                {fmtKRW(payouts.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0))}
-              </div>
-              <div className="delta">원</div>
-            </div>
-            <div className="card stat">
-              <div className="lab">대기중</div>
-              <div className="num tabnum" style={{ fontSize: 24 }}>
-                {fmtKRW(payouts.filter(p => p.status !== "paid").reduce((s, p) => s + p.amount, 0))}
-              </div>
-              <div className="delta">원</div>
-            </div>
-          </div>
-
-          <div className="row mb-12" style={{ justifyContent: "flex-end" }}>
-            <button
-              className="btn sm"
-              disabled
-              title="준비 중 — 다음 업데이트에 제공됩니다"
-              aria-disabled="true"
-            >
-              <Download size={12} strokeWidth={2} />
-              CSV 내보내기 (준비 중)
-            </button>
-          </div>
-
-          <div className="card flush">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>멤버</th>
-                  <th>금액</th>
-                  <th>상태</th>
-                  <th>예정일</th>
-                  <th>액션</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payouts.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "40px 0", color: "var(--mf)" }}>
-                      정산 내역이 없어요
-                    </td>
-                  </tr>
-                ) : (
-                  payouts.map(p => (
-                    <tr key={p.id}>
-                      <td data-label="멤버">
-                        <div style={{ fontWeight: 600 }}>{p.crew_members?.name ?? "—"}</div>
-                        {p.crew_members?.stage_name && (
-                          <div className="mono text-xs muted">{p.crew_members.stage_name}</div>
-                        )}
-                      </td>
-                      <td data-label="금액" className="num">₩{fmtKRW(p.amount)}</td>
-                      <td data-label="상태"><StatusBadge status={p.status} /></td>
-                      <td data-label="예정일" className="mono text-xs muted">{p.scheduled_at ?? "—"}</td>
-                      <td data-label="액션">
-                        <div className="row gap-6">
-                          {p.status === "pending" && (
-                            <button
-                              className="btn sm"
-                              onClick={() => handlePayoutStatus(p.id, "scheduled")}
-                              disabled={loading === p.id}
-                            >
-                              예정
-                            </button>
-                          )}
-                          {p.status === "scheduled" && (
-                            <button
-                              className="btn sm primary"
-                              onClick={() => handlePayoutStatus(p.id, "paid")}
-                              disabled={loading === p.id}
-                            >
-                              <DollarSign size={12} strokeWidth={2} />
-                              지급
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* 공지 탭 */}
       {!readOnly && tab === "announcements" && (
         <div>
@@ -1103,9 +966,9 @@ export function ManageProjectClient({
 
           <div className="card">
             <div style={{ padding: 24 }}>
-              <h3 style={{ marginBottom: 8 }}>비용</h3>
+              <h3 style={{ marginBottom: 8 }}>공개 모집 금액</h3>
               <div className="mono text-xs muted" style={{ marginBottom: 16, letterSpacing: "0.02em" }}>
-                페이 · 참가비 · 무료 · 미정 중 선택하세요.
+                모집 공고에 표시할 1인 기준 출연료 또는 참가비입니다.
               </div>
               <div
                 className="seg full"
@@ -1130,7 +993,9 @@ export function ManageProjectClient({
               {(payType === "pay" || payType === "fee") && (
                 <div className="field" style={{ marginTop: 14 }}>
                   <label htmlFor="fee-amount">
-                    {payType === "pay" ? "출연료 (원)" : "참가비 (원)"}{" "}
+                    {payType === "pay"
+                      ? "공개 모집 출연료 (1인 기준·원)"
+                      : "공개 모집 참가비 (1인 기준·원)"}{" "}
                     <span className="hint">미정이면 0 으로 두세요</span>
                   </label>
                   <div className="row gap-8">
@@ -1153,6 +1018,9 @@ export function ManageProjectClient({
                     >
                       {savingPay ? "저장 중…" : "금액 저장"}
                     </button>
+                  </div>
+                  <div className="hint" style={{ marginTop: 6 }}>
+                    프로젝트 총예산과 개인별 확정 수당은 재무 화면에서만 관리합니다.
                   </div>
                 </div>
               )}

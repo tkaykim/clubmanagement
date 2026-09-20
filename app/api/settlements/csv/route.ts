@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, isNextResponse } from "@/lib/auth";
+import { isNextResponse } from "@/lib/auth";
+import { requireFinanceIdentity } from "@/lib/finance-server";
 import { getSettlementsMonthly } from "@/lib/queries/settlements";
 import type { SettlementMember } from "@/lib/types";
 
 /**
- * GET /api/settlements/csv?month=YYYY-MM — 정산 CSV 다운로드 (admin)
+ * GET /api/settlements/csv?month=YYYY-MM — 권한 범위 내 과거 정산 CSV.
  */
 export async function GET(request: Request) {
   try {
-    const adminOrResponse = await requireAdmin();
-    if (isNextResponse(adminOrResponse)) return adminOrResponse;
+    const accessOrResponse = await requireFinanceIdentity();
+    if (isNextResponse(accessOrResponse)) return accessOrResponse;
+    if (!accessOrResponse.isGlobal && accessOrResponse.managedProjectIds.length === 0) {
+      return NextResponse.json(
+        { error: "재무 조회 권한이 필요합니다" },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
@@ -21,7 +28,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const data = await getSettlementsMonthly(month);
+    const data = await getSettlementsMonthly(
+      month,
+      { projectIds: accessOrResponse.isGlobal ? null : accessOrResponse.managedProjectIds }
+    );
 
     const header = "이름,예명,프로젝트수,총금액,지급완료,예정,대기\n";
     const rows = data
@@ -35,7 +45,11 @@ export async function GET(request: Request) {
           m.scheduled_amount,
           m.pending_amount,
         ]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .map((v) => {
+            const raw = String(v);
+            const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+            return `"${safe.replace(/"/g, '""')}"`;
+          })
           .join(",")
       )
       .join("\n");
@@ -46,6 +60,8 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="settlement-${month}.csv"`,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err) {

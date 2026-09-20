@@ -1,0 +1,63 @@
+{
+  "month": "2026-09",
+  "projects": {
+    "primary": {
+      "id": "00000000-0000-4000-8000-00000000000a",
+      "budgetAmount": 4000111
+    },
+    "secondary": {
+      "id": "00000000-0000-4000-8000-00000000000b",
+      "budgetAmount": 5000222
+    }
+  },
+  "allowances": {
+    "member": {
+      "grossAmount": 300123
+    },
+    "other": {
+      "grossAmount": 400234
+    }
+  },
+  "users": {
+    "ceo": {
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "email": "finance-e2e-ceo@example.invalid",
+      "password": "replace-me"
+    },
+    "finance": {
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "email": "finance-e2e-finance@example.invalid",
+      "password": "replace-me"
+    },
+    "manager": {
+      "userId": "00000000-0000-4000-8000-000000000003",
+      "email": "finance-e2e-manager-a@example.invalid",
+      "password": "replace-me"
+    },
+    "co_manager": {
+      "userId": "00000000-0000-4000-8000-000000000004",
+      "email": "finance-e2e-manager-b@example.invalid",
+      "password": "replace-me"
+    },
+    "admin": {
+      "userId": "00000000-0000-4000-8000-000000000005",
+      "email": "finance-e2e-admin@example.invalid",
+      "password": "replace-me"
+    },
+    "owner": {
+      "userId": "00000000-0000-4000-8000-000000000006",
+      "email": "finance-e2e-owner@example.invalid",
+      "password": "replace-me"
+    },
+    "member": {
+      "userId": "00000000-0000-4000-8000-000000000007",
+      "email": "finance-e2e-member@example.invalid",
+      "password": "replace-me"
+    },
+    "other": {
+      "userId": "00000000-0000-4000-8000-000000000008",
+      "email": "finance-e2e-other@example.invalid",
+      "password": "replace-me"
+    }
+  }
+}

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { getFinanceIdentity } from "@/lib/finance-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OsAvatar } from "@/components/ui/OsAvatar";
 import { fmtKRW, fmtDateKo, fmtPay, payTypeChipTone } from "@/lib/utils";
@@ -18,9 +20,13 @@ export default async function DashboardPage() {
   if (user) {
     const { data: me } = await supabase
       .from("crew_members")
-      .select("name, stage_name, role")
+      .select("name, stage_name, role, is_active")
       .eq("user_id", user.id)
       .maybeSingle();
+    const financeIdentity = await getFinanceIdentity();
+    if (!me?.is_active && (financeIdentity?.isGlobal || financeIdentity?.managedProjectIds.length)) {
+      redirect("/finance");
+    }
     displayName =
       (me?.stage_name as string | undefined) ||
       (me?.name as string | undefined) ||

@@ -23,6 +23,8 @@ interface AppShellProps {
   me: CrewMember | null;
   isAdmin: boolean;
   isProjectManager?: boolean;
+  hasFinanceAccess?: boolean;
+  financeOnly?: boolean;
   crumb?: string;
   // 초기 SSR에서 비워두고 클라이언트에서 fetch (탭 전환 지연 제거).
   initialCounts?: CountsShape;
@@ -54,7 +56,7 @@ function writeCachedCounts(data: CountsShape) {
   } catch {}
 }
 
-export function AppShell({ children, me, isAdmin, isProjectManager = false, crumb, initialCounts }: AppShellProps) {
+export function AppShell({ children, me, isAdmin, isProjectManager = false, hasFinanceAccess = false, financeOnly = false, crumb, initialCounts }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<CountsShape>(
     () => initialCounts ?? readCachedCounts() ?? {}
@@ -106,6 +108,8 @@ export function AppShell({ children, me, isAdmin, isProjectManager = false, crum
         me={me}
         isAdmin={isAdmin}
         isProjectManager={isProjectManager}
+        hasFinanceAccess={hasFinanceAccess}
+        financeOnly={financeOnly}
         counts={counts}
         className="pc-only"
       />
@@ -123,6 +127,8 @@ export function AppShell({ children, me, isAdmin, isProjectManager = false, crum
         me={me}
         isAdmin={isAdmin}
         isProjectManager={isProjectManager}
+        hasFinanceAccess={hasFinanceAccess}
+        financeOnly={financeOnly}
         counts={counts}
       />
 
@@ -139,7 +145,7 @@ export function AppShell({ children, me, isAdmin, isProjectManager = false, crum
       </div>
 
       {/* 모바일 바텀 네비 */}
-      <BottomNav counts={counts} />
+      <BottomNav counts={counts} financeOnly={financeOnly} />
 
       {/* 관리자 FAB (모바일) */}
       {isAdmin && <Fab />}

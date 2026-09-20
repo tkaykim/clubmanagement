@@ -233,6 +233,11 @@ export function MyPageClient({ member, applications, payouts, presets }: MyPageC
             </div>
           </div>
 
+          <Link href="/my-settlements" className="btn" style={{ alignSelf: "flex-start" }}>
+            <DollarSign size={14} strokeWidth={2} />
+            프로젝트별 내 정산 보기
+          </Link>
+
           {payouts.length === 0 ? (
             <div className="card">
               <div className="empty">

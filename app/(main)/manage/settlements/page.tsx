@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { SettlementsClient, type SettlementRow } from "@/components/manage/SettlementsClient";
+import { getFinanceIdentity } from "@/lib/finance-server";
+import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,15 @@ export default async function SettlementsPage({ searchParams }: Props) {
         : new Date().toISOString().slice(0, 7);
 
   const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const access = await getFinanceIdentity();
+  if (!access || (!access.isGlobal && access.managedProjectIds.length === 0)) {
+    notFound();
+  }
 
   type Raw = {
     id: string;
@@ -31,10 +42,17 @@ export default async function SettlementsPage({ searchParams }: Props) {
 
   try {
     // payouts.user_id → crew_members 는 자동 FK 감지가 안 되므로 수동 조인
-    const { data: rawPayouts } = await supabase
+    let payoutQuery = supabase
       .from("payouts")
       .select("id, amount, status, scheduled_at, paid_at, note, user_id, project_id")
       .order("created_at", { ascending: false });
+
+    // Do not depend solely on the legacy payout RLS policy here.
+    // A project finance manager can inspect only their explicitly assigned projects.
+    if (!access.isGlobal) {
+      payoutQuery = payoutQuery.in("project_id", access.managedProjectIds);
+    }
+    const { data: rawPayouts } = await payoutQuery;
 
     const all = (rawPayouts ?? []) as Raw[];
 
