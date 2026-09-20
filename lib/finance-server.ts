@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSession } from "@/lib/auth";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { deriveFinancePaymentStatus } from "@/lib/finance";
+import { canReadFinanceProject, isActiveFinanceOperator } from "@/lib/finance-access";
 import type {
   FinanceAllowanceItem,
   FinanceApiErrorCode,
@@ -19,6 +20,7 @@ export type FinanceIdentity = {
   userId: string;
   email: string;
   isGlobal: boolean;
+  isOperator: boolean;
   managedProjectIds: string[];
 };
 
@@ -46,17 +48,19 @@ export async function getFinanceIdentity(): Promise<FinanceIdentity | null> {
   const session = await getSession();
   if (!session) return null;
   const supabase = createRouteSupabaseClient();
-  const [{ data: isGlobalData }, { data: managerRows }] = await Promise.all([
+  const [{ data: isGlobalData }, { data: managerRows }, { data: member }] = await Promise.all([
     supabase.rpc("finance_is_global", { p_user_id: session.userId }),
     supabase
       .from("finance_project_managers")
       .select("project_id")
       .eq("user_id", session.userId),
+    supabase.from("crew_members").select("role,is_active").eq("user_id", session.userId).maybeSingle(),
   ]);
   return {
     userId: session.userId,
     email: session.email,
     isGlobal: isGlobalData === true,
+    isOperator: isActiveFinanceOperator(member),
     managedProjectIds: Array.from(
       new Set(((managerRows ?? []) as Array<{ project_id: string }>).map((row) => row.project_id))
     ),
@@ -77,8 +81,7 @@ export async function requireFinanceIdentity(options?: {
   }
   if (
     options?.projectId &&
-    !identity.isGlobal &&
-    !identity.managedProjectIds.includes(options.projectId) &&
+    !canReadFinanceProject(identity, options.projectId) &&
     !options.allowMember
   ) {
     return financeApiError(403, "FORBIDDEN", "이 프로젝트의 재무 권한이 없습니다");
@@ -347,7 +350,7 @@ export async function getFinanceProjectDetail(
   identity: FinanceIdentity,
   client: SupabaseClient = createRouteSupabaseClient()
 ): Promise<FinanceProjectDetail | null> {
-  if (!identity.isGlobal && !identity.managedProjectIds.includes(projectId)) return null;
+  if (!canReadFinanceProject(identity, projectId)) return null;
   const { data: financeRow, error } = await client
     .from("project_finance")
     .select("*")
@@ -440,6 +443,10 @@ export async function getFinanceProjects(
   identity: FinanceIdentity,
   options: { cursor?: string | null; limit?: number } = {}
 ): Promise<{ data: FinanceProjectSummary[]; nextCursor: string | null }> {
+  // Operators with no finance assignments can enter the page, but read no ledger rows.
+  if (!identity.isGlobal && identity.managedProjectIds.length === 0) {
+    return { data: [], nextCursor: null };
+  }
   const supabase = createRouteSupabaseClient();
   const limit = Math.min(100, Math.max(1, options.limit ?? 50));
   let query = supabase
@@ -449,6 +456,7 @@ export async function getFinanceProjects(
     .is("archived_at", null)
     .order("project_id", { ascending: true })
     .limit(limit + 1);
+  if (!identity.isGlobal) query = query.in("project_id", identity.managedProjectIds);
   if (options.cursor) query = query.gt("project_id", options.cursor);
   const { data } = await query;
   const rows = (data ?? []) as Array<{ project_id: string }>;

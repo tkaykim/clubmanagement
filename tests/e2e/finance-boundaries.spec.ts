@@ -329,8 +329,20 @@ test.describe("finance privacy boundaries — live Supabase and browser", () => 
     await loginBrowser(page, fixture.users.admin);
 
     const projectsResponse = await page.request.get("/api/finance/projects");
-    expect(projectsResponse.status()).toBe(403);
+    expect(projectsResponse.status()).toBe(200);
+    expect(await projectsResponse.json()).toEqual({ data: [], access: "project_manager", nextCursor: null });
     expectNoPrivateMarkers(await projectsResponse.text(), fixture);
+
+    const accessResponse = await page.request.get("/api/finance/access");
+    expect((await accessResponse.json()).data).toMatchObject({
+      canAccessFinance: true, isGlobal: false, managedProjectIds: [],
+    });
+    await page.goto("/finance");
+    await expect(page.getByRole("heading", { name: "프로젝트 재무", exact: true })).toBeVisible();
+    await expect(page.getByText("표시할 프로젝트가 없습니다")).toBeVisible();
+    const detailResponse = await page.request.get(`/api/finance/projects/${fixture.projects.primary.id}`);
+    expect(detailResponse.status()).toBe(403);
+    expectNoPrivateMarkers(await detailResponse.text(), fixture);
 
     const settlementsResponse = await page.request.get(
       `/api/settlements?month=${fixture.month}`
