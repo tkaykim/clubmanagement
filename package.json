@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "node --experimental-strip-types --test tests/unit/*.test.mjs",
+    "test:e2e:finance": "playwright test tests/e2e/finance-boundaries.spec.ts --project=chromium --workers=1",
     "lint": "eslint",
     "seed": "npx tsx scripts/seed.ts"
   },

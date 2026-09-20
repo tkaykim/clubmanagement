@@ -9,7 +9,10 @@ type Params = { params: Promise<{ appId: string }> };
 
 /**
  * PATCH /api/applications/[appId]/status — 개별 지원 상태 변경 (admin)
- * 승인 시 payouts 레코드 자동 생성
+ *
+ * 지원 승인과 금전 약정은 별개다.
+ * 이 레거시 운영 경로는 프로젝트의 공개 모집 금액(projects.fee)을 개인 수당으로
+ * 복사하지 않는다. 개인별 수당은 finance 전용 흐름에서만 작성한다.
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
@@ -65,33 +68,6 @@ export async function PATCH(request: Request, { params }: Params) {
         { error: "상태 변경에 실패했습니다" },
         { status: 500 }
       );
-    }
-
-    // approved로 전환 시 payouts 자동 생성
-    if (
-      parsed.data.status === "approved" &&
-      existing.status !== "approved" &&
-      existing.user_id
-    ) {
-      const { data: project } = await supabase
-        .from("projects")
-        .select("fee")
-        .eq("id", existing.project_id)
-        .single();
-
-      if (project) {
-        await supabase.from("payouts").upsert(
-          {
-            project_id: existing.project_id,
-            application_id: appId,
-            user_id: existing.user_id,
-            amount: Math.abs(project.fee),
-            status: "pending",
-            created_by: admin.user_id,
-          },
-          { onConflict: "application_id" }
-        );
-      }
     }
 
     // 프로젝트 제목 + 알림 + 로그

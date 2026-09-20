@@ -39,17 +39,11 @@ export default async function MyProjectManagePage({ params, searchParams }: Prop
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  const { data: rawPayouts } = await supabase
-    .from("payouts")
-    .select("id, amount, status, scheduled_at, paid_at, note, user_id")
-    .eq("project_id", projectId);
-
   const crewUserIds = Array.from(
     new Set(
-      [
-        ...(rawApps ?? []).map((a: { user_id: string | null }) => a.user_id),
-        ...(rawPayouts ?? []).map((p: { user_id: string | null }) => p.user_id),
-      ].filter((v): v is string => !!v)
+      (rawApps ?? [])
+        .map((a: { user_id: string | null }) => a.user_id)
+        .filter((v): v is string => !!v)
     )
   );
   type CrewLite = { id: string; name: string; stage_name: string | null; role: string; position: string | null };
@@ -96,19 +90,6 @@ export default async function MyProjectManagePage({ params, searchParams }: Prop
           note: string | null;
         }> };
 
-  type RawPayout = {
-    id: string; amount: number; status: string;
-    scheduled_at: string | null; paid_at: string | null;
-    note: string | null; user_id: string | null;
-  };
-  const payouts = ((rawPayouts ?? []) as RawPayout[]).map((p) => {
-    const cm = p.user_id ? crewMap.get(p.user_id) ?? null : null;
-    return {
-      ...p,
-      crew_members: cm ? { id: cm.id, name: cm.name, stage_name: cm.stage_name } : null,
-    };
-  });
-
   const { data: announcements } = await supabase
     .from("announcements")
     .select("*")
@@ -154,7 +135,6 @@ export default async function MyProjectManagePage({ params, searchParams }: Prop
           time_slots: Array<{ start: string; end: string; kind?: "available" | "unavailable" }>;
           note: string | null;
         }>}
-        payouts={(payouts ?? []) as Array<{ id: string; amount: number; status: string; scheduled_at: string | null; paid_at: string | null; note: string | null; crew_members: { id: string; name: string; stage_name: string | null } | null }>}
         announcements={(announcements ?? []) as Array<{ id: string; title: string; body: string; pinned: boolean; created_at: string }>}
         initialTab={tab}
         readOnly={readOnly}

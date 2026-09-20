@@ -11,9 +11,11 @@ interface ActiveGuardProps {
   children: React.ReactNode;
   // 서버 레이아웃에서 이미 확인한 초기 상태. 탭 전환마다 재조회 금지.
   initialStatus?: "active" | "inactive" | "anonymous";
+  /** 재무 권한만 가진 계정은 크루 멤버 행 없이도 재무 셸에 접근한다. */
+  financeOnly?: boolean;
 }
 
-export function ActiveGuard({ children, initialStatus }: ActiveGuardProps) {
+export function ActiveGuard({ children, initialStatus, financeOnly = false }: ActiveGuardProps) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>(initialStatus ?? "loading");
 
@@ -39,7 +41,7 @@ export function ActiveGuard({ children, initialStatus }: ActiveGuardProps) {
         if (!cancelled) {
           // admin/owner 는 is_active 와 무관하게 활성 처리 (관리자 잠금 방지)
           const isAdmin = member?.role === "admin" || member?.role === "owner";
-          setStatus(isAdmin || member?.is_active ? "active" : "inactive");
+          setStatus(isAdmin || member?.is_active || financeOnly ? "active" : "inactive");
         }
       } catch (err) {
         console.error("[ActiveGuard] auth check failed:", err);
@@ -62,7 +64,7 @@ export function ActiveGuard({ children, initialStatus }: ActiveGuardProps) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [initialStatus]);
+  }, [financeOnly, initialStatus]);
 
   // 익명 사용자 리다이렉트는 render 사이클이 아닌 effect 에서 처리.
   // render 중 router.replace 호출은 진행 중이던 내비게이션을 abort 시켜

@@ -1,114 +1,28 @@
 import { NextResponse } from "next/server";
-import { createRouteSupabaseClient } from "@/lib/supabase-server";
-import { requireAdmin, isNextResponse } from "@/lib/auth";
-import { updatePayoutSchema } from "@/lib/validators";
-import { notifyUsers } from "@/lib/notifications";
+import { requireAuth, isNextResponse } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * PATCH /api/payouts/[id] — 정산 상태 변경 (admin)
+ * PATCH /api/payouts/[id] — 폐기된 레거시 정산 상태 변경 경로.
+ *
+ * 실제 지급 상태는 증빙과 배부를 가진 finance 원장에서만 변경한다.
+ * 과거 payouts 행은 읽기 이력으로만 남긴다.
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
-    const { id } = await params;
-    const adminOrResponse = await requireAdmin();
-    if (isNextResponse(adminOrResponse)) return adminOrResponse;
+    await params;
+    await request.text().catch(() => "");
+    const authOrResponse = await requireAuth();
+    if (isNextResponse(authOrResponse)) return authOrResponse;
 
-    const body = await request.json();
-    const parsed = updatePayoutSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "입력값이 올바르지 않습니다", details: parsed.error.issues },
-        { status: 400 }
-      );
-    }
-
-    const supabase = createRouteSupabaseClient();
-
-    // 상태 전이 유효성 검사
-    const { data: existing } = await supabase
-      .from("payouts")
-      .select("id, status")
-      .eq("id", id)
-      .single();
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: "정산 내역을 찾을 수 없습니다" },
-        { status: 404 }
-      );
-    }
-
-    // 상태 전이 규칙: pending → scheduled → paid (역방향 불가)
-    const statusOrder = { pending: 0, scheduled: 1, paid: 2 };
-    if (
-      parsed.data.status &&
-      statusOrder[parsed.data.status as keyof typeof statusOrder] <
-        statusOrder[existing.status as keyof typeof statusOrder]
-    ) {
-      return NextResponse.json(
-        { error: "정산 상태를 이전 단계로 되돌릴 수 없습니다" },
-        { status: 400 }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from("payouts")
-      .update(parsed.data)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { error: "정산 수정에 실패했습니다" },
-        { status: 500 }
-      );
-    }
-
-    // 알림: status가 paid 또는 scheduled 로 전환 시
-    const payoutRow = data as {
-      id: string;
-      status: string;
-      amount: number;
-      scheduled_at: string | null;
-      paid_at: string | null;
-      user_id: string | null;
-      project_id: string | null;
-    };
-    if (
-      payoutRow.user_id &&
-      parsed.data.status &&
-      parsed.data.status !== existing.status
-    ) {
-      const { data: proj } = await supabase
-        .from("projects")
-        .select("title")
-        .eq("id", payoutRow.project_id ?? "")
-        .maybeSingle();
-      const projTitle = (proj as { title: string } | null)?.title ?? "프로젝트";
-      const amount = payoutRow.amount.toLocaleString("ko-KR");
-      if (parsed.data.status === "paid") {
-        await notifyUsers([payoutRow.user_id], {
-          title: "정산이 지급되었어요",
-          body: `${projTitle} · ₩${amount}`,
-          url: "/mypage?tab=payouts",
-          tag: `payout-paid-${payoutRow.id}`,
-        });
-      } else if (parsed.data.status === "scheduled") {
-        await notifyUsers([payoutRow.user_id], {
-          title: "지급 예정일 안내",
-          body: `${projTitle} · ₩${amount}${
-            payoutRow.scheduled_at ? ` · ${payoutRow.scheduled_at}` : ""
-          }`,
-          url: "/mypage?tab=payouts",
-          tag: `payout-sched-${payoutRow.id}`,
-        });
-      }
-    }
-
-    return NextResponse.json({ data });
+    return NextResponse.json(
+      {
+        error: "과거 정산은 읽기 전용입니다. 지급 결과는 재무 원장에서 등록해주세요.",
+        code: "LEGACY_PAYOUT_MUTATION_DISABLED",
+      },
+      { status: 410 }
+    );
   } catch (err) {
     console.error("[PATCH /api/payouts/[id]] error:", err);
     return NextResponse.json(

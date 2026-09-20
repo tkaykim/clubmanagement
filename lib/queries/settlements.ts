@@ -6,12 +6,13 @@ import type { PayoutWithMember, SettlementMember } from "@/lib/types";
  * month: "YYYY-MM"
  */
 export async function getSettlementsMonthly(
-  month: string
+  month: string,
+  options: { projectIds: string[] | null }
 ): Promise<SettlementMember[]> {
   const supabase = createServerSupabaseClient();
 
   // payouts + project + user + crew_member JOIN
-  const { data, error } = await supabase
+  let query = supabase
     .from("payouts")
     .select(
       `
@@ -23,6 +24,16 @@ export async function getSettlementsMonthly(
     `
     )
     .not("user_id", "is", null);
+
+  // Role names are not finance authority.
+  // Keep this legacy reporting helper constrained even before the payout RLS
+  // policy is present, because it is also used by server Route Handlers.
+  if (options.projectIds !== null) {
+    if (options.projectIds.length === 0) return [];
+    query = query.in("project_id", options.projectIds);
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) return [];
 

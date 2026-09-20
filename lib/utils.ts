@@ -84,8 +84,8 @@ export const PAY_TYPE_OPTIONS: Array<{
   hint: string;
   needsAmount: boolean;
 }> = [
-  { value: "pay", label: "페이 있음", hint: "참가자에게 출연료를 지급", needsAmount: true },
-  { value: "fee", label: "참가비 있음", hint: "참가자가 참가비 지불", needsAmount: true },
+  { value: "pay", label: "페이 있음", hint: "모집 공고에 1인 기준 출연료를 공개", needsAmount: true },
+  { value: "fee", label: "참가비 있음", hint: "모집 공고에 1인 기준 참가비를 공개", needsAmount: true },
   { value: "free", label: "무료 행사", hint: "금액 없음", needsAmount: false },
   { value: "tbd", label: "미정", hint: "아직 결정되지 않음", needsAmount: false },
 ];

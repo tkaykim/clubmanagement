@@ -7,13 +7,13 @@ import {
   User,
   Sparkles,
   FileText,
-  DollarSign,
   Bug,
   ImageIcon,
   Inbox,
   Bell,
   History,
   ShieldCheck,
+  WalletCards,
 } from "lucide-react";
 import { NavItem } from "./NavItem";
 import { initials, memberKindOf } from "@/lib/utils";
@@ -32,6 +32,8 @@ interface SidebarProps {
   isAdmin: boolean;
   /** 1개 이상 프로젝트의 '프로젝트 관리자'로 지정된 멤버 → '내 담당 프로젝트' 노출 */
   isProjectManager?: boolean;
+  hasFinanceAccess?: boolean;
+  financeOnly?: boolean;
   counts?: {
     projects?: number;
     unreadAnn?: number;
@@ -42,7 +44,7 @@ interface SidebarProps {
   onNavClick?: () => void;
 }
 
-export function Sidebar({ me, isAdmin, isProjectManager = false, counts = {}, className, onNavClick }: SidebarProps) {
+export function Sidebar({ me, isAdmin, isProjectManager = false, hasFinanceAccess = false, financeOnly = false, counts = {}, className, onNavClick }: SidebarProps) {
   return (
     <aside className={`sidebar ${className ?? ""}`}>
       {/* Brand */}
@@ -54,6 +56,10 @@ export function Sidebar({ me, isAdmin, isProjectManager = false, counts = {}, cl
         </div>
       </div>
 
+      {financeOnly ? <>
+        <div className="nav-group-title">FINANCE</div>
+        <NavItem href="/finance" icon={WalletCards} onClick={onNavClick}>프로젝트 재무</NavItem>
+      </> : <>
       {/* MAIN 그룹 */}
       <div className="nav-group-title">MAIN</div>
       <NavItem href="/dashboard" icon={Home} onClick={onNavClick}>홈</NavItem>
@@ -85,13 +91,19 @@ export function Sidebar({ me, isAdmin, isProjectManager = false, counts = {}, cl
           </NavItem>
           <NavItem href="/manage/portfolio" icon={ImageIcon} onClick={onNavClick}>포트폴리오 관리</NavItem>
           <NavItem href="/manage/inquiries" icon={Inbox} count={counts.newInquiry} onClick={onNavClick}>섭외 문의</NavItem>
-          <NavItem href="/manage/settlements" icon={DollarSign} onClick={onNavClick}>정산 리포트</NavItem>
           <NavItem href="/manage/members" icon={Users} onClick={onNavClick}>멤버 관리</NavItem>
           <NavItem href="/manage/push" icon={Bell} onClick={onNavClick}>푸시 알림</NavItem>
           <NavItem href="/manage/activity" icon={History} onClick={onNavClick}>활동 로그</NavItem>
           <NavItem href="/manage/bugs" icon={Bug} onClick={onNavClick}>버그 리포트</NavItem>
         </>
       )}
+      {hasFinanceAccess && (
+        <>
+          <div className="nav-group-title">FINANCE</div>
+          <NavItem href="/finance" icon={WalletCards} onClick={onNavClick}>프로젝트 재무</NavItem>
+        </>
+      )}
+      </>}
 
       {/* 하단 유저 카드 */}
       <div style={{ flex: 1 }} />

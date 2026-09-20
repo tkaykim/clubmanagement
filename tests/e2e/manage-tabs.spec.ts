@@ -79,7 +79,7 @@ test.describe("API: 관리자 전용 엔드포인트 보호", () => {
   });
 });
 
-test.describe("API: Payout 상태 전이 규칙", () => {
+test.describe("API: 레거시 Payout 변경 차단", () => {
   test("PATCH /api/payouts/[id] — 비인증은 401", async ({ request }) => {
     const res = await request.patch(`/api/payouts/${FAKE_UUID}`, {
       data: { status: "paid" },
@@ -87,12 +87,11 @@ test.describe("API: Payout 상태 전이 규칙", () => {
     expect([401, 403]).toContain(res.status());
   });
 
-  test("PATCH /api/payouts/[id] — status 범위 외 값은 400", async ({ request }) => {
-    // 비인증이면 401이 먼저 반환됨
+  test("PATCH /api/payouts/[id] — 미인증은 payload와 무관하게 차단", async ({ request }) => {
     const res = await request.patch(`/api/payouts/${FAKE_UUID}`, {
       data: { status: "cancelled" }, // 유효하지 않은 값
     });
-    expect([400, 401, 403]).toContain(res.status());
+    expect([401, 403]).toContain(res.status());
   });
 });
 
@@ -126,9 +125,9 @@ test.describe("Manage 탭 기능 (라이브 환경)", () => {
     await expect(page.locator("text=지원자")).toBeVisible({ timeout: 5000 });
   });
 
-  test("settlement 탭이 렌더된다", async ({ page }) => {
+  test("레거시 settlement 탭은 프로젝트 관리 화면에 렌더되지 않는다", async ({ page }) => {
     await page.goto(`/manage/projects/${FAKE_UUID}?tab=settlement`);
-    await expect(page.locator("text=정산")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("tab", { name: "정산" })).toHaveCount(0);
   });
 
   test("bulk approve 버튼이 선택된 지원자 없으면 비활성화", async ({ page }) => {

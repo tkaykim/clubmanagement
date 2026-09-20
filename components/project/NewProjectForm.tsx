@@ -419,7 +419,9 @@ export function NewProjectForm({ mode = "create", initialProject }: NewProjectFo
               {(payType === "pay" || payType === "fee") && (
                 <div className="field">
                   <label htmlFor="fee">
-                    {payType === "pay" ? "출연료 (원)" : "참가비 (원)"}{" "}
+                    {payType === "pay"
+                      ? "공개 모집 출연료 (1인 기준·원)"
+                      : "공개 모집 참가비 (1인 기준·원)"}{" "}
                     <span className="hint">금액 미정이면 비워두세요</span>
                   </label>
                   <input
@@ -435,6 +437,9 @@ export function NewProjectForm({ mode = "create", initialProject }: NewProjectFo
                     }}
                     placeholder="0"
                   />
+                  <div className="hint" style={{ marginTop: 6 }}>
+                    프로젝트 총예산과 개인별 확정 수당은 공개되지 않는 재무 화면에서만 입력합니다.
+                  </div>
                 </div>
               )}
 

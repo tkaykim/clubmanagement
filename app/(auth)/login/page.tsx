@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
+import { safeAuthRedirect } from "@/lib/auth-redirect";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,9 +40,7 @@ export default function LoginPage() {
       // 로그인 후 기본 이동: 크루 대시보드.
       // "/" 는 공개 포트폴리오이므로 로그인 직후 가면 앱 내부에 못 들어간다.
       const redirect = new URLSearchParams(window.location.search).get("redirect");
-      const safeRedirect =
-        redirect && redirect.startsWith("/") && redirect !== "/" ? redirect : "/dashboard";
-      window.location.href = safeRedirect;
+      window.location.href = safeAuthRedirect(redirect, window.location.origin);
     } catch (err) {
       console.error("[login] unexpected error:", err);
       setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -123,7 +122,7 @@ export default function LoginPage() {
             color: "var(--mf)",
           }}
         >
-          <span />
+          <Link href="/login/reset" style={{ color: "var(--fg)" }}>비밀번호 설정·재설정</Link>
           <span>
             계정이 없으신가요?{" "}
             <Link href="/signup" style={{ color: "var(--fg)", fontWeight: 600, textDecoration: "none" }}>

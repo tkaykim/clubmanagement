@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Folder, Plus, Users, DollarSign, ChevronRight } from "lucide-react";
+import { Folder, Plus, Users, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +46,6 @@ export default async function ManagePage() {
           <Link href="/manage/members" className="btn">
             <Users size={14} strokeWidth={2} />
             멤버 관리
-          </Link>
-          <Link href="/manage/settlements" className="btn">
-            <DollarSign size={14} strokeWidth={2} />
-            정산 리포트
           </Link>
           <Link href="/manage/projects/new" className="btn primary">
             <Plus size={14} strokeWidth={2} />
