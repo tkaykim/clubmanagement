@@ -1,4 +1,5 @@
 import { isNextResponse } from "@/lib/auth";
+import { filterFinanceSettlementsByEventDate } from "@/lib/finance-settlement-date-filter";
 import { getFinanceMySettlements, requireFinanceIdentity } from "@/lib/finance-server";
 
 const cell = (value: unknown) => {
@@ -12,11 +13,15 @@ export async function GET(request: Request) {
   if (isNextResponse(identity)) return identity;
   const params = new URL(request.url).searchParams;
   const result = await getFinanceMySettlements(identity, { projectId: params.get("projectId") });
+  const settlements = filterFinanceSettlementsByEventDate(result.data, {
+    year: params.get("year"),
+    month: params.get("month"),
+  });
   const header = [
     "프로젝트", "행사일", "사유", "세전", "소득세", "지방소득세", "공제합계",
     "실지급예정", "실지급누계", "미지급", "통화", "지급예정일",
   ];
-  const rows = result.data.flatMap((settlement) => settlement.items.map((item) => [
+  const rows = settlements.flatMap((settlement) => settlement.items.map((item) => [
     settlement.projectTitle, settlement.eventDate, `${item.category}: ${item.reason}`,
     item.grossAmount, item.incomeTaxAmount, item.localIncomeTaxAmount, item.deductionAmount,
     item.netAmount, item.paidAmount, item.outstandingAmount, settlement.currency,
