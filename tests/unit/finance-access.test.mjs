@@ -166,3 +166,61 @@ test("access and list routes admit an operator while preserving an empty scope",
   });
   assert.equal(listCalls, 1);
 });
+
+test("finance lifecycle filtering keeps paid, unarchived and assigned scopes before pagination", async () => {
+  const calls = [];
+  const query = { then(resolve) { return Promise.resolve({ data: [] }).then(resolve); } };
+  for (const method of ["select", "neq", "eq", "is", "order", "limit", "in", "gt"]) {
+    query[method] = (...args) => { calls.push([method, ...args]); return query; };
+  }
+  const server = await loadTypeScriptModule("../../lib/finance-server.ts", {
+    "next/server": {},
+    "@/lib/auth": {},
+    "@/lib/supabase-server": { createRouteSupabaseClient: () => ({ from: () => query }) },
+    "@/lib/finance": {},
+    "@/lib/finance-access": { canReadFinanceProject, isActiveFinanceOperator },
+    "@/lib/finance-types": {},
+  });
+  const identity = { userId: "manager", ...access({ managedProjectIds: [assignedProject] }) };
+  for (const eventStatus of [undefined, "active", "cancelled", "all", "invalid"]) {
+    calls.length = 0;
+    await server.getFinanceProjects(identity, { eventStatus, limit: 3, cursor: "cursor-id" });
+    assert.ok(calls.some(([m, c, v]) => m === "neq" && c === "projects.pay_type" && v === "free"));
+    assert.ok(calls.some(([m, c, v]) => m === "is" && c === "archived_at" && v === null));
+    assert.ok(calls.some(([m, c, v]) => m === "in" && c === "project_id" && v.includes(assignedProject)));
+    assert.ok(calls.some(([m, v]) => m === "limit" && v === 4));
+    assert.ok(calls.some(([m, c, v]) => m === "gt" && c === "project_id" && v === "cursor-id"));
+    const statusCalls = calls.filter(([, c]) => c === "projects.status");
+    assert.deepEqual(plain(statusCalls), eventStatus === "all" ? [] : [[eventStatus === "cancelled" ? "eq" : "neq", "projects.status", "cancelled"]]);
+  }
+  calls.length = 0;
+  await server.getFinanceProjects({ ...identity, managedProjectIds: [] }, { eventStatus: "all" });
+  assert.equal(calls.length, 0, "all events must not widen an unassigned operator's scope");
+});
+
+test("finance list forwards event scope and distinguishes unpaid, partially paid, and paid", async () => {
+  const fixtures = [
+    { projectId: "unpaid", unpaidAmount: 100, paymentExecutedAmount: 0, confirmedGrossAmount: 100 },
+    { projectId: "partial", unpaidAmount: 50, paymentExecutedAmount: 50, confirmedGrossAmount: 100 },
+    { projectId: "paid", unpaidAmount: 0, paymentExecutedAmount: 100, confirmedGrossAmount: 100 },
+    { projectId: "draft", unpaidAmount: 0, paymentExecutedAmount: 0, confirmedGrossAmount: 0 },
+  ];
+  const route = await loadTypeScriptModule("../../app/api/finance/projects/route.ts", {
+    "@/lib/auth": { isNextResponse: () => false },
+    "@/lib/finance-access": { canEnterFinance },
+    "@/lib/finance-server": {
+      requireFinanceIdentity: async () => access({ isGlobal: true }),
+      getFinanceProjects: async (_identity, options) => {
+        assert.equal(options.eventStatus, "cancelled");
+        return { data: fixtures, nextCursor: "next-page" };
+      },
+      financeJson: (body) => body,
+      financeApiError: () => { throw new Error("Unexpected access denial"); },
+    },
+  });
+  for (const [status, expected] of [["not_paid", ["unpaid"]], ["partially_paid", ["partial"]], ["paid", ["paid"]], ["unpaid", ["unpaid", "partial"]]]) {
+    const result = await route.GET(new Request(`https://crew.example.test/api/finance/projects?eventStatus=cancelled&paymentStatus=${status}`));
+    assert.deepEqual(plain(result.data.map((r) => r.projectId)), expected);
+    assert.equal(result.nextCursor, "next-page");
+  }
+});

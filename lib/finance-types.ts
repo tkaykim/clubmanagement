@@ -59,6 +59,7 @@ export type FinanceManager = {
 export type FinanceProjectSummary = {
   projectId: string;
   title: string;
+  projectStatus?: string;
   eventDate: string | null;
   clientName: string | null;
   currency: FinanceCurrency;

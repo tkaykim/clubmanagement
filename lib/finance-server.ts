@@ -190,7 +190,7 @@ async function loadManagers(
 
 async function loadProjectMeta(supabase: SupabaseClient, projectId: string) {
   const [{ data: project }, { data: firstDate }] = await Promise.all([
-    supabase.from("projects").select("id,title").eq("id", projectId).maybeSingle(),
+    supabase.from("projects").select("id,title,status").eq("id", projectId).maybeSingle(),
     supabase
       .from("schedule_dates")
       .select("date")
@@ -202,6 +202,7 @@ async function loadProjectMeta(supabase: SupabaseClient, projectId: string) {
   ]);
   return {
     title: String((project as Record<string, unknown> | null)?.title ?? "프로젝트"),
+    projectStatus: String((project as Record<string, unknown> | null)?.status ?? ""),
     eventDate: dateValue((firstDate as Record<string, unknown> | null)?.date),
   };
 }
@@ -400,6 +401,7 @@ export async function getFinanceProjectDetail(
   return {
     projectId,
     title: meta.title,
+    projectStatus: meta.projectStatus,
     eventDate: meta.eventDate,
     clientName: (row.client_name as string | null) ?? null,
     currency: String(row.currency),
@@ -441,7 +443,7 @@ export function toFinanceProjectSummary(detail: FinanceProjectDetail): FinancePr
 
 export async function getFinanceProjects(
   identity: FinanceIdentity,
-  options: { cursor?: string | null; limit?: number } = {}
+  options: { cursor?: string | null; limit?: number; eventStatus?: string | null } = {}
 ): Promise<{ data: FinanceProjectSummary[]; nextCursor: string | null }> {
   // Operators with no finance assignments can enter the page, but read no ledger rows.
   if (!identity.isGlobal && identity.managedProjectIds.length === 0) {
@@ -451,11 +453,14 @@ export async function getFinanceProjects(
   const limit = Math.min(100, Math.max(1, options.limit ?? 50));
   let query = supabase
     .from("project_finance")
-    .select("project_id,projects!inner(pay_type)")
+    .select("project_id,projects!inner(pay_type,status)")
     .neq("projects.pay_type", "free")
     .is("archived_at", null)
     .order("project_id", { ascending: true })
     .limit(limit + 1);
+  // Apply lifecycle scope before pagination. History remains accessible to its existing managers.
+  if (options.eventStatus === "cancelled") query = query.eq("projects.status", "cancelled");
+  else if (options.eventStatus !== "all") query = query.neq("projects.status", "cancelled");
   if (!identity.isGlobal) query = query.in("project_id", identity.managedProjectIds);
   if (options.cursor) query = query.gt("project_id", options.cursor);
   const { data } = await query;
