@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   const result = await getFinanceProjects(identity, {
     cursor: params.get("cursor"),
     limit: Number.isFinite(limit) ? limit : 50,
+    eventStatus: params.get("eventStatus"),
   });
   let data = result.data;
   const month = params.get("month");
@@ -24,6 +25,8 @@ export async function GET(request: Request) {
   if (receiptStatus === "paid") data = data.filter((row) => row.receivableAmount === 0);
   const paymentStatus = params.get("paymentStatus");
   if (paymentStatus === "unpaid") data = data.filter((row) => row.unpaidAmount > 0);
+  if (paymentStatus === "not_paid") data = data.filter((row) => row.unpaidAmount > 0 && row.paymentExecutedAmount === 0);
+  if (paymentStatus === "partially_paid") data = data.filter((row) => row.unpaidAmount > 0 && row.paymentExecutedAmount > 0);
   if (paymentStatus === "paid") data = data.filter((row) => row.unpaidAmount === 0 && row.confirmedGrossAmount > 0);
   return financeJson({
     data,
