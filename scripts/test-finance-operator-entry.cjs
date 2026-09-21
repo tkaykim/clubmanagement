@@ -14,6 +14,7 @@ const users = roles.map((role, index) => ({
   user_metadata: {}, app_metadata: {}, created_at: '2026-09-20T00:00:00Z',
 }));
 const tokens = new Map();
+const projects = new Map();
 let ledgerReads = 0;
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1:54329');
@@ -37,6 +38,19 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/auth/v1/user') return reply(user || { message: 'Not authenticated' }, user ? 200 : 401);
   if (url.pathname === '/auth/v1/logout') return reply({});
   if (url.pathname === '/rest/v1/rpc/finance_is_global') return reply(false);
+  if (url.pathname === '/rest/v1/projects') {
+    if (req.method === 'POST') {
+      if (!user || !['admin', 'owner'].includes(user.email.split('@')[0])) return reply({ code: '42501', message: 'denied' }, 403);
+      if (req.headers.prefer?.includes('return=representation')) return reply({ code: '42501', message: 'new row violates row-level security policy for table projects' }, 403);
+      let raw = ''; for await (const chunk of req) raw += chunk;
+      const row = JSON.parse(raw);
+      projects.set(row.id, { ...row, status: 'recruiting', created_at: new Date().toISOString() });
+      return reply(null, 201);
+    }
+    const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+    const row = projects.get(id);
+    return reply(req.headers.accept?.includes('object') ? row ?? null : row ? [row] : []);
+  }
   if (url.pathname === '/rest/v1/crew_members') {
     const role = user?.email.split('@')[0] || 'member';
     const member = { id: user?.id, user_id: user?.id, name: `Test ${role}`, stage_name: null, role, is_active: true, contract_type: 'member' };
@@ -68,7 +82,7 @@ server.listen(54329, '127.0.0.1', async () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     if (!ready) throw new Error('Local isolated app did not start');
-    const test = spawn(process.execPath, [path.join(repo, 'node_modules/@playwright/test/cli.js'), 'test', 'tests/e2e/finance-operator-entry.spec.ts', '--workers=1', '--reporter=line'], { cwd: repo, env, stdio: 'inherit', windowsHide: true });
+    const test = spawn(process.execPath, [path.join(repo, 'node_modules/@playwright/test/cli.js'), 'test', 'tests/e2e/finance-operator-entry.spec.ts', 'tests/e2e/project-create-rls.spec.ts', '--workers=1', '--reporter=line'], { cwd: repo, env, stdio: 'inherit', windowsHide: true });
     const code = await new Promise(resolve => test.on('exit', resolve));
     console.log(`Isolated operator test ledger reads: ${ledgerReads}`);
     process.exitCode = code === 0 && ledgerReads === 0 ? 0 : 1;
