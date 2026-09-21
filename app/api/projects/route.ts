@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { createRouteSupabaseClient } from "@/lib/supabase-server";
 import { requireAdmin, isNextResponse } from "@/lib/auth";
 import { createProjectSchema } from "@/lib/validators";
@@ -35,17 +36,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // 프로젝트 생성
-    const { data: project, error: projectError } = await supabase
+    // Do not combine INSERT with RETURNING: the SELECT RLS helper reads projects
+    // using a STABLE snapshot, which cannot see this new row in the same statement.
+    // Keep the authenticated client and both RLS checks; read in a new statement.
+    const projectId = randomUUID();
+    const { error: projectError } = await supabase
       .from("projects")
       .insert({
         ...projectData,
+        id: projectId,
         owner_id: admin.user_id,
-      })
-      .select()
-      .single();
+      });
 
-    if (projectError || !project) {
+    if (projectError) {
       console.error("[POST /api/projects] project insert error:", projectError);
       return NextResponse.json(
         {
@@ -53,6 +56,22 @@ export async function POST(request: Request) {
           code: projectError?.code ?? null,
           details: projectError?.details ?? null,
           hint: projectError?.hint ?? null,
+        },
+        { status: 500 }
+      );
+    }
+
+    const { data: project, error: readError } = await supabase
+      .from("projects")
+      .select()
+      .eq("id", projectId)
+      .single();
+    if (readError || !project) {
+      console.error("[POST /api/projects] created project read error:", readError);
+      return NextResponse.json(
+        {
+          error: "프로젝트는 생성되었지만 결과를 불러오지 못했습니다. 다시 생성하지 말고 프로젝트 목록을 확인해 주세요.",
+          project_id: projectId,
         },
         { status: 500 }
       );
