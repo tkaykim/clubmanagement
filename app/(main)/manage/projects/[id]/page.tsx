@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ManageProjectClient } from "@/components/manage/ManageProjectClient";
 import { ProjectManagersSection } from "@/components/manage/ProjectManagersSection";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, FileText } from "lucide-react";
+import { paperworkShareUrl } from "@/lib/paperwork-link";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -119,7 +120,18 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
           <ChevronLeft size={14} strokeWidth={2} />
           관리
         </Link>
-        <ProjectManagersSection projectId={projectId} />
+        <div className="row gap-8">
+          <a
+            href={paperworkShareUrl({ project: project.title })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn sm"
+          >
+            <FileText size={13} strokeWidth={2} />
+            거래 서류 보내기
+          </a>
+          <ProjectManagersSection projectId={projectId} />
+        </div>
       </div>
 
       <div className="page-head">
