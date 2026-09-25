@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ManageProjectClient } from "@/components/manage/ManageProjectClient";
 import { ProjectManagersSection } from "@/components/manage/ProjectManagersSection";
 import { ChevronLeft, FileText } from "lucide-react";
-import { paperworkShareUrl } from "@/lib/paperwork-link";
+import { paperworkHandoffUrl } from "@/lib/paperwork-link";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -122,7 +122,7 @@ export default async function ManageProjectPage({ params, searchParams }: Props)
         </Link>
         <div className="row gap-8">
           <a
-            href={paperworkShareUrl({ project: project.title })}
+            href={paperworkHandoffUrl(projectId)}
             target="_blank"
             rel="noopener noreferrer"
             className="btn sm"
