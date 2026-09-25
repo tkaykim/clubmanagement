@@ -10,7 +10,7 @@ import { FinanceEmpty, FinanceError, FinanceLoading } from "./FinanceStates";
 import { FinanceStatus } from "./FinanceStatus";
 import { FinanceSummaryCard } from "./FinanceSummaryCard";
 import { SearchableMemberDropdown } from "./SearchableMemberDropdown";
-import { paperworkShareUrl } from "@/lib/paperwork-link";
+import { paperworkHandoffUrl } from "@/lib/paperwork-link";
 
 type FinanceMemberCandidate = { crewMemberId: string; userId: string; name: string };
 type FinanceMutation = (path: string, method: "POST" | "PUT", body: unknown, success: string) => Promise<FinanceProjectDetail>;
@@ -122,7 +122,7 @@ export function FinanceProjectDetailClient({ projectId }: { projectId: string })
         <div className="row gap-8" style={{ flexWrap: "wrap" }}>
           <FinanceStatus status={detail.allowanceStatus ?? "draft"} />
           <button className="btn sm" type="button" onClick={() => window.location.assign(`/api/finance/projects/${encodeURIComponent(projectId)}/csv`)}><Download size={13} /> CSV</button>
-          <a className="btn sm" href={paperworkShareUrl({ project: detail.title, to: detail.clientName })} target="_blank" rel="noopener noreferrer"><FileText size={13} /> 거래 서류 보내기</a>
+          <a className="btn sm" href={paperworkHandoffUrl(projectId)} target="_blank" rel="noopener noreferrer"><FileText size={13} /> 거래 서류 보내기</a>
         </div>
       </div>
 
