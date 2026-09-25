@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Download, FileCheck2, Loader2, Plus, ReceiptText, Save, Send, UsersRound, WalletCards } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, FileCheck2, FileText, Loader2, Plus, ReceiptText, Save, Send, UsersRound, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import type { FinanceAllowanceDraftItemInput, FinanceAllowanceItem, FinanceBudgetInput, FinanceManagersInput, FinancePaymentInput, FinanceProjectDetail, FinanceReceiptInput } from "@/lib/finance-types";
 import { apiErrorMessage, formatDate, formatWon } from "./format";
@@ -10,6 +10,7 @@ import { FinanceEmpty, FinanceError, FinanceLoading } from "./FinanceStates";
 import { FinanceStatus } from "./FinanceStatus";
 import { FinanceSummaryCard } from "./FinanceSummaryCard";
 import { SearchableMemberDropdown } from "./SearchableMemberDropdown";
+import { paperworkShareUrl } from "@/lib/paperwork-link";
 
 type FinanceMemberCandidate = { crewMemberId: string; userId: string; name: string };
 type FinanceMutation = (path: string, method: "POST" | "PUT", body: unknown, success: string) => Promise<FinanceProjectDetail>;
@@ -121,6 +122,7 @@ export function FinanceProjectDetailClient({ projectId }: { projectId: string })
         <div className="row gap-8" style={{ flexWrap: "wrap" }}>
           <FinanceStatus status={detail.allowanceStatus ?? "draft"} />
           <button className="btn sm" type="button" onClick={() => window.location.assign(`/api/finance/projects/${encodeURIComponent(projectId)}/csv`)}><Download size={13} /> CSV</button>
+          <a className="btn sm" href={paperworkShareUrl({ project: detail.title, to: detail.clientName })} target="_blank" rel="noopener noreferrer"><FileText size={13} /> 거래 서류 보내기</a>
         </div>
       </div>
 
